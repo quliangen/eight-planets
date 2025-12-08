@@ -11,17 +11,55 @@ interface StarshipProps {
 export const Starship: React.FC<StarshipProps> = ({ planetRefs }) => {
   const groupRef = useRef<Group>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
+  const initializedRef = useRef(false);
   
   useFrame((state, delta) => {
     if (!groupRef.current) return;
+
+    // 0. INITIALIZATION: Spawn at Earth
+    if (!initializedRef.current) {
+      const earthObj = planetRefs.current['earth'];
+      if (earthObj) {
+        const startPos = new Vector3();
+        earthObj.getWorldPosition(startPos);
+        
+        // Check if Earth has been positioned (avoid 0,0,0 spawn if frame hasn't run yet)
+        // Earth distance is > 0, so length() should be > 0
+        if (startPos.lengthSq() > 1) {
+             // Spawn slightly above Earth
+             startPos.y += 4.0;
+             groupRef.current.position.copy(startPos);
+             groupRef.current.lookAt(new Vector3(0, 0, 0)); // Look at sun initially or neutral
+             initializedRef.current = true;
+        }
+      }
+      return; // Skip normal movement logic on init frame
+    }
 
     // 1. Target Selection
     if (!targetId) {
       const ids = Object.keys(planetRefs.current);
       if (ids.length > 0) {
-        // Pick a random planet
-        const nextId = ids[Math.floor(Math.random() * ids.length)];
-        setTargetId(nextId);
+        // Filter out Earth if we are just launching (so we fly AWAY from Earth)
+        // Also filter out current location if possible (simple heuristic: don't pick what we are close to)
+        const currentPos = groupRef.current.position;
+        
+        const validIds = ids.filter(id => {
+           const pObj = planetRefs.current[id];
+           const pPos = new Vector3();
+           pObj.getWorldPosition(pPos);
+           // Don't pick planets we are already very close to (e.g. < 10 units)
+           return pPos.distanceTo(currentPos) > 20; 
+        });
+
+        if (validIds.length > 0) {
+           const nextId = validIds[Math.floor(Math.random() * validIds.length)];
+           setTargetId(nextId);
+        } else {
+           // Fallback if somehow close to everything (unlikely)
+           const nextId = ids[Math.floor(Math.random() * ids.length)];
+           setTargetId(nextId);
+        }
       }
       return;
     }
@@ -63,7 +101,7 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs }) => {
 
   return (
     // Scaled up by 2x as requested
-    <group ref={groupRef} position={[30, 0, 30]} scale={[2, 2, 2]}>
+    <group ref={groupRef} scale={[2, 2, 2]}>
       
       {/* ROCKET GEOMETRY (Untrailed) */}
       <group>
