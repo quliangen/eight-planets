@@ -304,7 +304,7 @@ export const generateGenericGlowTexture = (): string => {
 
 /**
  * Generates a deep space starfield texture with nebulae and rich gradients.
- * Replaces the simple gradient with a more "magical" deep space look.
+ * Implements seamless wrapping to avoid junction lines.
  */
 export const generateStarFieldTexture = (): string => {
   const width = 2048; 
@@ -321,7 +321,7 @@ export const generateStarFieldTexture = (): string => {
       </linearGradient>
       
       <filter id="nebulaBlur">
-        <feGaussianBlur in="SourceGraphic" stdDeviation="40" />
+        <feGaussianBlur in="SourceGraphic" stdDeviation="50" />
       </filter>
     </defs>
     
@@ -332,6 +332,19 @@ export const generateStarFieldTexture = (): string => {
   // We use large ellipses with heavy blur to simulate gas clouds
   const nebulaColors = ['#312E81', '#4C1D95', '#1e3a8a', '#581c87']; // Indigos, Violets
   
+  // Helper to draw seamless ellipses
+  const drawSeamlessEllipse = (cx: number, cy: number, rx: number, ry: number, fill: string, opacity: number) => {
+      let str = `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" opacity="${opacity}" filter="url(#nebulaBlur)" />`;
+      // Check Wraps
+      if (cx - rx < 0) {
+           str += `<ellipse cx="${cx + width}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" opacity="${opacity}" filter="url(#nebulaBlur)" />`;
+      }
+      if (cx + rx > width) {
+           str += `<ellipse cx="${cx - width}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" opacity="${opacity}" filter="url(#nebulaBlur)" />`;
+      }
+      return str;
+  };
+
   // Add a few large "gas" blobs
   for (let i = 0; i < 6; i++) {
      const cx = Math.random() * width;
@@ -341,11 +354,23 @@ export const generateStarFieldTexture = (): string => {
      const color = nebulaColors[Math.floor(Math.random() * nebulaColors.length)];
      const opacity = Math.random() * 0.15 + 0.05; // Very subtle
      
-     svgContent += `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${color}" opacity="${opacity}" filter="url(#nebulaBlur)" />`;
+     svgContent += drawSeamlessEllipse(cx, cy, rx, ry, color, opacity);
   }
 
   // 3. Background Stars (The "texture" stars)
   // We keep these for the far-far background density. 3D Stars will be added in front.
+  
+  const drawSeamlessCircle = (cx: number, cy: number, r: number, fill: string, opacity: number) => {
+      let str = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" opacity="${opacity}" />`;
+      if (cx - r < 0) {
+           str += `<circle cx="${cx + width}" cy="${cy}" r="${r}" fill="${fill}" opacity="${opacity}" />`;
+      }
+      if (cx + r > width) {
+           str += `<circle cx="${cx - width}" cy="${cy}" r="${r}" fill="${fill}" opacity="${opacity}" />`;
+      }
+      return str;
+  };
+
   for (let i = 0; i < 800; i++) {
     const x = Math.random() * width;
     const y = Math.random() * height;
@@ -358,7 +383,7 @@ export const generateStarFieldTexture = (): string => {
     if (randomVal < 0.15) fill = "#FEF3C7"; // Goldish
 
     const opacity = Math.random() * 0.5 + 0.2;
-    svgContent += `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" opacity="${opacity}" />`;
+    svgContent += drawSeamlessCircle(x, y, r, fill, opacity);
   }
 
   // A few brighter stars in the texture
@@ -366,7 +391,7 @@ export const generateStarFieldTexture = (): string => {
      const x = Math.random() * width;
      const y = Math.random() * height;
      const r = Math.random() * 0.8 + 0.6;
-     svgContent += `<circle cx="${x}" cy="${y}" r="${r}" fill="#FFFFFF" opacity="0.8" />`;
+     svgContent += drawSeamlessCircle(x, y, r, "#FFFFFF", 0.8);
   }
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" preserveAspectRatio="none" viewBox="0 0 ${width} ${height}">${svgContent}</svg>`;
@@ -374,44 +399,142 @@ export const generateStarFieldTexture = (): string => {
 };
 
 /**
- * Generates a procedural ring texture with transparency gradients.
- * Simulates a "vinyl" record look with gaps.
+ * Generates a procedural ring texture.
+ * Customized for Saturn (realistic bands + gaps) and Uranus (thin dark rings).
  */
-export const generateRingTexture = (baseColor: string): string => {
-  const width = 512;
-  const height = 512;
+export const generateRingTexture = (planetId: string, baseColor: string): string => {
+  const width = 1024;
+  const height = 1024;
 
-  // We use a radial gradient to create bands.
-  // The texture is square, so cx=50% cy=50% r=50% touches the edges.
-  // Note: RingGeometry maps UVs to the bounding box of the ring.
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  let svgContent = '';
+
+  if (planetId === 'saturn') {
+    // NASA-like Saturn Rings
+    // Colors: #C5AB6E (Base), #BFA667 (Darker), #EFEBCF (Lighter)
+    // Structure: C Ring (Inner, Faint) -> B Ring (Brightest) -> Cassini Division (Gap) -> A Ring (Outer)
+    svgContent = `
       <defs>
-        <radialGradient id="ringGrad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-          <!-- Inner hole area (covered by geometry anyway, but good for blending) -->
-          <stop offset="40%" style="stop-color:${baseColor};stop-opacity:0" />
+        <radialGradient id="saturnRing" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+          <!-- Inner Gap -->
+          <stop offset="50%" style="stop-color:transparent;stop-opacity:0" />
+
+          <!-- C Ring (Faint, semi-transparent, darker rock) -->
+          <stop offset="55%" style="stop-color:#5A5040;stop-opacity:0.3" />
+          <stop offset="63%" style="stop-color:#5A5040;stop-opacity:0.4" />
+
+          <!-- Maxwell Gap approx -->
+          <stop offset="63.5%" style="stop-color:#2a2a2a;stop-opacity:0.1" />
+
+          <!-- B Ring (Bright, dense ice) -->
+          <stop offset="64%" style="stop-color:#CDBA88;stop-opacity:0.8" />
+          <stop offset="70%" style="stop-color:#EFEBCF;stop-opacity:1" /> <!-- Brightest part -->
+          <stop offset="72%" style="stop-color:#D8C48E;stop-opacity:0.9" />
+          <stop offset="75%" style="stop-color:#BFA667;stop-opacity:0.8" />
+
+          <!-- Cassini Division (The Big Gap) -->
+          <stop offset="75.5%" style="stop-color:#000000;stop-opacity:0.05" />
+          <stop offset="78%" style="stop-color:#000000;stop-opacity:0.05" />
+
+          <!-- A Ring (Outer, detailed) -->
+          <stop offset="78.5%" style="stop-color:#A89870;stop-opacity:0.8" />
+          <stop offset="85%" style="stop-color:#B0A076;stop-opacity:0.7" />
           
-          <!-- Start of Ring -->
-          <stop offset="50%" style="stop-color:${baseColor};stop-opacity:0.2" />
-          <stop offset="60%" style="stop-color:${baseColor};stop-opacity:0.9" />
-          
-          <!-- The "Gap" (Cassini Division style) -->
-          <stop offset="65%" style="stop-color:${baseColor};stop-opacity:0.3" />
-          <stop offset="68%" style="stop-color:${baseColor};stop-opacity:0.8" />
+          <!-- Encke Gap (Small gap inside A Ring) -->
+          <stop offset="86%" style="stop-color:#000000;stop-opacity:0.1" />
+          <stop offset="86.5%" style="stop-color:#A89870;stop-opacity:0.7" />
+
+          <stop offset="90%" style="stop-color:#958763;stop-opacity:0.6" />
           
           <!-- Outer Fade -->
+          <stop offset="100%" style="stop-color:transparent;stop-opacity:0" />
+        </radialGradient>
+        
+        <!-- Noise filter for granular look -->
+        <filter id="ringNoise">
+          <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/>
+          <feColorMatrix type="saturate" values="0"/>
+          <feComponentTransfer>
+            <feFuncA type="linear" slope="0.3"/>
+          </feComponentTransfer>
+        </filter>
+      </defs>
+      
+      <rect width="100%" height="100%" fill="url(#saturnRing)" />
+      
+      <!-- Add grain texture overlay -->
+      <rect width="100%" height="100%" filter="url(#ringNoise)" opacity="0.4" style="mix-blend-mode: overlay;" />
+      
+      <!-- Subtle concentric lines for detail -->
+      <circle cx="512" cy="512" r="300" stroke="#443322" stroke-width="1" fill="none" opacity="0.2" />
+      <circle cx="512" cy="512" r="350" stroke="#443322" stroke-width="0.5" fill="none" opacity="0.2" />
+      <circle cx="512" cy="512" r="400" stroke="#443322" stroke-width="1" fill="none" opacity="0.2" />
+    `;
+  } else if (planetId === 'uranus') {
+    // Uranus Rings: 
+    // Optimized for visibility with dual gradient approach (base glow + sharp bands).
+    svgContent = `
+      <defs>
+        <radialGradient id="uranusBaseGlow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+           <stop offset="40%" style="stop-color:transparent;stop-opacity:0" />
+           
+           <!-- Wide Soft Base Gradient (Cyan/Blue tint) -->
+           <stop offset="50%" style="stop-color:#71C9CE;stop-opacity:0" />
+           <stop offset="65%" style="stop-color:#A6E3E9;stop-opacity:0.15" />
+           <stop offset="85%" style="stop-color:#CBF1F5;stop-opacity:0.25" />
+           <stop offset="95%" style="stop-color:#71C9CE;stop-opacity:0" />
+        </radialGradient>
+
+        <radialGradient id="uranusBands" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+           <!-- Inner Ring -->
+           <stop offset="58%" style="stop-color:#FFFFFF;stop-opacity:0" />
+           <stop offset="59%" style="stop-color:#FFFFFF;stop-opacity:0.7" />
+           <stop offset="60%" style="stop-color:#FFFFFF;stop-opacity:0" />
+
+           <!-- Middle Ring -->
+           <stop offset="70%" style="stop-color:#FFFFFF;stop-opacity:0" />
+           <stop offset="71%" style="stop-color:#FFFFFF;stop-opacity:0.8" />
+           <stop offset="72%" style="stop-color:#FFFFFF;stop-opacity:0" />
+
+           <!-- Main Epsilon Ring (Wide and Bright) -->
+           <stop offset="84%" style="stop-color:#FFFFFF;stop-opacity:0" />
+           <stop offset="85%" style="stop-color:#E0FFFF;stop-opacity:0.9" /> 
+           <stop offset="86%" style="stop-color:#FFFFFF;stop-opacity:1.0" />
+           <stop offset="87%" style="stop-color:#E0FFFF;stop-opacity:0.9" />
+           <stop offset="88%" style="stop-color:#FFFFFF;stop-opacity:0" />
+        </radialGradient>
+      </defs>
+      
+      <!-- 1. Soft Glow Base Layer -->
+      <rect width="100%" height="100%" fill="url(#uranusBaseGlow)" />
+      
+      <!-- 2. Sharp Bands Layer -->
+      <rect width="100%" height="100%" fill="url(#uranusBands)" />
+      
+      <!-- 3. Extra Strokes for high frequency definition -->
+       <circle cx="512" cy="512" r="440" stroke="#FFFFFF" stroke-width="4" fill="none" opacity="0.8" />
+       <circle cx="512" cy="512" r="364" stroke="#FFFFFF" stroke-width="2" fill="none" opacity="0.5" />
+    `;
+  } else {
+    // Generic logic for other planets with rings
+    svgContent = `
+      <defs>
+        <radialGradient id="ringGrad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+          <stop offset="40%" style="stop-color:${baseColor};stop-opacity:0" />
+          <stop offset="50%" style="stop-color:${baseColor};stop-opacity:0.2" />
+          <stop offset="60%" style="stop-color:${baseColor};stop-opacity:0.9" />
+          <stop offset="65%" style="stop-color:${baseColor};stop-opacity:0.3" />
+          <stop offset="68%" style="stop-color:${baseColor};stop-opacity:0.8" />
           <stop offset="85%" style="stop-color:${baseColor};stop-opacity:0.8" />
           <stop offset="100%" style="stop-color:${baseColor};stop-opacity:0" />
         </radialGradient>
       </defs>
       <rect width="100%" height="100%" fill="url(#ringGrad)" />
-      
-      <!-- Subtle Noise Rings to add realism -->
-      <circle cx="256" cy="256" r="180" stroke="${baseColor}" stroke-width="1" fill="none" opacity="0.3" />
-      <circle cx="256" cy="256" r="200" stroke="${baseColor}" stroke-width="2" fill="none" opacity="0.2" />
-      <circle cx="256" cy="256" r="220" stroke="${baseColor}" stroke-width="1" fill="none" opacity="0.3" />
-    </svg>
-  `;
+      <circle cx="512" cy="512" r="360" stroke="${baseColor}" stroke-width="1" fill="none" opacity="0.3" />
+      <circle cx="512" cy="512" r="400" stroke="${baseColor}" stroke-width="2" fill="none" opacity="0.2" />
+      <circle cx="512" cy="512" r="440" stroke="${baseColor}" stroke-width="1" fill="none" opacity="0.3" />
+    `;
+  }
 
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${svgContent}</svg>`;
   return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
 };

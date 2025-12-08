@@ -1,6 +1,8 @@
 
 
 
+
+
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Mesh, Color, DoubleSide, Vector3, TextureLoader, AdditiveBlending, Object3D, Group } from 'three';
@@ -102,7 +104,7 @@ export const Planet: React.FC<PlanetProps> = ({
 
   // Generate SVG Texture for Rings (if applicable)
   const ringTextureUrl = useMemo(() => {
-    return data.hasRings && data.ringColor ? generateRingTexture(data.ringColor) : null;
+    return data.hasRings && data.ringColor ? generateRingTexture(data.id, data.ringColor) : null;
   }, [data]);
   const ringTexture = useMemo(() => ringTextureUrl ? new TextureLoader().load(ringTextureUrl) : null, [ringTextureUrl]);
 
@@ -220,7 +222,7 @@ export const Planet: React.FC<PlanetProps> = ({
           {data.hasRings && ringTexture && (
             // Rotate X by -90 to lay flat relative to the tilted group
             <mesh rotation={[-Math.PI / 2, 0, 0]}>
-              <ringGeometry args={[data.size * 1.4, data.size * 2.3, 64]} />
+              <ringGeometry args={[data.size * 1.4, data.size * 2.3, 128]} />
               <meshStandardMaterial 
                 map={ringTexture}
                 color="#ffffff" 

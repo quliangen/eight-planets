@@ -3,7 +3,7 @@
 import React, { useState, Suspense, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sparkles, PerspectiveCamera, Environment, Stars } from '@react-three/drei';
-import { Vector3, TextureLoader, BackSide, Mesh, Object3D } from 'three';
+import { Vector3, TextureLoader, BackSide, Mesh, Object3D, RepeatWrapping, ClampToEdgeWrapping } from 'three';
 import { PLANETS, SUN_DATA } from './constants';
 import { Planet } from './components/Planet';
 import { Sun } from './components/Sun';
@@ -16,7 +16,14 @@ import { generateStarFieldTexture } from './utils/textureGenerator';
 const Skybox: React.FC = () => {
   const meshRef = useRef<Mesh>(null);
   const starTextureUrl = useMemo(() => generateStarFieldTexture(), []);
-  const starTexture = useMemo(() => new TextureLoader().load(starTextureUrl), [starTextureUrl]);
+  const starTexture = useMemo(() => {
+    const t = new TextureLoader().load(starTextureUrl);
+    // Important: Use RepeatWrapping to ensure seamless UV wrapping, 
+    // although our content is manually wrapped, this helps with interpolation at the seam.
+    t.wrapS = RepeatWrapping;
+    t.wrapT = ClampToEdgeWrapping; // Vertical poles clamp
+    return t;
+  }, [starTextureUrl]);
 
   useFrame((state, delta) => {
     if (meshRef.current) {

@@ -68,13 +68,17 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
   };
 
   const styles = `
-    @keyframes wiggle {
-      0%, 100% { transform: rotate(-3deg); }
-      50% { transform: rotate(3deg); }
-    }
     @keyframes spin-slow {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 10px rgba(6,182,212,0.5); }
+      50% { box-shadow: 0 0 20px rgba(6,182,212,0.8); }
     }
     @keyframes pop-up {
       0% { transform: scale(0.5) translateY(50px); opacity: 0; }
@@ -85,125 +89,155 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
       from { opacity: 0; }
       to { opacity: 1; }
     }
-    .animate-wiggle { animation: wiggle 2s ease-in-out infinite; }
     .animate-pop-up { animation: pop-up 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
     .animate-fade-in { animation: fade-in 0.2s ease-out forwards; }
+    .animate-float { animation: float 4s ease-in-out infinite; }
     
-    /* Pikachu Scrollbar */
-    .pika-scrollbar::-webkit-scrollbar { width: 10px; }
-    .pika-scrollbar::-webkit-scrollbar-track { background: #FFFBEB; border-radius: 5px; border: 2px solid #000; }
-    .pika-scrollbar::-webkit-scrollbar-thumb { background: #FACC15; border-radius: 5px; border: 2px solid #000; }
+    /* Custom Scrollbar */
+    .pika-scrollbar::-webkit-scrollbar { width: 6px; }
+    .pika-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); border-radius: 3px; }
+    .pika-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 3px; }
     
     /* Common Button Base */
     .action-btn {
-      width: 4rem; height: 4rem; /* w-16 h-16 */
-      border: 4px solid #000;
-      box-shadow: 4px 4px 0px #000;
-      border-radius: 9999px; /* rounded-full */
+      width: 4rem; height: 4rem;
+      border: 3px solid rgba(255,255,255,0.2);
+      border-radius: 50%;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      transition: all 0.2s;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
       position: relative;
+      overflow: hidden;
     }
-    .action-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px #000; }
+    .action-btn::before {
+      content: ''; position: absolute; inset: 0; 
+      background: radial-gradient(circle at top left, rgba(255,255,255,0.4), transparent 70%);
+      opacity: 0.5;
+    }
+    .action-btn:active { transform: scale(0.95); }
+    .action-btn:hover { border-color: rgba(255,255,255,0.8); transform: translateY(-2px); }
 
-    /* Pokéball Button */
+    /* Pokeball (Pause) - Space Style */
     .pokeball {
-      background: linear-gradient(to bottom, #EF4444 48%, #000 48%, #000 52%, #FFFFFF 52%);
+      background: linear-gradient(135deg, #e11d48, #881337); /* Red planet style */
     }
-    .pokeball::after {
-      content: '';
-      position: absolute;
-      top: 50%; left: 50%; transform: translate(-50%, -50%);
-      width: 20px; height: 20px; background: #FFFFFF;
-      border: 3px solid #000; border-radius: 50%;
-      box-shadow: inset 2px 2px 5px rgba(0,0,0,0.1);
-    }
-    .pokeball.paused { filter: grayscale(0.8); }
-    .pokeball.spinning::after { background: #EF4444; }
-
-    /* Comic Style */
-    .comic-border { border: 4px solid #000; box-shadow: 4px 4px 0px #000; }
-    /* Adjusted stroke for smaller text size */
-    .comic-text-stroke { -webkit-text-stroke: 1px #000; text-shadow: 1px 1px 0 #000; }
+    .pokeball.paused { filter: grayscale(1); opacity: 0.7; }
     
     /* Rocket Button Style */
     .rocket-btn {
-      background: linear-gradient(135deg, #3B82F6, #60A5FA);
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
     }
-    .rocket-btn.inactive { filter: grayscale(1); background: #94A3B8; }
+    .rocket-btn.inactive { background: rgba(30, 41, 59, 0.8); border-color: rgba(255,255,255,0.1); }
     .rocket-btn .indicator {
-       position: absolute; top: 8px; right: 8px;
-       width: 12px; height: 12px; border: 2px solid #000; border-radius: 50%;
+       position: absolute; top: 10px; right: 10px;
+       width: 8px; height: 8px; border-radius: 50%;
+       box-shadow: 0 0 5px currentColor;
     }
 
     /* Pluto Button Style */
     .pluto-btn {
-      background: linear-gradient(135deg, #A5B4FC, #6366F1);
+      background: linear-gradient(135deg, #8b5cf6, #5b21b6);
     }
-    .pluto-btn.inactive { filter: grayscale(1); background: #94A3B8; }
+    .pluto-btn.inactive { background: rgba(30, 41, 59, 0.8); border-color: rgba(255,255,255,0.1); }
     .pluto-btn .indicator {
-       position: absolute; top: 8px; right: 8px;
-       width: 12px; height: 12px; border: 2px solid #000; border-radius: 50%;
+       position: absolute; top: 10px; right: 10px;
+       width: 8px; height: 8px; border-radius: 50%;
+       box-shadow: 0 0 5px currentColor;
     }
 
     /* Gesture Button Style */
     .gesture-btn {
-      background: linear-gradient(135deg, #34D399, #10B981);
+      background: linear-gradient(135deg, #10b981, #047857);
     }
-    .gesture-btn.inactive { filter: grayscale(1); background: #94A3B8; }
+    .gesture-btn.inactive { background: rgba(30, 41, 59, 0.8); border-color: rgba(255,255,255,0.1); }
     .gesture-btn .indicator {
-       position: absolute; top: 8px; right: 8px;
-       width: 12px; height: 12px; border: 2px solid #000; border-radius: 50%;
+       position: absolute; top: 10px; right: 10px;
+       width: 8px; height: 8px; border-radius: 50%;
+       box-shadow: 0 0 5px currentColor;
+    }
+
+    /* Comic Style Replacement - Space Info Card */
+    .space-card-border {
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(12px);
     }
   `;
 
   return (
     <>
       <style>{styles}</style>
-      <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 sm:p-6 z-10 font-sans">
+      <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 sm:p-6 z-10 font-sans select-none">
         
-        {/* Header Section */}
+        {/* Header Section - Astronaut/HUD Theme */}
         <header className="flex justify-between items-start pointer-events-auto w-full max-w-5xl mx-auto sm:mx-0">
-          <div className="flex flex-col items-start gap-2 relative">
-            <div className="absolute -left-6 -top-6 text-yellow-400 opacity-80 z-0 animate-pulse">
-               <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+          <div className="flex flex-col items-start relative pl-2 pt-2">
+            
+            {/* Background Decorative HUD Ring */}
+            <div className="absolute -left-12 -top-12 text-cyan-500/10 z-0 animate-spin-slow" style={{animationDuration: '60s'}}>
+               <svg width="200" height="200" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1">
+                 <circle cx="50" cy="50" r="48" strokeDasharray="10 5" />
+                 <circle cx="50" cy="50" r="35" opacity="0.5" />
+                 <path d="M50 2 L50 10 M50 90 L50 98 M2 50 L10 50 M90 50 L98 50" strokeWidth="2" />
+               </svg>
             </div>
-            <div className="bg-white comic-border px-4 py-2 rounded-full z-10 animate-wiggle origin-bottom-left flex items-center gap-2">
-              <span className="text-red-500 font-black text-lg">⚡️ Pika!</span>
-              <span className="text-black font-bold text-sm">给：一年3班 小豆子</span>
+
+            {/* Recipient Tag - HUD Style - MORE TRANSPARENT */}
+            <div className="relative z-10 flex items-center gap-3 bg-slate-900/10 border border-cyan-500/20 backdrop-blur-md px-4 py-1.5 rounded-tr-xl rounded-bl-xl shadow-[0_0_15px_rgba(6,182,212,0.1)] mb-3 animate-float">
+               <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]"></div>
+                  <span className="text-cyan-400 font-mono text-[10px] tracking-widest uppercase">Mission Target</span>
+               </div>
+               <div className="w-[1px] h-3 bg-white/20"></div>
+               <span className="text-blue-50 font-bold text-sm tracking-wide">给：一年3班 小豆子</span>
             </div>
-            <div className="flex flex-col z-10 ml-2">
-              {/* Reduced background intensity (opacity 50%) and smaller text size (text-xl/3xl) */}
-              <div className="bg-yellow-400/50 backdrop-blur-md comic-border px-6 py-3 rounded-2xl transform -rotate-1 shadow-[8px_8px_0px_rgba(0,0,0,0.2)]">
-                <div className="flex items-center gap-2 mb-1">
-                   <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-black"></div>
-                   <span className="text-[10px] font-black text-black tracking-widest uppercase">Pokemon Explorer Mode</span>
-                   <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-black"></div>
+
+            {/* Main Title - Space Badge with Cute Font - MORE TRANSPARENT */}
+            <div className="relative z-10">
+              <div className="bg-slate-900/5 border-l-4 border-blue-500 border-y border-r border-blue-500/10 backdrop-blur-xl px-6 py-4 rounded-r-2xl shadow-2xl relative overflow-hidden group">
+                {/* Glossy sheen */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
+                {/* Scanline */}
+                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-50 animate-pulse"></div>
+                
+                <div className="flex flex-col">
+                   <div className="flex items-center gap-2 mb-1 opacity-80">
+                      <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-2.5l7.51-3.22-7.52-1.5 1.5-7.52 3.22 7.51z"/>
+                      </svg>
+                      <span className="text-[10px] font-mono text-blue-300 tracking-[0.3em] uppercase">System Online</span>
+                   </div>
+                   {/* UPDATED FONT STYLE HERE */}
+                   <h1 className="text-3xl sm:text-4xl text-white tracking-widest flex items-center gap-2" 
+                       style={{ 
+                         fontFamily: '"ZCOOL KuaiLe", cursive, sans-serif',
+                         textShadow: '0 0 15px rgba(59,130,246,0.6), 2px 2px 0px rgba(0,0,0,0.3)' 
+                       }}>
+                     太阳和它的朋友们
+                   </h1>
                 </div>
-                <h1 className="text-xl sm:text-3xl font-black text-yellow-100 italic tracking-wider comic-text-stroke">
-                  太阳和它的朋友们
-                </h1>
               </div>
             </div>
           </div>
           
           <div className="flex gap-4 pt-2">
-            {/* Pause Button (Pokeball) */}
+            {/* Pause Button */}
             <button 
               onClick={togglePause}
               className={`action-btn pokeball pointer-events-auto ${!isPaused ? 'spinning' : 'paused'}`}
               title={isPaused ? "Go! (继续)" : "Wait! (暂停)"}
-              style={{ animation: !isPaused ? 'spin-slow 10s linear infinite' : 'none' }}
             >
+              <span className="text-2xl">{isPaused ? "⏸" : "▶️"}</span>
             </button>
 
-            {/* Interstellar Travel Button (Circular) */}
+            {/* Interstellar Travel Button */}
             <button
               onClick={toggleStarship}
               title="Toggle Starship"
               className={`action-btn rocket-btn pointer-events-auto ${!isStarshipActive ? 'inactive' : ''}`}
             >
-              <div className={`indicator ${isStarshipActive ? 'bg-green-400' : 'bg-red-400'}`}></div>
+              <div className={`indicator ${isStarshipActive ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
               <span className="text-2xl mt-1">🚀</span>
             </button>
 
@@ -213,7 +247,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
               title="手势控制"
               className={`action-btn gesture-btn pointer-events-auto ${!isGestureMode ? 'inactive' : ''}`}
             >
-              <div className={`indicator ${isGestureMode ? 'bg-green-400' : 'bg-red-400'}`}></div>
+              <div className={`indicator ${isGestureMode ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
               <span className="text-2xl mt-1">👋</span>
             </button>
 
@@ -223,42 +257,44 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
               title="Toggle Pluto"
               className={`action-btn pluto-btn pointer-events-auto ${!showPluto ? 'inactive' : ''}`}
             >
-              <div className={`indicator ${showPluto ? 'bg-green-400' : 'bg-red-400'}`}></div>
+              <div className={`indicator ${showPluto ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
               <span className="text-2xl mt-1">❄️</span>
             </button>
           </div>
         </header>
 
-        {/* Planet Info Card */}
+        {/* Planet Info Card (Right Side) */}
         {selectedPlanet && (
           <div className="pointer-events-auto self-end sm:self-auto sm:absolute sm:right-6 sm:top-28 sm:w-[380px] w-full max-h-[calc(100vh-160px)] flex flex-col animate-pop-up">
             
-            <div className="bg-yellow-400 comic-border rounded-3xl p-2 shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 text-yellow-200 opacity-50 pointer-events-none">
-                 <svg width="100" height="100" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+            <div className="bg-slate-900/90 space-card-border rounded-3xl p-1 shadow-2xl relative overflow-hidden">
+              {/* Card Decoration */}
+              <div className="absolute top-0 right-0 p-4 opacity-20 pointer-events-none">
+                 <svg width="80" height="80" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
               </div>
 
-              <div className="bg-slate-800 rounded-2xl border-4 border-black p-4 h-full flex flex-col relative overflow-hidden">
+              <div className="bg-black/40 rounded-2xl border border-white/10 p-4 h-full flex flex-col relative overflow-hidden">
                 <button 
                   onClick={onClose} 
-                  className="absolute top-3 right-3 z-20 w-8 h-8 bg-red-500 border-2 border-black rounded flex items-center justify-center hover:bg-red-400 active:scale-95 text-white font-bold"
+                  className="absolute top-3 right-3 z-20 w-8 h-8 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center active:scale-95 text-white font-bold backdrop-blur-sm transition-colors"
                 >
                   ✕
                 </button>
 
                 <div className="flex items-center gap-3 mb-4 z-10">
-                   <div className={`w-14 h-14 rounded-full border-4 border-white shadow-lg bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-3xl`}>
+                   <div className={`w-14 h-14 rounded-full border-2 border-white/30 shadow-[0_0_15px_rgba(255,255,255,0.2)] bg-gradient-to-br from-indigo-500 to-purple-700 flex items-center justify-center text-3xl`}>
                      {getPlanetTheme(selectedPlanet).icon}
                    </div>
                    <div>
-                     <div className="text-yellow-400 text-xs font-bold tracking-widest mb-1">
-                       发现野生星球！
+                     <div className="text-cyan-400 text-[10px] font-mono tracking-widest uppercase mb-1">
+                       New Discovery
                      </div>
-                     <h2 className="text-3xl font-black text-white italic tracking-wide">
+                     {/* Updated Planet Title Font too */}
+                     <h2 className="text-3xl text-white tracking-wide drop-shadow-lg" style={{ fontFamily: '"ZCOOL KuaiLe", cursive, sans-serif' }}>
                        {selectedPlanet.name.split(' ')[0]}
                      </h2>
                      <div className="flex gap-2 mt-1">
-                        <span className="bg-white text-black px-2 py-0.5 text-[10px] font-bold rounded border border-black uppercase">
+                        <span className="bg-white/10 text-blue-200 px-2 py-0.5 text-[10px] font-bold rounded border border-white/20 uppercase backdrop-blur-sm">
                           {getPlanetTheme(selectedPlanet).type}
                         </span>
                      </div>
@@ -268,53 +304,53 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                 <div className="flex-grow overflow-y-auto pr-2 pika-scrollbar space-y-4">
                   
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-green-100 border-2 border-black rounded-lg p-2 flex flex-col items-center">
-                       <span className="text-[10px] font-bold text-green-800 uppercase">平均温度</span>
-                       <span className="text-sm font-black text-black">{selectedPlanet.temperature || "未知"}</span>
+                    <div className="bg-slate-800/50 border border-white/10 rounded-lg p-2 flex flex-col items-center">
+                       <span className="text-[10px] font-bold text-gray-400 uppercase">平均温度</span>
+                       <span className="text-sm font-bold text-white">{selectedPlanet.temperature || "未知"}</span>
                     </div>
-                    <div className="bg-blue-100 border-2 border-black rounded-lg p-2 flex flex-col items-center">
-                       <span className="text-[10px] font-bold text-blue-800 uppercase">主要成分</span>
-                       <span className="text-sm font-black text-black text-center leading-tight">{selectedPlanet.composition || "岩石/气体"}</span>
+                    <div className="bg-slate-800/50 border border-white/10 rounded-lg p-2 flex flex-col items-center">
+                       <span className="text-[10px] font-bold text-gray-400 uppercase">主要成分</span>
+                       <span className="text-sm font-bold text-white text-center leading-tight">{selectedPlanet.composition || "岩石/气体"}</span>
                     </div>
                   </div>
 
-                  <div className="bg-white border-2 border-black rounded-lg p-3 relative mt-2">
-                    <div className="absolute -top-2 -left-1 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 border border-black rounded rotate-[-2deg]">
-                      图鉴介绍
+                  <div className="bg-blue-900/20 border border-blue-500/20 rounded-lg p-3 relative mt-2">
+                    <div className="absolute -top-2 -left-1 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded rotate-0 shadow-lg">
+                      DATA LOG
                     </div>
-                    <p className="text-black font-bold text-sm leading-relaxed mt-1">
+                    <p className="text-gray-200 font-medium text-sm leading-relaxed mt-2">
                       {selectedPlanet.description}
                     </p>
                     {selectedPlanet.funFact && (
-                      <div className="mt-2 pt-2 border-t-2 border-dashed border-gray-300">
-                        <span className="text-red-500 font-black text-xs mr-1">💡 知识点:</span>
-                        <span className="text-gray-700 text-xs font-bold">{selectedPlanet.funFact}</span>
+                      <div className="mt-3 pt-2 border-t border-white/10 border-dashed">
+                        <span className="text-yellow-400 font-bold text-xs mr-2">⚠ 趣闻:</span>
+                        <span className="text-gray-300 text-xs">{selectedPlanet.funFact}</span>
                       </div>
                     )}
                   </div>
 
-                  {/* Travel Stats (Hide for Earth/Sun) */}
+                  {/* Travel Stats */}
                   {showTravelTime && travelInfo && (
-                    <div className="bg-black/40 rounded-lg p-3 border-2 border-white/20">
-                       <h3 className="text-yellow-400 text-xs font-black uppercase mb-3 flex items-center">
-                         <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"></path></svg>
-                         旅行时间计算
+                    <div className="bg-black/40 rounded-lg p-3 border border-white/10">
+                       <h3 className="text-cyan-400 text-xs font-bold uppercase mb-3 flex items-center gap-1">
+                         <span className="w-1 h-3 bg-cyan-400 rounded-full"></span>
+                         旅行时间估算
                        </h3>
                        <div className="space-y-3">
                           <div className="flex items-center gap-2">
-                             <span className="text-xs font-bold text-white w-12 text-right">光速</span>
-                             <div className="flex-grow h-3 bg-gray-700 rounded-full border border-gray-600 overflow-hidden relative"><div className="absolute top-0 left-0 h-full bg-yellow-400 w-full animate-pulse"></div></div>
-                             <span className="text-xs font-bold text-yellow-400 w-16 text-right">{travelInfo.lightMinutes} 分</span>
+                             <span className="text-[10px] font-bold text-gray-400 w-12 text-right">光速</span>
+                             <div className="flex-grow h-2 bg-gray-800 rounded-full overflow-hidden relative"><div className="absolute top-0 left-0 h-full bg-yellow-400 w-full animate-pulse shadow-[0_0_10px_#facc15]"></div></div>
+                             <span className="text-[10px] font-mono text-yellow-400 w-16 text-right">{travelInfo.lightMinutes} 分</span>
                           </div>
                           <div className="flex items-center gap-2">
-                             <span className="text-xs font-bold text-white w-12 text-right">火箭</span>
-                             <div className="flex-grow h-3 bg-gray-700 rounded-full border border-gray-600 overflow-hidden relative"><div className="absolute top-0 left-0 h-full bg-red-500 w-[70%]"></div></div>
-                             <span className="text-xs font-bold text-red-400 w-16 text-right">{travelInfo.rocketTimeDisplay}</span>
+                             <span className="text-[10px] font-bold text-gray-400 w-12 text-right">火箭</span>
+                             <div className="flex-grow h-2 bg-gray-800 rounded-full overflow-hidden relative"><div className="absolute top-0 left-0 h-full bg-red-500 w-[70%]"></div></div>
+                             <span className="text-[10px] font-mono text-red-400 w-16 text-right">{travelInfo.rocketTimeDisplay}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                             <span className="text-xs font-bold text-white w-12 text-right">飞机</span>
-                             <div className="flex-grow h-3 bg-gray-700 rounded-full border border-gray-600 overflow-hidden relative"><div className="absolute top-0 left-0 h-full bg-blue-500 w-[20%]"></div></div>
-                             <span className="text-xs font-bold text-blue-400 w-16 text-right">{travelInfo.planeYears} 年</span>
+                             <span className="text-[10px] font-bold text-gray-400 w-12 text-right">飞机</span>
+                             <div className="flex-grow h-2 bg-gray-800 rounded-full overflow-hidden relative"><div className="absolute top-0 left-0 h-full bg-blue-500 w-[20%]"></div></div>
+                             <span className="text-[10px] font-mono text-blue-400 w-16 text-right">{travelInfo.planeYears} 年</span>
                           </div>
                        </div>
                     </div>
@@ -322,11 +358,11 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
 
                   {/* Earth Habitat Info */}
                   {isEarth && (
-                     <div className="bg-blue-500/20 rounded-lg p-3 border-2 border-blue-400">
-                        <h3 className="text-cyan-300 text-xs font-black uppercase mb-2 flex items-center">
-                           💧 生命之源
+                     <div className="bg-emerald-900/20 rounded-lg p-3 border border-emerald-500/30">
+                        <h3 className="text-emerald-400 text-xs font-bold uppercase mb-2 flex items-center">
+                           💧 生命维持系统
                         </h3>
-                        <p className="text-white text-xs font-bold leading-relaxed">
+                        <p className="text-emerald-100 text-xs leading-relaxed">
                            地球表面 71% 是海洋，只有 29% 是陆地。我们有厚厚的大气层，像被子一样挡住太阳的紫外线，还锁住空气和水，让我们能自由呼吸！
                         </p>
                      </div>
@@ -334,13 +370,13 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
 
                 </div>
                 
-                <div className="h-4 flex justify-between items-center mt-2 px-1">
+                <div className="h-4 flex justify-between items-center mt-2 px-1 border-t border-white/5 pt-2">
                    <div className="flex gap-1">
-                     <div className="w-2 h-2 rounded-full bg-red-500 animate-bounce"></div>
-                     <div className="w-2 h-2 rounded-full bg-yellow-500 animate-bounce delay-75"></div>
-                     <div className="w-2 h-2 rounded-full bg-green-500 animate-bounce delay-150"></div>
+                     <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
+                     <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse delay-75"></div>
+                     <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse delay-150"></div>
                    </div>
-                   <div className="text-[9px] text-gray-400 font-mono">Ver 2.3 Gesture Fix</div>
+                   <div className="text-[9px] text-cyan-700 font-mono tracking-wider">SYS.VER 3.0</div>
                 </div>
 
               </div>
