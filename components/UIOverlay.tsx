@@ -227,33 +227,6 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
           
           <div className="flex items-center gap-4 pt-2">
             
-            {/* SPEED CONTROL HUD - DISCRETE BUTTONS */}
-            <div className="hidden sm:flex flex-col bg-slate-900/20 border border-white/10 backdrop-blur-md rounded-xl p-3 w-48 h-auto justify-center relative shadow-lg transition-all hover:bg-slate-900/30">
-               <div className="flex justify-between items-center mb-2">
-                 <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    时间加速
-                 </span>
-                 <span className="text-xs font-bold text-white font-mono bg-cyan-500/20 px-1.5 rounded text-cyan-300 shadow-[0_0_5px_rgba(6,182,212,0.3)]">{simulationSpeed}x</span>
-               </div>
-               
-               <div className="flex justify-between gap-1.5 bg-black/20 p-1 rounded-lg">
-                  {[0.5, 1, 5, 10].map((speed) => (
-                    <button
-                      key={speed}
-                      onClick={() => setSimulationSpeed(speed)}
-                      className={`flex-1 h-6 rounded text-[10px] font-bold font-mono transition-all duration-200 border ${
-                        simulationSpeed === speed
-                          ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.6)] scale-105 z-10'
-                          : 'bg-white/5 text-cyan-300/70 border-white/5 hover:bg-white/10 hover:text-cyan-200 hover:border-white/20'
-                      }`}
-                    >
-                      {speed}
-                    </button>
-                  ))}
-               </div>
-            </div>
-
             <div className="flex gap-4">
               {/* Pause Button */}
               <button 
@@ -294,6 +267,34 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                 <span className="text-2xl mt-1">❄️</span>
               </button>
             </div>
+
+            {/* SPEED CONTROL HUD - DISCRETE BUTTONS - RIGHT ALIGNED */}
+            <div className="hidden sm:flex flex-col bg-slate-900/20 border border-white/10 backdrop-blur-md rounded-xl p-3 w-auto items-end justify-center relative shadow-lg transition-all hover:bg-slate-900/30">
+               <div className="flex items-center gap-2 mb-2 justify-end">
+                 <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    时间加速
+                 </span>
+                 <span className="text-xs font-bold text-white font-mono bg-cyan-500/20 px-1.5 rounded text-cyan-300 shadow-[0_0_5px_rgba(6,182,212,0.3)]">{simulationSpeed}x</span>
+               </div>
+               
+               <div className="flex gap-1.5 bg-black/20 p-1 rounded-lg justify-end">
+                  {[0.5, 1, 5, 10].map((speed) => (
+                    <button
+                      key={speed}
+                      onClick={() => setSimulationSpeed(speed)}
+                      className={`w-9 h-6 rounded text-[10px] font-bold font-mono transition-all duration-200 border ${
+                        simulationSpeed === speed
+                          ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.6)] scale-105 z-10'
+                          : 'bg-white/5 text-cyan-300/70 border-white/5 hover:bg-white/10 hover:text-cyan-200 hover:border-white/20'
+                      }`}
+                    >
+                      {speed}
+                    </button>
+                  ))}
+               </div>
+            </div>
+
           </div>
         </header>
 
