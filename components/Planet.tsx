@@ -1,8 +1,3 @@
-
-
-
-
-
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Mesh, Color, DoubleSide, Vector3, TextureLoader, AdditiveBlending, Object3D, Group } from 'three';
@@ -15,11 +10,12 @@ interface PlanetProps {
   isSelected: boolean;
   onSelect: (id: string) => void;
   isPaused: boolean;
+  simulationSpeed: number;
   earthPositionRef: React.MutableRefObject<Vector3>;
   planetRefs: React.MutableRefObject<{ [key: string]: Object3D }>;
 }
 
-const Moon: React.FC<{ isPaused: boolean }> = ({ isPaused }) => {
+const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number }> = ({ isPaused, simulationSpeed }) => {
   const moonRef = useRef<Group>(null);
   
   // Create static data for Moon texture generation
@@ -44,7 +40,7 @@ const Moon: React.FC<{ isPaused: boolean }> = ({ isPaused }) => {
   useFrame((state, delta) => {
     if (moonRef.current && !isPaused) {
       // Moon orbits Earth (faster than Earth orbits Sun)
-      moonRef.current.rotation.y += delta * 0.4;
+      moonRef.current.rotation.y += delta * 0.4 * simulationSpeed;
     }
   });
 
@@ -77,6 +73,7 @@ export const Planet: React.FC<PlanetProps> = ({
   isSelected, 
   onSelect, 
   isPaused,
+  simulationSpeed,
   earthPositionRef,
   planetRefs
 }) => {
@@ -117,7 +114,7 @@ export const Planet: React.FC<PlanetProps> = ({
 
     if (!isPaused) {
       // Orbit logic - Update Accumulator
-      orbitAngleRef.current += delta * data.speed * 0.2;
+      orbitAngleRef.current += delta * data.speed * 0.2 * simulationSpeed;
       
       // Counter-Clockwise Revolution:
       // x = cos(angle), z = -sin(angle)
@@ -128,7 +125,7 @@ export const Planet: React.FC<PlanetProps> = ({
       orbitGroupRef.current.position.set(x, 0, z);
 
       // Self rotation logic
-      meshRef.current.rotation.y += data.rotationSpeed;
+      meshRef.current.rotation.y += data.rotationSpeed * simulationSpeed;
       
       // Update Earth's position ref if this is Earth
       // NOTE: We need the WORLD position since we are now nesting groups
@@ -238,7 +235,7 @@ export const Planet: React.FC<PlanetProps> = ({
 
         {/* Moon: If this is Earth, render the Moon orbiting it */}
         {/* Placed outside the axial tilt group so it orbits the center of Earth's position, but with its own inclination */}
-        {data.id === 'earth' && <Moon isPaused={isPaused} />}
+        {data.id === 'earth' && <Moon isPaused={isPaused} simulationSpeed={simulationSpeed} />}
 
         {/* Atmosphere Glow Shell (Billboard) - Replaced Shader with Sprite/Billboard method */}
         {/* We place it OUTSIDE the tilted group so it stays upright facing the camera properly, but follows position */}

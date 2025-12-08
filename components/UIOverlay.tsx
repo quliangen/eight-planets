@@ -7,6 +7,8 @@ interface UIOverlayProps {
   onClose: () => void;
   isPaused: boolean;
   togglePause: () => void;
+  simulationSpeed: number;
+  setSimulationSpeed: (speed: number) => void;
   isStarshipActive: boolean;
   toggleStarship: () => void;
   showPluto: boolean;
@@ -20,6 +22,8 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
   onClose,
   isPaused,
   togglePause,
+  simulationSpeed,
+  setSimulationSpeed,
   isStarshipActive,
   toggleStarship,
   showPluto,
@@ -171,7 +175,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
       <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 sm:p-6 z-10 font-sans select-none">
         
         {/* Header Section - Astronaut/HUD Theme */}
-        <header className="flex justify-between items-start pointer-events-auto w-full max-w-5xl mx-auto sm:mx-0">
+        <header className="flex flex-col sm:flex-row justify-between items-start pointer-events-auto w-full max-w-6xl mx-auto sm:mx-0 gap-4">
           <div className="flex flex-col items-start relative pl-2 pt-2">
             
             {/* Background Decorative HUD Ring */}
@@ -184,7 +188,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
             </div>
 
             {/* Recipient Tag - HUD Style - MORE TRANSPARENT */}
-            <div className="relative z-10 flex items-center gap-3 bg-slate-900/10 border border-cyan-500/20 backdrop-blur-md px-4 py-1.5 rounded-tr-xl rounded-bl-xl shadow-[0_0_15px_rgba(6,182,212,0.1)] mb-3 animate-float">
+            <div className="relative z-10 flex items-center gap-3 bg-slate-900/10 border border-cyan-500/10 backdrop-blur-md px-4 py-1.5 rounded-tr-xl rounded-bl-xl shadow-[0_0_15px_rgba(6,182,212,0.1)] mb-3 animate-float">
                <div className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]"></div>
                   <span className="text-cyan-400 font-mono text-[10px] tracking-widest uppercase">Mission Target</span>
@@ -221,45 +225,75 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
             </div>
           </div>
           
-          <div className="flex gap-4 pt-2">
-            {/* Pause Button */}
-            <button 
-              onClick={togglePause}
-              className={`action-btn pokeball pointer-events-auto ${!isPaused ? 'spinning' : 'paused'}`}
-              title={isPaused ? "Go! (继续)" : "Wait! (暂停)"}
-            >
-              <span className="text-2xl">{isPaused ? "⏸" : "▶️"}</span>
-            </button>
+          <div className="flex items-center gap-4 pt-2">
+            
+            {/* SPEED CONTROL HUD - DISCRETE BUTTONS */}
+            <div className="hidden sm:flex flex-col bg-slate-900/20 border border-white/10 backdrop-blur-md rounded-xl p-3 w-48 h-auto justify-center relative shadow-lg transition-all hover:bg-slate-900/30">
+               <div className="flex justify-between items-center mb-2">
+                 <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    时间加速
+                 </span>
+                 <span className="text-xs font-bold text-white font-mono bg-cyan-500/20 px-1.5 rounded text-cyan-300 shadow-[0_0_5px_rgba(6,182,212,0.3)]">{simulationSpeed}x</span>
+               </div>
+               
+               <div className="flex justify-between gap-1.5 bg-black/20 p-1 rounded-lg">
+                  {[0.5, 1, 5, 10].map((speed) => (
+                    <button
+                      key={speed}
+                      onClick={() => setSimulationSpeed(speed)}
+                      className={`flex-1 h-6 rounded text-[10px] font-bold font-mono transition-all duration-200 border ${
+                        simulationSpeed === speed
+                          ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.6)] scale-105 z-10'
+                          : 'bg-white/5 text-cyan-300/70 border-white/5 hover:bg-white/10 hover:text-cyan-200 hover:border-white/20'
+                      }`}
+                    >
+                      {speed}
+                    </button>
+                  ))}
+               </div>
+            </div>
 
-            {/* Interstellar Travel Button */}
-            <button
-              onClick={toggleStarship}
-              title="Toggle Starship"
-              className={`action-btn rocket-btn pointer-events-auto ${!isStarshipActive ? 'inactive' : ''}`}
-            >
-              <div className={`indicator ${isStarshipActive ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
-              <span className="text-2xl mt-1">🚀</span>
-            </button>
+            <div className="flex gap-4">
+              {/* Pause Button */}
+              <button 
+                onClick={togglePause}
+                className={`action-btn pokeball pointer-events-auto ${!isPaused ? 'spinning' : 'paused'}`}
+                title={isPaused ? "Go! (继续)" : "Wait! (暂停)"}
+              >
+                <span className="text-2xl">{isPaused ? "⏸" : "▶️"}</span>
+              </button>
 
-            {/* Gesture Toggle Button */}
-            <button
-              onClick={toggleGestureMode}
-              title="手势控制"
-              className={`action-btn gesture-btn pointer-events-auto ${!isGestureMode ? 'inactive' : ''}`}
-            >
-              <div className={`indicator ${isGestureMode ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
-              <span className="text-2xl mt-1">👋</span>
-            </button>
+              {/* Interstellar Travel Button */}
+              <button
+                onClick={toggleStarship}
+                title="Toggle Starship"
+                className={`action-btn rocket-btn pointer-events-auto ${!isStarshipActive ? 'inactive' : ''}`}
+              >
+                <div className={`indicator ${isStarshipActive ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
+                <span className="text-2xl mt-1">🚀</span>
+              </button>
 
-            {/* Pluto Toggle Button */}
-            <button
-              onClick={togglePluto}
-              title="Toggle Pluto"
-              className={`action-btn pluto-btn pointer-events-auto ${!showPluto ? 'inactive' : ''}`}
-            >
-              <div className={`indicator ${showPluto ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
-              <span className="text-2xl mt-1">❄️</span>
-            </button>
+              {/* Gesture Toggle Button */}
+              <button
+                onClick={toggleGestureMode}
+                title="手势控制"
+                className={`action-btn gesture-btn pointer-events-auto ${!isGestureMode ? 'inactive' : ''}`}
+              >
+                <div className={`indicator ${isGestureMode ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
+                <span className="text-2xl mt-1">👋</span>
+              </button>
+
+              {/* Pluto Toggle Button */}
+              <button
+                onClick={togglePluto}
+                title="Toggle Pluto"
+                className={`action-btn pluto-btn pointer-events-auto ${!showPluto ? 'inactive' : ''}`}
+              >
+                <div className={`indicator ${showPluto ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
+                <span className="text-2xl mt-1">❄️</span>
+              </button>
+            </div>
           </div>
         </header>
 

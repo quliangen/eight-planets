@@ -1,9 +1,8 @@
-
 import React, { useRef, useMemo, useLayoutEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { InstancedMesh, Object3D, Color, MathUtils, Group } from 'three';
 
-export const AsteroidBelt: React.FC<{ isPaused: boolean }> = ({ isPaused }) => {
+export const AsteroidBelt: React.FC<{ isPaused: boolean; simulationSpeed: number }> = ({ isPaused, simulationSpeed }) => {
   const meshRef = useRef<InstancedMesh>(null);
   const groupRef = useRef<Group>(null);
   const count = 600; // Number of asteroids
@@ -79,7 +78,7 @@ export const AsteroidBelt: React.FC<{ isPaused: boolean }> = ({ isPaused }) => {
   useFrame((state, delta) => {
     if (groupRef.current && !isPaused) {
       // Asteroid belt moves slower than inner planets
-      groupRef.current.rotation.y += delta * 0.01;
+      groupRef.current.rotation.y += delta * 0.01 * simulationSpeed;
     }
   });
 

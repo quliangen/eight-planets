@@ -1,5 +1,3 @@
-
-
 import React, { useState, Suspense, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sparkles, PerspectiveCamera, Environment, Stars } from '@react-three/drei';
@@ -86,6 +84,7 @@ const OrbitController = ({ controlsRef, gestureVelocity }: { controlsRef: any, g
 const App: React.FC = () => {
   const [selectedPlanetId, setSelectedPlanetId] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [simulationSpeed, setSimulationSpeed] = useState(1.0); // Default speed 1x
   const [isStarshipActive, setIsStarshipActive] = useState(false);
   const [showPluto, setShowPluto] = useState(false);
   const [isGestureMode, setIsGestureMode] = useState(false);
@@ -139,6 +138,8 @@ const App: React.FC = () => {
         onClose={handleClose}
         isPaused={isPaused}
         togglePause={() => setIsPaused(!isPaused)}
+        simulationSpeed={simulationSpeed}
+        setSimulationSpeed={setSimulationSpeed}
         isStarshipActive={isStarshipActive}
         toggleStarship={() => setIsStarshipActive(!isStarshipActive)}
         showPluto={showPluto}
@@ -168,7 +169,7 @@ const App: React.FC = () => {
             maxDistance={300}
             maxPolarAngle={Math.PI / 1.8}
             autoRotate={!selectedPlanetId && !isPaused && !isGestureMode}
-            autoRotateSpeed={0.15} // Reduced from 0.5
+            autoRotateSpeed={0.15 * simulationSpeed} // Auto rotate also affected by speed slightly? Or maybe keep it constant. Let's make it independent for camera.
           />
           
           <OrbitController controlsRef={controlsRef} gestureVelocity={gestureVelocity} />
@@ -191,10 +192,11 @@ const App: React.FC = () => {
              onSelect={handleSelect}
              isSelected={selectedPlanetId === 'sun'}
              isPaused={isPaused}
+             simulationSpeed={simulationSpeed}
           />
 
           {/* Asteroid Belt located between Mars and Jupiter */}
-          <AsteroidBelt isPaused={isPaused} />
+          <AsteroidBelt isPaused={isPaused} simulationSpeed={simulationSpeed} />
           
           {displayedPlanets.map((planet) => (
             <Planet 
@@ -203,6 +205,7 @@ const App: React.FC = () => {
               isSelected={selectedPlanetId === planet.id}
               onSelect={handleSelect}
               isPaused={isPaused}
+              simulationSpeed={simulationSpeed}
               earthPositionRef={earthPositionRef}
               planetRefs={planetRefs}
             />

@@ -9,9 +9,10 @@ interface SunProps {
   onSelect: (id: string) => void;
   isSelected: boolean;
   isPaused: boolean;
+  simulationSpeed: number;
 }
 
-export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused }) => {
+export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simulationSpeed }) => {
   const meshRef = useRef<Mesh>(null);
   const [hovered, setHovered] = useState(false);
 
@@ -24,7 +25,7 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused }) => {
 
   useFrame((state, delta) => {
     if (meshRef.current && !isPaused) {
-      meshRef.current.rotation.y += delta * 0.02;
+      meshRef.current.rotation.y += delta * 0.02 * simulationSpeed;
     }
   });
 
