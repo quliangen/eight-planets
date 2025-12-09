@@ -1,14 +1,15 @@
 
 import { PlanetData } from './types';
 
-// Note: Sizes and distances are scaled for visual clarity, not astronomical accuracy.
-// realDistance is approximate average distance from Sun in Million km.
+// Note: Sizes are adjusted for a better "relative realism" suitable for kids.
+// While not 1:1 astronomical scale (which would make Earth invisible), 
+// the hierarchy (Sun >> Jupiter >> Earth >> Mercury) is much clearer now.
 
 export const SUN_DATA: PlanetData = {
   id: 'sun',
   name: '太阳 (The Sun)',
   color: '#FDB813',
-  size: 4.5,
+  size: 8.0, // Reduced from 10.0 to 8.0 (0.8x)
   distance: 0,
   realDistance: 0,
   speed: 0,
@@ -30,13 +31,13 @@ export const PLANETS: PlanetData[] = [
     id: 'mercury',
     name: '水星 (Mercury)',
     color: '#A5A5A5', 
-    size: 0.8,
-    distance: 10,
+    size: 0.4, // Smallest planet
+    distance: 14, // Pushed out slightly due to larger Sun
     realDistance: 58,
     speed: 0.2, 
     rotationSpeed: 0.001, 
     axisTilt: 0.00,
-    orbitInclination: 0.12, // ~7 degrees
+    orbitInclination: 0.12,
     description: '我是离太阳最近的行星。我看起来像月球，灰灰的，身上有很多陨石坑。',
     temperature: '430°C / -180°C',
     composition: '岩石和金属',
@@ -50,13 +51,13 @@ export const PLANETS: PlanetData[] = [
     id: 'venus',
     name: '金星 (Venus)',
     color: '#E3BB76', 
-    size: 1.5,
-    distance: 15,
+    size: 0.95, // Almost Earth size
+    distance: 20,
     realDistance: 108,
     speed: 0.15, 
     rotationSpeed: -0.0005, 
     axisTilt: 0.05, 
-    orbitInclination: 0.06, // ~3.4 degrees
+    orbitInclination: 0.06, 
     atmosphereColor: '#FFD700', 
     description: '我被厚厚的黄色云层包裹着，这些云层不仅反射阳光让我变得很亮，还让我变得超级热！',
     temperature: '462°C',
@@ -71,13 +72,13 @@ export const PLANETS: PlanetData[] = [
     id: 'earth',
     name: '地球 (Earth)',
     color: '#22A6B3', 
-    size: 1.6,
-    distance: 21,
+    size: 1.0, // Base unit
+    distance: 28,
     realDistance: 150,
     speed: 0.12, 
     rotationSpeed: 0.005, 
     axisTilt: 0.41, 
-    orbitInclination: 0, // Reference plane
+    orbitInclination: 0, 
     atmosphereColor: '#00BFFF', 
     description: '我们的家园！我有厚厚的大气层保护大家，还有液态水孕育生命。从太空看，我是一颗美丽的蓝色弹珠。',
     temperature: '15°C (平均)',
@@ -92,13 +93,13 @@ export const PLANETS: PlanetData[] = [
     id: 'mars',
     name: '火星 (Mars)',
     color: '#E27B58', 
-    size: 1.1,
-    distance: 28,
+    size: 0.53, // About half of Earth
+    distance: 36,
     realDistance: 228,
     speed: 0.08, 
     rotationSpeed: 0.004, 
     axisTilt: 0.44, 
-    orbitInclination: 0.03, // ~1.85 degrees
+    orbitInclination: 0.03, 
     atmosphereColor: '#FF5722', 
     description: '红色的沙漠星球。我的红色来自于土壤里的铁锈。我的南北两极有冰盖哦！',
     temperature: '-63°C',
@@ -113,13 +114,13 @@ export const PLANETS: PlanetData[] = [
     id: 'jupiter',
     name: '木星 (Jupiter)',
     color: '#C88B3A', 
-    size: 4.5,
-    distance: 40,
+    size: 4.2, // Huge!
+    distance: 52,
     realDistance: 778,
     speed: 0.04, 
     rotationSpeed: 0.012, 
     axisTilt: 0.05, 
-    orbitInclination: 0.02, // ~1.3 degrees
+    orbitInclination: 0.02, 
     atmosphereColor: '#FBC02D', 
     description: '巨大的气态行星！我有漂亮的条纹，那是被风拉长的云。我是八大行星里最大的大哥。',
     temperature: '-108°C',
@@ -134,13 +135,13 @@ export const PLANETS: PlanetData[] = [
     id: 'saturn',
     name: '土星 (Saturn)',
     color: '#E4D5B6', 
-    size: 3.8,
-    distance: 55,
+    size: 3.6, // Slightly smaller than Jupiter
+    distance: 72,
     realDistance: 1430,
     speed: 0.03, 
     rotationSpeed: 0.01, 
     axisTilt: 0.47, 
-    orbitInclination: 0.04, // ~2.48 degrees
+    orbitInclination: 0.04, 
     hasRings: true,
     ringColor: '#C5AB6E',
     description: '我是戴着戒指的宝石。我的光环非常漂亮，是由无数小冰块和石头组成的。',
@@ -156,13 +157,13 @@ export const PLANETS: PlanetData[] = [
     id: 'uranus',
     name: '天王星 (Uranus)',
     color: '#ACE5EE', 
-    size: 2.5,
-    distance: 70,
+    size: 2.0, // Ice giant size
+    distance: 90,
     realDistance: 2870,
     speed: 0.02, 
     rotationSpeed: 0.008, 
     axisTilt: 1.71, 
-    orbitInclination: 0.01, // ~0.77 degrees
+    orbitInclination: 0.01, 
     hasRings: true,
     ringColor: '#FFFFFF',
     atmosphereColor: '#71C9CE', 
@@ -179,13 +180,13 @@ export const PLANETS: PlanetData[] = [
     id: 'neptune',
     name: '海王星 (Neptune)',
     color: '#4B70DD', 
-    size: 2.4,
-    distance: 85,
+    size: 1.9, // Similar to Uranus
+    distance: 110,
     realDistance: 4500,
     speed: 0.015, 
     rotationSpeed: 0.008, 
     axisTilt: 0.49, 
-    orbitInclination: 0.03, // ~1.77 degrees
+    orbitInclination: 0.03, 
     atmosphereColor: '#3A5BB8', 
     description: '深蓝色的风暴世界，离太阳最远，非常寒冷。我有太阳系最快的风！',
     temperature: '-201°C',
@@ -200,13 +201,13 @@ export const PLANETS: PlanetData[] = [
     id: 'pluto',
     name: '冥王星 (Pluto)',
     color: '#D4C6AA', 
-    size: 0.7, // Smaller than Mercury
-    distance: 100, // Far out
+    size: 0.18, // Tiny!
+    distance: 130, 
     realDistance: 5900,
     speed: 0.01, 
     rotationSpeed: -0.002, 
-    axisTilt: 2.1, // ~120 degrees
-    orbitInclination: 0.30, // ~17 degrees (Huge inclination!)
+    axisTilt: 2.1, 
+    orbitInclination: 0.30, 
     atmosphereColor: '#E0E0E0', 
     description: '我以前是第九大行星，现在是矮行星。我离太阳很远，非常冷。我身上有一个大大的白色爱心图案哦！',
     temperature: '-230°C',

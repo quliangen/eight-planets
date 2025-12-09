@@ -1,3 +1,4 @@
+
 import React, { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Mesh, TextureLoader, Color } from 'three';
@@ -31,7 +32,7 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
 
   return (
     <group>
-      {/* Main Sun Body */}
+      {/* Main Sun Body - Use dynamic size */}
       <mesh 
         ref={meshRef}
         onClick={(e) => {
@@ -47,7 +48,7 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
           setHovered(false);
         }}
       >
-        <sphereGeometry args={[4.5, 64, 64]} />
+        <sphereGeometry args={[SUN_DATA.size, 64, 64]} />
         <meshBasicMaterial 
           map={texture}
           color="#FFD700"
@@ -55,7 +56,7 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
         
         {/* Hover Label for Sun */}
         {hovered && (
-          <Html position={[0, 6, 0]} center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
+          <Html position={[0, SUN_DATA.size + 1.5, 0]} center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
             <div className="bg-black/80 text-white px-4 py-2 rounded-xl text-sm whitespace-nowrap border border-white/30 backdrop-blur-md font-bold shadow-[0_4px_20px_rgba(0,0,0,0.5)] animate-fade-in-up">
               {SUN_DATA.name}
             </div>
@@ -63,10 +64,10 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
         )}
       </mesh>
       
-      {/* Inner Glow Layer */}
+      {/* Inner Glow Layer - Scaled by size */}
       <Billboard>
          <mesh position={[0, 0, -0.1]}>
-            <planeGeometry args={[13, 13]} />
+            <planeGeometry args={[SUN_DATA.size * 2.8, SUN_DATA.size * 2.8]} />
             <meshBasicMaterial 
               map={glowTexture} 
               transparent 
@@ -78,10 +79,10 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
          </mesh>
       </Billboard>
 
-      {/* Outer Glow Layer (Large Halo) */}
+      {/* Outer Glow Layer (Large Halo) - Scaled by size */}
        <Billboard>
          <mesh position={[0, 0, -0.2]}>
-            <planeGeometry args={[22, 22]} />
+            <planeGeometry args={[SUN_DATA.size * 4.8, SUN_DATA.size * 4.8]} />
             <meshBasicMaterial 
               map={glowTexture} 
               transparent 

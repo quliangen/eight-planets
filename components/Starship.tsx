@@ -1,7 +1,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, Group, Object3D, AdditiveBlending, DoubleSide, Quaternion, MathUtils } from 'three';
+import { Vector3, Group, Object3D, AdditiveBlending, DoubleSide, Quaternion, MathUtils, Mesh } from 'three';
 import { Trail, Html, Text } from '@react-three/drei';
 import { PLANETS } from '../constants';
 
@@ -12,9 +12,12 @@ interface StarshipProps {
 // Added LEAVING state for smooth exit
 type ShipState = 'SEARCHING' | 'TRAVELING' | 'ORBITING' | 'LEAVING';
 
-// Visual Indicator for the target planet
+// Visual Indicator for the target planet - SCI-FI BREATHING LIGHT
 const TargetIndicator: React.FC<{ targetObj: Object3D }> = ({ targetObj }) => {
   const groupRef = useRef<Group>(null);
+  const ringRef = useRef<Mesh>(null);
+  const innerRingRef = useRef<Mesh>(null);
+  const coreRef = useRef<Mesh>(null);
   
   useFrame((state, delta) => {
     if (groupRef.current && targetObj) {
@@ -22,46 +25,43 @@ const TargetIndicator: React.FC<{ targetObj: Object3D }> = ({ targetObj }) => {
       targetObj.getWorldPosition(worldPos);
       
       // Position marker significantly above the planet
-      const hoverHeight = 12;
+      const hoverHeight = 15;
       groupRef.current.position.copy(worldPos).add(new Vector3(0, hoverHeight, 0));
       
-      // Animation: Bobbing up and down
-      groupRef.current.position.y += Math.sin(state.clock.elapsedTime * 4) * 0.5;
+      // Breathing Animation
+      const t = state.clock.elapsedTime;
+      const breathe = Math.sin(t * 3); // -1 to 1
+      const scaleBase = 1.0 + breathe * 0.1; // 0.9 to 1.1
       
-      // Animation: Rotate the whole indicator
-      groupRef.current.rotation.y += delta * 2;
+      // Bobbing
+      groupRef.current.position.y += Math.sin(t * 2) * 0.5;
+      
+      // Ring Rotations
+      if (ringRef.current) {
+        ringRef.current.rotation.z += delta * 0.5;
+        ringRef.current.rotation.x = Math.PI / 2 + Math.sin(t) * 0.1;
+      }
+      if (innerRingRef.current) {
+         innerRingRef.current.rotation.z -= delta * 1.5;
+         innerRingRef.current.scale.setScalar(0.8 + breathe * 0.05);
+      }
+
+      // Core pulsing
+      if (coreRef.current) {
+         const opacity = 0.6 + breathe * 0.3; // 0.3 to 0.9
+         (coreRef.current.material as any).opacity = opacity;
+         coreRef.current.scale.setScalar(1.0 + breathe * 0.2);
+      }
     }
   });
 
   return (
     <group ref={groupRef}>
-       {/* 1. Downward pointing Arrow/Cone */}
-       <mesh position={[0, 0, 0]} rotation={[Math.PI, 0, 0]}>
-          <coneGeometry args={[1.2, 2.5, 4]} />
-          <meshBasicMaterial color="#00ff00" wireframe transparent opacity={0.8} />
-       </mesh>
-       
-       {/* 2. Solid Core for visibility */}
-       <mesh position={[0, 0, 0]} rotation={[Math.PI, 0, 0]}>
-          <coneGeometry args={[0.6, 1.5, 4]} />
-          <meshBasicMaterial color="#ccffcc" transparent opacity={0.6} />
-       </mesh>
-
-       {/* 3. Rotating Rings */}
-       <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[2.0, 2.2, 32]} />
-          <meshBasicMaterial color="#00ff00" transparent opacity={0.4} side={DoubleSide} />
-       </mesh>
-       <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[2.8, 2.9, 32]} />
-          <meshBasicMaterial color="#00ff00" transparent opacity={0.2} side={DoubleSide} />
-       </mesh>
-
-       {/* 4. Laser Beam pointing down to planet */}
+       {/* 1. Main Vertical Beam (Fading up) */}
        <mesh position={[0, -5, 0]}>
-          <cylinderGeometry args={[0.05, 0.4, 10, 8, 1, true]} />
+          <cylinderGeometry args={[0.2, 0.0, 15, 16, 1, true]} />
           <meshBasicMaterial 
-            color="#00ff00" 
+            color="#00FFFF" 
             transparent 
             opacity={0.15} 
             blending={AdditiveBlending} 
@@ -70,13 +70,49 @@ const TargetIndicator: React.FC<{ targetObj: Object3D }> = ({ targetObj }) => {
           />
        </mesh>
 
-       {/* 5. HUD Label */}
-       <Html position={[0, 3, 0]} center sprite distanceFactor={15} zIndexRange={[100, 0]}>
-          <div className="flex flex-col items-center">
-             <div className="text-[10px] font-mono font-bold text-green-400 bg-black/70 border border-green-500/50 px-2 py-0.5 rounded backdrop-blur-sm whitespace-nowrap shadow-[0_0_10px_rgba(0,255,0,0.4)] animate-pulse">
+       {/* 2. Outer Tech Ring */}
+       <mesh ref={ringRef} rotation={[Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[2.5, 2.8, 6]} /> {/* Hexagonal ring */}
+          <meshBasicMaterial color="#00FFFF" wireframe transparent opacity={0.5} side={DoubleSide} />
+       </mesh>
+
+       {/* 3. Inner Fast Ring */}
+       <mesh ref={innerRingRef} rotation={[Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[1.5, 1.8, 32]} />
+          <meshBasicMaterial color="#7DF9FF" transparent opacity={0.3} side={DoubleSide} />
+       </mesh>
+
+       {/* 4. Breathing Core */}
+       <mesh ref={coreRef}>
+          <sphereGeometry args={[0.8, 16, 16]} />
+          <meshBasicMaterial color="#E0FFFF" transparent opacity={0.8} blending={AdditiveBlending} />
+       </mesh>
+       
+       {/* 5. Glow Halo */}
+       <mesh>
+          <planeGeometry args={[6, 6]} />
+          <meshBasicMaterial 
+            color="#00FFFF" 
+            transparent 
+            opacity={0.2} 
+            blending={AdditiveBlending} 
+            depthWrite={false}
+          /> {/* Ensure this billboards or looks good? PlaneGeometry faces Z by default. */}
+       </mesh>
+
+       {/* 6. Light Source */}
+       <pointLight color="#00FFFF" distance={20} decay={2} intensity={3} />
+
+       {/* 7. HUD Label */}
+       <Html position={[0, 4, 0]} center sprite distanceFactor={15} zIndexRange={[100, 0]}>
+          <div className="flex flex-col items-center gap-1">
+             <div className="text-[12px] font-mono font-bold text-cyan-200 bg-black/60 border border-cyan-500/50 px-3 py-1 rounded-full backdrop-blur-md whitespace-nowrap shadow-[0_0_15px_rgba(0,255,255,0.4)] flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
                 TARGET LOCKED
              </div>
-             <div className="w-[1px] h-4 bg-green-500/50"></div>
+             <div className="text-[10px] text-cyan-500/80 font-mono tracking-widest">
+               SCANNING...
+             </div>
           </div>
        </Html>
     </group>
@@ -119,7 +155,7 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs }) => {
      if (p.hasRings) {
          return p.size * 2.5 + 2.0; 
      }
-     return p.size * 1.8 + 2.0; 
+     return p.size * 2.8 + 2.0; // Increased multiplier slightly for safety with larger planets
   };
 
   useFrame((state, delta) => {
@@ -155,8 +191,11 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs }) => {
       const ids = Object.keys(planetRefs.current);
       if (ids.length > 0) {
         const currentPos = groupRef.current.position;
-        // Don't pick planets we are already very close to
+        // Don't pick planets we are already very close to, AND EXCLUDE MERCURY
         const validIds = ids.filter(id => {
+           // EXCLUDE MERCURY
+           if (id === 'mercury') return false;
+
            const pObj = planetRefs.current[id];
            const pPos = new Vector3();
            pObj.getWorldPosition(pPos);
@@ -165,10 +204,12 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs }) => {
 
         const nextId = validIds.length > 0 
            ? validIds[Math.floor(Math.random() * validIds.length)]
-           : ids[Math.floor(Math.random() * ids.length)];
+           : ids.filter(id => id !== 'mercury')[Math.floor(Math.random() * (ids.length - 1))]; // Fallback excluding mercury if possible
            
-        setTargetId(nextId);
-        stateRef.current = 'TRAVELING';
+        if (nextId) {
+            setTargetId(nextId);
+            stateRef.current = 'TRAVELING';
+        }
       }
       return;
     }
@@ -405,21 +446,32 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs }) => {
                   />
                 </mesh>
                 
-                {/* NAME LABEL: "小豆子号" */}
-                <group position={[0, 0, 0.36]} rotation={[0, 0, 0]}>
+                {/* NAME LABEL 1 (Top) - Vertical Layout */}
+                <group position={[0, 0, 0.36]}>
                      <Text
-                        color="black" 
+                        color="#2563eb" // Blue-600 (Science Blue)
                         fontSize={0.15}
                         anchorX="center"
                         anchorY="middle"
-                        rotation={[0, 0, -Math.PI/2]} 
+                        rotation={[0, 0, 0]} // Upright text
+                        lineHeight={1}
                      >
-                       小豆子号
+                       {'小\n豆\n子\n号'}
                      </Text>
-                     <mesh position={[0, 0, -0.01]} rotation={[0, 0, -Math.PI/2]}>
-                        <planeGeometry args={[0.8, 0.25]} />
-                        <meshBasicMaterial color="#fbbf24" transparent opacity={0.8} />
-                     </mesh>
+                </group>
+
+                {/* NAME LABEL 2 (Bottom) - Vertical Layout - Rotated to face downwards/outwards */}
+                <group position={[0, 0, -0.36]} rotation={[0, Math.PI, 0]}>
+                     <Text
+                        color="#2563eb" // Blue-600
+                        fontSize={0.15}
+                        anchorX="center"
+                        anchorY="middle"
+                        rotation={[0, 0, 0]} // Upright text
+                        lineHeight={1}
+                     >
+                       {'小\n豆\n子\n号'}
+                     </Text>
                 </group>
 
                 {/* 2. Nose Cone */}
