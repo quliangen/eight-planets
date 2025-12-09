@@ -1,4 +1,3 @@
-
 import React, { useState, Suspense, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sparkles, PerspectiveCamera, Environment, Stars } from '@react-three/drei';
@@ -17,22 +16,19 @@ const Skybox: React.FC = () => {
   const starTextureUrl = useMemo(() => generateStarFieldTexture(), []);
   const starTexture = useMemo(() => {
     const t = new TextureLoader().load(starTextureUrl);
-    // Important: Use RepeatWrapping to ensure seamless UV wrapping, 
-    // although our content is manually wrapped, this helps with interpolation at the seam.
     t.wrapS = RepeatWrapping;
-    t.wrapT = ClampToEdgeWrapping; // Vertical poles clamp
+    t.wrapT = ClampToEdgeWrapping; 
     return t;
   }, [starTextureUrl]);
 
   useFrame((state, delta) => {
     if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.0002; // Reduced from 0.0005
+      meshRef.current.rotation.y += delta * 0.0002; 
     }
   });
 
   return (
     <mesh ref={meshRef}>
-      {/* Increased radius to ensure it encompasses the 3D Stars volume */}
       <sphereGeometry args={[500, 64, 64]} />
       <meshBasicMaterial 
         map={starTexture} 
@@ -43,7 +39,6 @@ const Skybox: React.FC = () => {
   );
 };
 
-// Component to handle applying gesture inputs to OrbitControls
 const OrbitController = ({ controlsRef, gestureVelocity }: { controlsRef: any, gestureVelocity: React.MutableRefObject<{dx: number, dy: number, gestureType: 'rotate' | 'zoom'}> }) => {
   useFrame(() => {
     if (controlsRef.current && controlsRef.current.enabled) {
@@ -55,24 +50,38 @@ const OrbitController = ({ controlsRef, gestureVelocity }: { controlsRef: any, g
       if (isActive) {
           if (gestureType === 'rotate') {
              // ROTATE MODE
-             // dx negative (Hand Left) -> rotate left -> map moves left.
-             controlsRef.current.setAzimuthalAngle(controlsRef.current.getAzimuthalAngle() + dx * 0.05);
+             // dx: Left/Right movement.
+             // dy: Up/Down movement.
              
-             // dy negative (Hand Up) -> Drag Map Up -> Camera looks down -> Angle Increase
-             // dy positive (Hand Down) -> Drag Map Down -> Camera looks up -> Angle Decrease
-             // We subtract dy to match "Drag" feel.
-             controlsRef.current.setPolarAngle(controlsRef.current.getPolarAngle() - dy * 0.05);
+             // Smooth damping is handled by OrbitControls 'enableDamping', 
+             // but we need to feed it small increments.
+             
+             controlsRef.current.setAzimuthalAngle(controlsRef.current.getAzimuthalAngle() - dx * 0.02);
+             controlsRef.current.setPolarAngle(controlsRef.current.getPolarAngle() - dy * 0.02);
           } else if (gestureType === 'zoom') {
-             // ZOOM MODE (Pinch)
-             // dy negative (Hand Up) -> Zoom In (dollyIn)
-             // dy positive (Hand Down) -> Zoom Out (dollyOut)
-             const zoomSpeed = 0.05;
-             const zoomFactor = 1.0 + Math.abs(dy) * zoomSpeed;
+             // ZOOM MODE
+             // dy contains the "Delta" of hand distance.
+             // dy < 0: Hands getting closer (Pull Near) -> Zoom In (Dolly In)
+             // dy > 0: Hands getting apart (Pull Far) -> Zoom Out (Dolly Out)
              
+             const zoomSensitivity = 0.01;
+             
+             // We use a base scale of 1.0. 
+             // Dolly In needs scale > 1.0 (e.g. 1.05)
+             // Dolly Out needs scale < 1.0 (e.g. 0.95) OR use dollyOut helper.
+             
+             // Let's rely on direction.
+             // Note: OrbitControls dollyIn(s) means "move camera closer by scale s". s > 1 means bigger step? 
+             // Actually dollyIn(1.05) moves closer. dollyOut(1.05) moves further.
+             
+             const speed = 1.0 + Math.abs(dy * zoomSensitivity);
+
              if (dy < 0) {
-                 controlsRef.current.dollyIn(zoomFactor);
+                 // Negative delta = hands closer = Zoom In
+                 controlsRef.current.dollyIn(speed);
              } else {
-                 controlsRef.current.dollyOut(zoomFactor);
+                 // Positive delta = hands apart = Zoom Out
+                 controlsRef.current.dollyOut(speed);
              }
           }
           controlsRef.current.update();
@@ -85,32 +94,32 @@ const OrbitController = ({ controlsRef, gestureVelocity }: { controlsRef: any, g
 const App: React.FC = () => {
   const [selectedPlanetId, setSelectedPlanetId] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
-  const [simulationSpeed, setSimulationSpeed] = useState(1.0); // Default speed 1x
+  const [simulationSpeed, setSimulationSpeed] = useState(1.0); 
   const [isStarshipActive, setIsStarshipActive] = useState(false);
   const [showPluto, setShowPluto] = useState(false);
+  
   const [isGestureMode, setIsGestureMode] = useState(false);
+  const [isARMode, setIsARMode] = useState(false); // AR Mode State
   
   const earthPositionRef = useRef<Vector3>(new Vector3(0, 0, 0));
   const planetRefs = useRef<{ [key: string]: Object3D }>({});
   const controlsRef = useRef<any>(null);
   
-  // Ref to store current gesture velocity to avoid re-renders on every frame update
   const gestureVelocity = useRef<{dx: number, dy: number, gestureType: 'rotate' | 'zoom'}>({ dx: 0, dy: 0, gestureType: 'rotate' });
 
   const handleSelect = (id: string) => {
     setSelectedPlanetId(id);
-    setIsPaused(true); // Stop orbit when a planet is selected
+    setIsPaused(true); 
   };
 
   const handleClose = () => {
     setSelectedPlanetId(null);
-    setIsPaused(false); // Resume orbit when closed
+    setIsPaused(false); 
   };
 
   const togglePluto = () => {
     const newValue = !showPluto;
     setShowPluto(newValue);
-    // If we are hiding Pluto and it is currently selected, deselect it
     if (!newValue && selectedPlanetId === 'pluto') {
       handleClose();
     }
@@ -125,43 +134,41 @@ const App: React.FC = () => {
     setIsGestureMode(nextState);
     if (nextState) {
       setSimulationSpeed(1.0);
+    } else {
+      // If turning off gesture mode, also turn off AR
+      setIsARMode(false);
     }
   };
 
-  // Starship Management
   const handleToggleStarship = () => {
     const activating = !isStarshipActive;
     setIsStarshipActive(activating);
-    
     if (activating) {
-       // When starting mission: Stop manual pause (if any), set stable speed
        setIsPaused(false);
-       setSimulationSpeed(0.5); // Slow down slightly for better flight viewing
+       setSimulationSpeed(0.5); 
     } else {
-       // Manual cancel
        setSimulationSpeed(1.0);
     }
   };
 
   const handleMissionComplete = () => {
-     // Called by Starship component when route is finished
      setIsStarshipActive(false);
-     setSimulationSpeed(1.0); // Restore to 1x speed
+     setSimulationSpeed(1.0); 
   };
 
-  // Find the selected planet object (Sun or normal Planet)
   const selectedPlanet = useMemo(() => {
     if (selectedPlanetId === 'sun') return SUN_DATA;
     return PLANETS.find(p => p.id === selectedPlanetId) || null;
   }, [selectedPlanetId]);
 
-  // Filter planets based on showPluto state
   const displayedPlanets = useMemo(() => {
     return showPluto ? PLANETS : PLANETS.filter(p => p.id !== 'pluto');
   }, [showPluto]);
 
   return (
-    <div className="w-full h-screen bg-black relative overflow-hidden">
+    <div className="w-full h-screen relative overflow-hidden transition-colors duration-500"
+         style={{ backgroundColor: isARMode ? 'transparent' : '#000' }}
+    >
       
       <UIOverlay 
         selectedPlanet={selectedPlanet}
@@ -181,25 +188,30 @@ const App: React.FC = () => {
       {isGestureMode && (
         <GestureController 
           onControl={handleGestureControl} 
-          onClose={() => setIsGestureMode(false)} 
+          onClose={() => toggleGestureMode()} 
+          isARMode={isARMode}
+          toggleARMode={() => setIsARMode(!isARMode)}
         />
       )}
 
-      <Canvas gl={{ antialias: true, toneMappingExposure: 1.2 }}>
+      {/* 
+         Canvas needs alpha: true for transparency.
+         When AR Mode is ON, we hide the Skybox and opaque layers so the video behind shows through.
+      */}
+      <Canvas gl={{ antialias: true, toneMappingExposure: 1.2, alpha: true }}>
         <Suspense fallback={null}>
           <PerspectiveCamera makeDefault position={[0, 80, 120]} fov={45} />
           
           <OrbitControls 
             ref={controlsRef}
             makeDefault
-            enabled={!isStarshipActive} // Disable manual control when starship is active
+            enabled={!isStarshipActive} 
             enableDamping={true}
             dampingFactor={0.05}
             enablePan={false}
             minDistance={20}
             maxDistance={300}
             maxPolarAngle={Math.PI / 1.8}
-            // STOP auto-rotate when starship is active, or if user is interacting
             autoRotate={!selectedPlanetId && !isPaused && !isGestureMode && !isStarshipActive}
             autoRotateSpeed={0.15 * simulationSpeed}
           />
@@ -210,13 +222,13 @@ const App: React.FC = () => {
           <pointLight position={[0, 0, 0]} intensity={2.5} distance={500} decay={1} color="#FFF5E0" />
           <ambientLight intensity={0.15} color="#404060" />
 
-          {/* 1. Volumetric 3D Stars (Mid-distance) */}
+          {/* 1. Volumetric 3D Stars (Always show, they look nice floating in room) */}
           <Stars radius={400} depth={50} count={3000} factor={4} saturation={0.5} fade speed={0.5} />
           
-          {/* 2. Painted Background (Infinite Distance) */}
-          <Skybox />
+          {/* 2. Painted Background (Skybox) - HIDE IN AR MODE */}
+          {!isARMode && <Skybox />}
           
-          {/* 3. Magical Dust (Near-distance) */}
+          {/* 3. Magical Dust */}
           <Sparkles count={400} scale={200} size={6} speed={0.2} opacity={0.4} noise={0.1} color="#88AAFF" />
           <Sparkles count={150} scale={150} size={3} speed={0.3} opacity={0.6} color="#FFD700" />
           
@@ -227,7 +239,6 @@ const App: React.FC = () => {
              simulationSpeed={simulationSpeed}
           />
 
-          {/* Asteroid Belt located between Mars and Jupiter */}
           <AsteroidBelt isPaused={isPaused} simulationSpeed={simulationSpeed} />
           
           {displayedPlanets.map((planet) => (

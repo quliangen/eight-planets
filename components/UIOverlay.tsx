@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { PlanetData } from '../types';
 
@@ -150,7 +149,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
        box-shadow: 0 0 5px currentColor;
     }
 
-    /* Gesture Button Style */
+    /* Gesture Button Style - UPDATED COLOR */
     .gesture-btn {
       background: linear-gradient(135deg, #10b981, #047857);
     }
@@ -159,6 +158,16 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
        position: absolute; top: 10px; right: 10px;
        width: 8px; height: 8px; border-radius: 50%;
        box-shadow: 0 0 5px currentColor;
+    }
+    
+    /* Animation for active gesture mode */
+    .gesture-active-pulse {
+       animation: pulse-green 2s infinite;
+    }
+    @keyframes pulse-green {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 
     /* Comic Style Replacement - Space Info Card */
@@ -251,7 +260,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
               <button
                 onClick={toggleGestureMode}
                 title="手势控制"
-                className={`action-btn gesture-btn pointer-events-auto ${!isGestureMode ? 'inactive' : ''}`}
+                className={`action-btn gesture-btn pointer-events-auto ${!isGestureMode ? 'inactive' : 'gesture-active-pulse'}`}
               >
                 <div className={`indicator ${isGestureMode ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
                 <span className="text-2xl mt-1">👋</span>
