@@ -26,7 +26,6 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
   const initializedRef = useRef(false);
   const missionQueueRef = useRef<string[]>([]);
   const currentTargetIdRef = useRef<string | null>(null);
-  const totalMissionCountRef = useRef(0);
   
   // Movement calculation refs
   const currentSpeedRef = useRef(0);
@@ -35,55 +34,42 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
   const totalOrbitTraveledRef = useRef(0);
   const camDistRef = useRef(16); 
   
-  // Leaving/Targeting State Refs
+  // Leaving State Refs
   const exitVectorRef = useRef(new Vector3());
   const leavingTimeRef = useRef(0);
-  const entryPointRef = useRef<Vector3 | null>(null); // New: Store fixed entry point
   
   // Smooth rotation
   const MAX_SPEED = 28; // Slightly faster for long trips
   const ORBIT_SPEED = 8; // Slower speed for orbiting
   
-  // Helper to generate mission route: Counter-Clockwise Sweep
+  // Helper to generate mission route
   const generateMission = () => {
-     // 1. Get Earth's Angle
-     const earthObj = planetRefs.current['earth'];
-     if (!earthObj) return [];
-
-     const earthPos = new Vector3();
-     earthObj.getWorldPosition(earthPos);
-     
-     // Calculate angle in X-Z plane (0 to 2PI)
-     let earthAngle = Math.atan2(earthPos.z, earthPos.x);
-     if (earthAngle < 0) earthAngle += Math.PI * 2;
-
-     // 2. Get all other planets
-     const candidates = Object.keys(planetRefs.current).filter(id => id !== 'earth' && id !== 'sun');
-     
-     const planetsWithAngles = candidates.map(id => {
-        const obj = planetRefs.current[id];
-        const pos = new Vector3();
-        obj.getWorldPosition(pos);
+     // Exclude Sun, Mercury (too hot/close), and ensure we have candidates
+     const candidates = PLANETS
+        .filter(p => p.id !== 'mercury')
+        .map(p => p.id);
         
-        let angle = Math.atan2(pos.z, pos.x);
-        if (angle < 0) angle += Math.PI * 2;
-        
-        // Calculate angular distance CCW from Earth
-        // (Target - Earth + 2PI) % 2PI
-        let angleDiff = (angle - earthAngle + Math.PI * 2) % (Math.PI * 2);
-        
-        return { id, angleDiff };
-     });
+     const mission: string[] = [];
+     let lastPlanet = 'earth'; // Start logic from earth (conceptually)
 
-     // 3. Sort by angleDiff (Smallest angle diff means next in CCW orbit)
-     planetsWithAngles.sort((a, b) => a.angleDiff - b.angleDiff);
+     // Pick 5 random planets
+     for (let i = 0; i < 5; i++) {
+        let next: string;
+        let attempts = 0;
+        // Find a candidate that is not the same as the last one
+        do {
+            next = candidates[Math.floor(Math.random() * candidates.length)];
+            attempts++;
+        } while (next === lastPlanet && attempts < 10);
+        
+        mission.push(next);
+        lastPlanet = next;
+     }
 
-     const route = planetsWithAngles.map(p => p.id);
+     // Finally, return to Earth
+     mission.push('earth');
      
-     // 4. Finally return to Earth
-     route.push('earth');
-     
-     return route;
+     return mission;
   };
 
   // Helper to calculate a safe but close orbit radius for each planet
@@ -108,32 +94,12 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
         earthObj.getWorldPosition(startPos);
         
         if (startPos.lengthSq() > 1) { // Wait until Earth has valid pos
-             // Determine Earth's orbital tangent to start flying "with the flow"
-             const earthOrbitAngle = Math.atan2(startPos.z, startPos.x);
-             // Tangent for CCW orbit is -Z, +X relative to radius
-             // A simple way: look at a point slightly ahead in orbit
-             const nextX = Math.cos(earthOrbitAngle + 0.1) * Math.sqrt(startPos.x*startPos.x + startPos.z*startPos.z);
-             const nextZ = Math.sin(earthOrbitAngle + 0.1) * Math.sqrt(startPos.x*startPos.x + startPos.z*startPos.z);
-             
-             // Initial Position: Slightly above Earth
-             const initialPos = startPos.clone();
-             initialPos.y += 5.0; 
-             initialPos.x = startPos.x * 1.05; // Slightly outside
-             initialPos.z = startPos.z * 1.05;
-
-             groupRef.current.position.copy(initialPos);
-             
-             // Face the tangent direction
-             groupRef.current.lookAt(new Vector3(nextX, initialPos.y, nextZ));
-
-             // Only visible once positioned
-             if (shipModelRef.current) shipModelRef.current.visible = true;
-
+             startPos.y += 10.0; // Start high
+             startPos.x += 10.0; 
+             groupRef.current.position.copy(startPos);
+             groupRef.current.lookAt(new Vector3(0, 0, 0)); 
              initializedRef.current = true;
              stateRef.current = 'PLANNING';
-        } else {
-             // Hide until positioned
-             if (shipModelRef.current) shipModelRef.current.visible = false;
         }
       }
       return; 
@@ -143,20 +109,12 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
     
     // PLANNING: Generate the queue once
     if (stateRef.current === 'PLANNING') {
-       const route = generateMission();
-       if (route.length > 0) {
-           missionQueueRef.current = route;
-           totalMissionCountRef.current = route.length;
-           stateRef.current = 'LEAVING'; 
-           
-           // Setup initial exit vector: Just fly forward from where we are
-           const forward = new Vector3(0, 0, 1).applyQuaternion(groupRef.current.quaternion).normalize();
-           exitVectorRef.current.copy(forward);
-           leavingTimeRef.current = 0;
-           entryPointRef.current = null; // Reset
-       } else {
-           stateRef.current = 'COMPLETED';
-       }
+       missionQueueRef.current = generateMission();
+       stateRef.current = 'LEAVING'; // Start by "Leaving" spawn point to go to first target
+       // Setup initial exit vector away from spawn
+       const forward = new Vector3(0, 0, 1).applyQuaternion(groupRef.current.quaternion).normalize();
+       exitVectorRef.current.copy(forward);
+       leavingTimeRef.current = 0;
        return;
     }
 
@@ -178,7 +136,7 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
        }
 
        // After flying away briefly (to clear orbit/spawn), select next target
-       if (leavingTimeRef.current > 1.5) { // Increased time to fly clear
+       if (leavingTimeRef.current > 1.0) {
           // Check if we have a destination
           if (missionQueueRef.current.length > 0) {
              const nextId = missionQueueRef.current.shift()!;
@@ -187,13 +145,12 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
              // Update HUD text
              const pName = PLANETS.find(p => p.id === nextId)?.name || nextId;
              setMissionProgress(prev => ({ 
-                 current: totalMissionCountRef.current - missionQueueRef.current.length, 
-                 total: totalMissionCountRef.current,
+                 current: 6 - missionQueueRef.current.length, // 5 steps + 1 return
+                 total: 6,
                  targetName: pName
              }));
              
              stateRef.current = 'TRAVELING';
-             entryPointRef.current = null; // Prepare to calculate new entry
           } else {
              stateRef.current = 'COMPLETED';
           }
@@ -202,6 +159,7 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
     
     // COMPLETED: Mission Done
     if (stateRef.current === 'COMPLETED') {
+        // Trigger callback once then stop
         onMissionComplete();
         return;
     }
@@ -215,60 +173,51 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
       targetObj = planetRefs.current[tId];
       targetObj.getWorldPosition(targetPos);
     } else if (stateRef.current === 'TRAVELING') {
+        // Target lost or invalid? Skip
         stateRef.current = 'LEAVING';
         return;
     }
     
     const currentPos = groupRef.current.position.clone();
     
-    // TRAVELING: Fly towards the CALCULATED tangent entry point
+    // TRAVELING: Fly towards the orbit entry point
     if (stateRef.current === 'TRAVELING' && targetObj) {
       const targetRadius = getSafeOrbitRadius(tId!);
       
-      // --- ENTRY POINT CALCULATION (Run Once) ---
-      if (!entryPointRef.current) {
-          const vecToPlanet = new Vector3().subVectors(targetPos, currentPos);
-          // Calculate a "Right" vector relative to approach to enter CCW orbit tangentially
-          // For a CCW orbit, the tangent on the "Right" side (relative to approach) aligns with the approach vector.
-          const up = new Vector3(0, 1, 0);
-          const dir = vecToPlanet.clone().normalize();
-          const right = new Vector3().crossVectors(dir, up).normalize();
-          
-          // Tangent Entry Point: Planet Center + (RightVector * OrbitRadius)
-          // This means we fly to the "edge" of the orbit, not the planet center.
-          const offset = right.multiplyScalar(targetRadius);
-          const entry = new Vector3().addVectors(targetPos, offset);
-          
-          entryPointRef.current = entry;
-      }
-
-      const entryPoint = entryPointRef.current!;
+      const dirToPlanet = new Vector3().subVectors(targetPos, currentPos).normalize();
+      
+      // Entry point logic: Aim for equator at target radius
+      const flatDir = new Vector3(dirToPlanet.x, 0, dirToPlanet.z).normalize();
+      const entryPoint = new Vector3(
+          targetPos.x - flatDir.x * targetRadius,
+          targetPos.y, 
+          targetPos.z - flatDir.z * targetRadius
+      );
+      
       const distToEntry = currentPos.distanceTo(entryPoint);
 
-      // Decelerate smoothly as we approach the injection point
+      // Decelerate
       let targetSpeed = MAX_SPEED;
-      if (distToEntry < 40) targetSpeed = ORBIT_SPEED * 1.5;
-      if (distToEntry < 10) targetSpeed = ORBIT_SPEED;
+      if (distToEntry < 30) targetSpeed = ORBIT_SPEED;
       
       currentSpeedRef.current += (targetSpeed - currentSpeedRef.current) * 2.0 * delta;
 
       if (distToEntry < 2) {
-         // --- ARRIVAL & INJECTION ---
+         // Arrived
          stateRef.current = 'ORBITING';
          orbitRadiusRef.current = targetRadius;
          
-         // Calculate the angle we actually arrived at relative to the planet
          const relativePos = new Vector3().subVectors(currentPos, targetPos);
          orbitAngleRef.current = Math.atan2(relativePos.z, relativePos.x);
          totalOrbitTraveledRef.current = 0;
       } else {
-         // --- MOVE TOWARDS TANGENT POINT ---
+         // Move
          const moveDir = new Vector3().subVectors(entryPoint, currentPos).normalize();
          groupRef.current.position.add(moveDir.multiplyScalar(currentSpeedRef.current * delta));
          
-         // Smooth rotation towards target
+         // Rotate Ship
          const lookPos = currentPos.clone().add(moveDir);
-         const slerpSpeed = distToEntry < 10 ? 4 * delta : 2 * delta; // Faster turn when close
+         const slerpSpeed = distToEntry < 10 ? 3 * delta : 5 * delta;
          
          const dummyObj = new Object3D();
          dummyObj.position.copy(currentPos);
@@ -286,7 +235,7 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
        currentSpeedRef.current += (ORBIT_SPEED - currentSpeedRef.current) * 2.0 * delta;
 
        const angularSpeed = currentSpeedRef.current / orbitRadiusRef.current;
-       const angleDelta = angularSpeed * delta; // Positive means "Left-turning" orbit (CCW)
+       const angleDelta = angularSpeed * delta;
        
        orbitAngleRef.current += angleDelta;
        totalOrbitTraveledRef.current += angleDelta;
@@ -312,20 +261,22 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
        dummyObj.lookAt(lookAtPos);
        groupRef.current.quaternion.slerp(dummyObj.quaternion, 8 * delta);
 
-       // Bank into the turn
+       // Bank
        if (shipModelRef.current) {
-           shipModelRef.current.rotation.z = MathUtils.lerp(shipModelRef.current.rotation.z, Math.PI / 4, delta * 3);
+           shipModelRef.current.rotation.z = MathUtils.lerp(shipModelRef.current.rotation.z, -Math.PI / 4, delta * 3);
        }
 
-       // Exit condition: ~1 full orbit
+       // Exit condition: ~1 full orbit (plus a bit to clear entry point)
        if (totalOrbitTraveledRef.current > Math.PI * 2.2) {
           stateRef.current = 'LEAVING';
           
-          // Determine tangential exit vector naturally
+          // Determine tangential exit vector
           const forward = new Vector3(0, 0, 1).applyQuaternion(groupRef.current.quaternion).normalize();
           exitVectorRef.current.copy(forward);
           leavingTimeRef.current = 0;
-          entryPointRef.current = null;
+          
+          // Note: We don't nullify currentTargetIdRef yet, we do that in LEAVING after some time
+          // so the camera doesn't snap away too fast.
        }
     }
 
@@ -336,14 +287,12 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
     }
 
     // --- CAMERA LOGIC (Third Person) ---
-    // Smooth transitions for camera distance
     const targetCamDist = stateRef.current === 'ORBITING' ? 35 : 18;
     camDistRef.current = MathUtils.lerp(camDistRef.current, targetCamDist, delta * 1.0);
 
     const shipForward = new Vector3(0, 0, 1).applyQuaternion(groupRef.current.quaternion).normalize();
     const heightOffset = MathUtils.lerp(5, 12, (camDistRef.current - 16) / (35 - 16));
     
-    // Camera trails behind
     const camOffset = shipForward.clone().multiplyScalar(-camDistRef.current).add(new Vector3(0, heightOffset, 0));
     const desiredCamPos = groupRef.current.position.clone().add(camOffset);
     
@@ -414,33 +363,33 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
                   />
                 </mesh>
                 
-                {/* NAME LABEL 1 (Top) - Vertical Layout - GOLD & SPACED */}
+                {/* NAME LABEL 1 (Top) - Vertical Layout */}
                 <group position={[0, 0, 0.36]}>
                      <Text
-                        color="#FFD700" // Gold Color
-                        fontSize={0.25} 
+                        color="white" // White Glowing Text
+                        fontSize={0.28} // Larger size
                         anchorX="center"
                         anchorY="middle"
                         rotation={[0, 0, 0]} 
-                        lineHeight={1.6} // Increased Line Height for spacing
-                        outlineWidth={0.02}
-                        outlineColor="#8B4513" // SaddleBrown outline for better contrast with Gold
+                        lineHeight={1}
+                        outlineWidth={0.02} // Glowing Outline
+                        outlineColor="#00FFFF" // Cyan Glow
                      >
                        {'小\n豆\n子\n号'}
                      </Text>
                 </group>
 
-                {/* NAME LABEL 2 (Bottom) - Vertical Layout - Rotated - GOLD & SPACED */}
+                {/* NAME LABEL 2 (Bottom) - Vertical Layout - Rotated to face downwards/outwards */}
                 <group position={[0, 0, -0.36]} rotation={[0, Math.PI, 0]}>
                      <Text
-                        color="#FFD700" // Gold Color
-                        fontSize={0.25}
+                        color="white" // White Glowing Text
+                        fontSize={0.28} // Larger size
                         anchorX="center"
                         anchorY="middle"
                         rotation={[0, 0, 0]} 
-                        lineHeight={1.6} // Increased Line Height
-                        outlineWidth={0.02} 
-                        outlineColor="#8B4513" // SaddleBrown outline
+                        lineHeight={1}
+                        outlineWidth={0.02} // Glowing Outline
+                        outlineColor="#00FFFF" // Cyan Glow
                      >
                        {'小\n豆\n子\n号'}
                      </Text>

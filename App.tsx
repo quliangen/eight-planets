@@ -134,12 +134,11 @@ const App: React.FC = () => {
     setIsStarshipActive(activating);
     
     if (activating) {
-       // When starting mission: PAUSE ORBITS so we have a static map
-       setIsPaused(true); 
-       setSimulationSpeed(0.5); // Slow down visuals slightly
-    } else {
-       // Manual cancel - Resume Orbits
+       // When starting mission: Stop manual pause (if any), set stable speed
        setIsPaused(false);
+       setSimulationSpeed(0.5); // Slow down slightly for better flight viewing
+    } else {
+       // Manual cancel
        setSimulationSpeed(1.0);
     }
   };
@@ -147,7 +146,6 @@ const App: React.FC = () => {
   const handleMissionComplete = () => {
      // Called by Starship component when route is finished
      setIsStarshipActive(false);
-     setIsPaused(false); // RESUME ORBITS
      setSimulationSpeed(1.0); // Restore to 1x speed
   };
 
