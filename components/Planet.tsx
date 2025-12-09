@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Mesh, Color, DoubleSide, Vector3, TextureLoader, AdditiveBlending, Object3D, Group } from 'three';
@@ -13,6 +14,7 @@ interface PlanetProps {
   simulationSpeed: number;
   earthPositionRef: React.MutableRefObject<Vector3>;
   planetRefs: React.MutableRefObject<{ [key: string]: Object3D }>;
+  isStarshipActive: boolean;
 }
 
 const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number }> = ({ isPaused, simulationSpeed }) => {
@@ -75,7 +77,8 @@ export const Planet: React.FC<PlanetProps> = ({
   isPaused,
   simulationSpeed,
   earthPositionRef,
-  planetRefs
+  planetRefs,
+  isStarshipActive
 }) => {
   const meshRef = useRef<Mesh>(null);
   const orbitGroupRef = useRef<Group>(null);
@@ -158,7 +161,8 @@ export const Planet: React.FC<PlanetProps> = ({
     <group ref={inclinationGroupRef} rotation={[0, 0, data.orbitInclination || 0]}>
       
       {/* Orbit Path Visual (Ring) - Stays static within the inclined plane */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+      {/* HIDE when Starship is active for cleaner look */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} visible={!isStarshipActive}>
         <ringGeometry args={[data.distance - 0.05, data.distance + 0.05, 128]} />
         <meshBasicMaterial color="#ffffff" opacity={0.35} transparent side={DoubleSide} />
       </mesh>

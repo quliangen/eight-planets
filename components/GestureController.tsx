@@ -7,6 +7,8 @@ interface GestureControllerProps {
   onClose: () => void;
 }
 
+type HandState = 'fist' | 'open' | 'neutral';
+
 export const GestureController: React.FC<GestureControllerProps> = ({ onControl, onClose }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -15,6 +17,9 @@ export const GestureController: React.FC<GestureControllerProps> = ({ onControl,
   const [isExpanded, setIsExpanded] = useState(false); // Default to hidden (stealth mode)
   const landmarkerRef = useRef<HandLandmarker | null>(null);
   const requestRef = useRef<number>(0);
+  
+  // Track current state for visualization
+  const [currentGesture, setCurrentGesture] = useState<HandState>('neutral');
 
   // Initialize MediaPipe HandLandmarker
   useEffect(() => {
@@ -64,6 +69,42 @@ export const GestureController: React.FC<GestureControllerProps> = ({ onControl,
     }
   };
 
+  const detectHandState = (landmarks: any[]): HandState => {
+    if (!landmarks || landmarks.length === 0) return 'neutral';
+
+    const wrist = landmarks[0];
+    const middleMCP = landmarks[9]; // Middle finger knuckle
+    
+    // Calculate scale reference (Wrist to Knuckle distance)
+    const scale = Math.hypot(middleMCP.x - wrist.x, middleMCP.y - wrist.y);
+    
+    if (scale === 0) return 'neutral';
+
+    // Check distances of fingertips to wrist
+    const tipIndices = [8, 12, 16, 20]; // Index, Middle, Ring, Pinky
+    let extendedCount = 0;
+    let curledCount = 0;
+
+    tipIndices.forEach(idx => {
+      const tip = landmarks[idx];
+      const dist = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+      const ratio = dist / scale;
+
+      // Thresholds determined empirically
+      if (ratio > 1.5) extendedCount++; // Finger is extended
+      if (ratio < 1.2) curledCount++;   // Finger is curled
+    });
+
+    // Determine state
+    // Open: At least 4 fingers extended (including thumb logic implicit or 4 main fingers)
+    if (extendedCount >= 4) return 'open';
+    
+    // Fist: At least 3 fingers curled tightly (allows for thumb variation)
+    if (curledCount >= 3) return 'fist';
+
+    return 'neutral';
+  };
+
   const predictWebcam = () => {
     if (!landmarkerRef.current || !videoRef.current || !canvasRef.current) return;
     
@@ -76,32 +117,26 @@ export const GestureController: React.FC<GestureControllerProps> = ({ onControl,
     const startTimeMs = performance.now();
     const result = landmarkerRef.current.detectForVideo(videoRef.current, startTimeMs);
 
-    // Determine gesture state
-    let isPinching = false;
+    let gesture: HandState = 'neutral';
     if (result.landmarks && result.landmarks.length > 0) {
-        const landmarks = result.landmarks[0];
-        const thumbTip = landmarks[4];
-        const indexTip = landmarks[8];
-        const distance = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
-        // Threshold for pinch (OK gesture)
-        if (distance < 0.06) {
-            isPinching = true;
-        }
+        gesture = detectHandState(result.landmarks[0]);
     }
 
-    draw(result, isPinching);
-    processGestures(result, isPinching);
+    // Update state for UI (optional de-bouncing could be added here, but direct is more responsive)
+    // We use a ref or direct draw, but for React state update we might want to throttle. 
+    // For now, we pass it to draw() directly to avoid re-renders.
+    
+    processGestures(result, gesture);
+    draw(result, gesture);
 
     requestRef.current = requestAnimationFrame(predictWebcam);
   };
 
-  const processGestures = (result: HandLandmarkerResult, isPinching: boolean) => {
+  const processGestures = (result: HandLandmarkerResult, gesture: HandState) => {
     if (result.landmarks && result.landmarks.length > 0) {
-      // Get the first hand
       const landmarks = result.landmarks[0];
       
-      // Use Index Finger Tip (8) for position tracking
-      // If pinching, we can still use index tip as the cursor position
+      // Use Index Finger Tip (8) for cursor position tracking
       const cursor = landmarks[8];
       
       const x = cursor.x; // 0 (Left) -> 1 (Right)
@@ -115,36 +150,46 @@ export const GestureController: React.FC<GestureControllerProps> = ({ onControl,
       const CENTER_X = 0.5;
       const CENTER_Y = 0.5;
 
+      // Handle Zoom Gestures
+      if (gesture === 'open') {
+        // OPEN PALM -> ZOOM IN
+        // Send a constant negative dy for smooth zooming in
+        onControl(0, -1.0, 'zoom');
+        return;
+      } 
+      
+      if (gesture === 'fist') {
+        // FIST -> ZOOM OUT
+        // Send a constant positive dy for smooth zooming out
+        onControl(0, 1.0, 'zoom');
+        return;
+      }
+
+      // Handle Rotation (Neutral State - Pointing etc.)
+      // Only process rotation if we are NOT zooming
+      
       // --- X Control (Rotation / Pan) ---
-      // We want: Hand Left -> Map Left.
-      // Hand Left (x small) -> dx negative.
       if (x < CENTER_X - DEADZONE) {
-        // x is 0.2, center is 0.5. dx should be negative.
-        // (0.2 - 0.35) = -0.15. 
         dx = (x - (CENTER_X - DEADZONE)) * 4; 
       } else if (x > CENTER_X + DEADZONE) {
-        // x is 0.8, center is 0.5. dx should be positive.
-        // (0.8 - 0.65) = 0.15.
         dx = (x - (CENTER_X + DEADZONE)) * 4;
       }
 
-      // --- Y Control (Tilt / Zoom) ---
-      // Hand Up (y small) -> dy negative.
-      // Hand Down (y large) -> dy positive.
+      // --- Y Control (Tilt) ---
       if (y < CENTER_Y - DEADZONE) {
          dy = (y - (CENTER_Y - DEADZONE)) * 2; 
       } else if (y > CENTER_Y + DEADZONE) {
          dy = (y - (CENTER_Y + DEADZONE)) * 2;
       }
 
-      onControl(dx, dy, isPinching ? 'zoom' : 'rotate');
+      onControl(dx, dy, 'rotate');
     } else {
         // No hand -> No movement
         onControl(0, 0, 'rotate');
     }
   };
 
-  const draw = (result: HandLandmarkerResult, isPinching: boolean) => {
+  const draw = (result: HandLandmarkerResult, gesture: HandState) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -165,43 +210,52 @@ export const GestureController: React.FC<GestureControllerProps> = ({ onControl,
     const zoneX = (w - zoneW) / 2;
     const zoneY = (h - zoneH) / 2;
 
-    ctx.strokeStyle = isPinching ? 'rgba(0, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.5)';
-    ctx.lineWidth = isPinching ? 3 : 2;
+    // Set Colors based on Gesture
+    let mainColor = 'rgba(255, 255, 255, 0.5)';
+    let statusText = "";
+    
+    if (gesture === 'open') {
+        mainColor = '#00FF00'; // Green for Zoom In
+        statusText = "🖐 放大 (ZOOM IN)";
+    } else if (gesture === 'fist') {
+        mainColor = '#FF0055'; // Red/Pink for Zoom Out
+        statusText = "✊ 缩小 (ZOOM OUT)";
+    } else if (gesture === 'neutral') {
+        mainColor = '#FFFF00'; // Yellow for Control/Rotate
+        statusText = "👆 移动 (ROTATE)";
+    }
+
+    ctx.strokeStyle = mainColor;
+    ctx.lineWidth = 3;
     ctx.setLineDash([5, 5]);
     ctx.strokeRect(zoneX, zoneY, zoneW, zoneH);
     ctx.setLineDash([]);
     
+    // Status Text
+    if (statusText) {
+        ctx.font = "bold 16px 'ZCOOL KuaiLe', sans-serif";
+        ctx.fillStyle = mainColor;
+        ctx.shadowColor = "rgba(0,0,0,0.8)";
+        ctx.shadowBlur = 4;
+        ctx.fillText(statusText, 10, 25);
+        ctx.shadowBlur = 0;
+    }
+
     // Center Crosshair
     ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
     ctx.fillRect(w/2 - 1, h/2 - 5, 2, 10);
     ctx.fillRect(w/2 - 5, h/2 - 1, 10, 2);
 
-    if (isPinching) {
-        ctx.font = "bold 16px Arial";
-        ctx.fillStyle = "#00FFFF";
-        ctx.fillText("ZOOM MODE", 10, 20);
-    }
-
     if (result.landmarks) {
       for (const landmarks of result.landmarks) {
-        drawConnectors(ctx, landmarks, HandLandmarker.HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 3 });
-        drawLandmarks(ctx, landmarks, { color: "#FF0000", lineWidth: 2, radius: 4 });
+        drawConnectors(ctx, landmarks, HandLandmarker.HAND_CONNECTIONS, { color: "rgba(255,255,255,0.3)", lineWidth: 2 });
+        drawLandmarks(ctx, landmarks, { color: mainColor, lineWidth: 2, radius: 4 });
         
-        // Connect Thumb and Index specifically
-        const thumb = landmarks[4];
-        const index = landmarks[8];
-        
-        ctx.beginPath();
-        ctx.moveTo(thumb.x * w, thumb.y * h);
-        ctx.lineTo(index.x * w, index.y * h);
-        ctx.strokeStyle = isPinching ? "#FFFF00" : "rgba(255, 255, 255, 0.5)";
-        ctx.lineWidth = isPinching ? 4 : 1;
-        ctx.stroke();
-
         // Highlight Cursor (Index Tip)
+        const index = landmarks[8];
         ctx.beginPath();
-        ctx.arc(index.x * w, index.y * h, isPinching ? 10 : 8, 0, 2 * Math.PI);
-        ctx.fillStyle = isPinching ? "#00FFFF" : "#FFFF00";
+        ctx.arc(index.x * w, index.y * h, 10, 0, 2 * Math.PI);
+        ctx.fillStyle = mainColor;
         ctx.fill();
         ctx.strokeStyle = "#FFFFFF";
         ctx.lineWidth = 2;

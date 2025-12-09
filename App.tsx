@@ -1,3 +1,4 @@
+
 import React, { useState, Suspense, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sparkles, PerspectiveCamera, Environment, Stars } from '@react-three/drei';
@@ -45,7 +46,7 @@ const Skybox: React.FC = () => {
 // Component to handle applying gesture inputs to OrbitControls
 const OrbitController = ({ controlsRef, gestureVelocity }: { controlsRef: any, gestureVelocity: React.MutableRefObject<{dx: number, dy: number, gestureType: 'rotate' | 'zoom'}> }) => {
   useFrame(() => {
-    if (controlsRef.current) {
+    if (controlsRef.current && controlsRef.current.enabled) {
       const { dx, dy, gestureType } = gestureVelocity.current;
       
       const threshold = 0.01;
@@ -119,6 +120,14 @@ const App: React.FC = () => {
     gestureVelocity.current = { dx, dy, gestureType };
   };
 
+  const toggleGestureMode = () => {
+    const nextState = !isGestureMode;
+    setIsGestureMode(nextState);
+    if (nextState) {
+      setSimulationSpeed(1.0);
+    }
+  };
+
   // Find the selected planet object (Sun or normal Planet)
   const selectedPlanet = useMemo(() => {
     if (selectedPlanetId === 'sun') return SUN_DATA;
@@ -145,7 +154,7 @@ const App: React.FC = () => {
         showPluto={showPluto}
         togglePluto={togglePluto}
         isGestureMode={isGestureMode}
-        toggleGestureMode={() => setIsGestureMode(!isGestureMode)}
+        toggleGestureMode={toggleGestureMode}
       />
 
       {isGestureMode && (
@@ -162,14 +171,15 @@ const App: React.FC = () => {
           <OrbitControls 
             ref={controlsRef}
             makeDefault
+            enabled={!isStarshipActive} // Disable manual control when starship is active
             enableDamping={true}
             dampingFactor={0.05}
             enablePan={false}
             minDistance={20}
             maxDistance={300}
             maxPolarAngle={Math.PI / 1.8}
-            autoRotate={!selectedPlanetId && !isPaused && !isGestureMode}
-            autoRotateSpeed={0.15 * simulationSpeed} // Auto rotate also affected by speed slightly? Or maybe keep it constant. Let's make it independent for camera.
+            autoRotate={!selectedPlanetId && !isPaused && !isGestureMode && !isStarshipActive}
+            autoRotateSpeed={0.15 * simulationSpeed}
           />
           
           <OrbitController controlsRef={controlsRef} gestureVelocity={gestureVelocity} />
@@ -208,6 +218,7 @@ const App: React.FC = () => {
               simulationSpeed={simulationSpeed}
               earthPositionRef={earthPositionRef}
               planetRefs={planetRefs}
+              isStarshipActive={isStarshipActive}
             />
           ))}
 
