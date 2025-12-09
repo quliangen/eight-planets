@@ -128,6 +128,29 @@ const App: React.FC = () => {
     }
   };
 
+  // Starship Management
+  const handleToggleStarship = () => {
+    const activating = !isStarshipActive;
+    setIsStarshipActive(activating);
+    
+    if (activating) {
+       // When starting mission: PAUSE ORBITS so we have a static map
+       setIsPaused(true); 
+       setSimulationSpeed(0.5); // Slow down visuals slightly
+    } else {
+       // Manual cancel - Resume Orbits
+       setIsPaused(false);
+       setSimulationSpeed(1.0);
+    }
+  };
+
+  const handleMissionComplete = () => {
+     // Called by Starship component when route is finished
+     setIsStarshipActive(false);
+     setIsPaused(false); // RESUME ORBITS
+     setSimulationSpeed(1.0); // Restore to 1x speed
+  };
+
   // Find the selected planet object (Sun or normal Planet)
   const selectedPlanet = useMemo(() => {
     if (selectedPlanetId === 'sun') return SUN_DATA;
@@ -150,7 +173,7 @@ const App: React.FC = () => {
         simulationSpeed={simulationSpeed}
         setSimulationSpeed={setSimulationSpeed}
         isStarshipActive={isStarshipActive}
-        toggleStarship={() => setIsStarshipActive(!isStarshipActive)}
+        toggleStarship={handleToggleStarship}
         showPluto={showPluto}
         togglePluto={togglePluto}
         isGestureMode={isGestureMode}
@@ -178,6 +201,7 @@ const App: React.FC = () => {
             minDistance={20}
             maxDistance={300}
             maxPolarAngle={Math.PI / 1.8}
+            // STOP auto-rotate when starship is active, or if user is interacting
             autoRotate={!selectedPlanetId && !isPaused && !isGestureMode && !isStarshipActive}
             autoRotateSpeed={0.15 * simulationSpeed}
           />
@@ -222,7 +246,12 @@ const App: React.FC = () => {
             />
           ))}
 
-          {isStarshipActive && <Starship planetRefs={planetRefs} />}
+          {isStarshipActive && (
+             <Starship 
+                planetRefs={planetRefs} 
+                onMissionComplete={handleMissionComplete}
+             />
+          )}
 
         </Suspense>
       </Canvas>
