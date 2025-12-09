@@ -5,14 +5,16 @@ import { InstancedMesh, Object3D, Color, MathUtils, Group } from 'three';
 export const AsteroidBelt: React.FC<{ isPaused: boolean; simulationSpeed: number }> = ({ isPaused, simulationSpeed }) => {
   const meshRef = useRef<InstancedMesh>(null);
   const groupRef = useRef<Group>(null);
-  const count = 600; // Number of asteroids
+  // Increased count because the orbit is larger now, need more rocks to look dense
+  const count = 750; 
   const dummy = useMemo(() => new Object3D(), []);
 
   // Generate random data for asteroids
   const particles = useMemo(() => {
     const temp = [];
-    const minRadius = 32; // Just outside Mars (28)
-    const maxRadius = 36; // Before Jupiter (40)
+    // CORRECTION: Main Asteroid Belt is between Mars (Distance 36) and Jupiter (Distance 52)
+    const minRadius = 39; 
+    const maxRadius = 48; 
 
     for (let i = 0; i < count; i++) {
       // Random radius within the belt
@@ -92,7 +94,7 @@ export const AsteroidBelt: React.FC<{ isPaused: boolean; simulationSpeed: number
           metalness={0.2}
           color="#ffffff"
           emissive="#222222" // Slight self-glow to ensure visibility
-          emissiveIntensity={0.35} // Reduced from 0.5 to 0.35 (0.7x)
+          emissiveIntensity={0.35} 
         />
       </instancedMesh>
     </group>
