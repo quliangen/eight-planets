@@ -7,8 +7,8 @@ import { PlanetData } from '../types';
 export const generatePlanetTexture = (data: PlanetData): string => {
   const { type, colors } = data.textureConfig;
   // Jupiter and Neptune need higher resolution for details
-  const width = (data.id === 'jupiter' || data.id === 'neptune') ? 1024 : 512;
-  const height = (data.id === 'jupiter' || data.id === 'neptune') ? 512 : 256; 
+  const width = (data.id === 'jupiter' || data.id === 'neptune' || data.id === 'uranus') ? 1024 : 512;
+  const height = (data.id === 'jupiter' || data.id === 'neptune' || data.id === 'uranus') ? 512 : 256; 
   
   let svgContent = '';
   const baseColor = colors[0];
@@ -27,6 +27,60 @@ export const generatePlanetTexture = (data: PlanetData): string => {
         <rect width="100%" height="100%" fill="url(#grad1)" opacity="0.5" />
       `;
       break;
+
+    case 'uranus':
+        // --- URANUS SPECIFIC REALISTIC GENERATION ---
+        // Uranus is featureless in visible light but has a "Polar Hood" and faint bands
+        // Colors: Pale Cyan (#D1F5F8), Mid Cyan (#A9E2EF), Deep Cyan (#91D2E3)
+        const paleCyan = colors[0];
+        const midCyan = colors[1];
+        const deepCyan = colors[2];
+
+        svgContent = `
+          <defs>
+             <!-- 1. Smooth Haze Filter: Uranus is very hazy -->
+             <filter id="uranusHaze">
+                <feGaussianBlur stdDeviation="8" />
+             </filter>
+             
+             <!-- 2. Subtle Noise for atmospheric variation (very weak) -->
+             <filter id="uranusNoise">
+                <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="3" seed="99" />
+                <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.1 0" />
+             </filter>
+
+             <!-- 3. Latitudinal Gradient: Simulating the Polar Hoods and Equatorial Belts -->
+             <!-- Note: Uranus rolls on its side, but texture maps usually map Y to latitude -->
+             <linearGradient id="uranusBands" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="${paleCyan}" /> <!-- North Pole (Bright Hood) -->
+                <stop offset="25%" stop-color="${midCyan}" />
+                <stop offset="45%" stop-color="${deepCyan}" /> <!-- Equator area slightly darker/bluer -->
+                <stop offset="55%" stop-color="${deepCyan}" />
+                <stop offset="75%" stop-color="${midCyan}" />
+                <stop offset="100%" stop-color="${paleCyan}" /> <!-- South Pole (Bright Hood) -->
+             </linearGradient>
+          </defs>
+
+          <!-- A. Base Atmospheric Layer -->
+          <rect width="100%" height="100%" fill="url(#uranusBands)" />
+
+          <!-- B. Faint Cloud Bands (Very subtle) -->
+          <rect y="${height * 0.3}" width="100%" height="${height * 0.05}" fill="#ffffff" opacity="0.05" filter="url(#uranusHaze)" />
+          <rect y="${height * 0.65}" width="100%" height="${height * 0.08}" fill="#ffffff" opacity="0.03" filter="url(#uranusHaze)" />
+
+          <!-- C. Polar Brightness (The "Hood") -->
+          <!-- Top Cap -->
+          <ellipse cx="${width/2}" cy="0" rx="${width}" ry="${height*0.25}" fill="#ffffff" opacity="0.2" filter="url(#uranusHaze)" />
+          <!-- Bottom Cap -->
+          <ellipse cx="${width/2}" cy="${height}" rx="${width}" ry="${height*0.25}" fill="#ffffff" opacity="0.2" filter="url(#uranusHaze)" />
+
+          <!-- D. Occasional bright cloud feature (Cirrus) - rarely seen but adds detail -->
+          <ellipse cx="${width * 0.7}" cy="${height * 0.4}" rx="${width * 0.05}" ry="${height * 0.01}" fill="#ffffff" opacity="0.3" filter="url(#uranusHaze)" />
+          
+          <!-- E. Global smooth overlay to homogenize -->
+          <rect width="100%" height="100%" fill="${paleCyan}" opacity="0.1" style="mix-blend-mode: overlay;" />
+        `;
+        break;
 
     case 'neptune':
         // --- NEPTUNE SPECIFIC REALISTIC GENERATION ---

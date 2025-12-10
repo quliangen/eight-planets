@@ -157,7 +157,7 @@ export const PLANETS: PlanetData[] = [
   {
     id: 'uranus',
     name: '天王星 (Uranus)',
-    color: '#ACE5EE', 
+    color: '#D1F5F8', // Pale Cyan Base
     size: 2.0, // Ice giant size
     distance: 90,
     realDistance: 2870,
@@ -167,14 +167,14 @@ export const PLANETS: PlanetData[] = [
     orbitInclination: 0.01, 
     hasRings: true,
     ringColor: '#FFFFFF',
-    atmosphereColor: '#71C9CE', 
+    atmosphereColor: '#D1F5F8', 
     description: '我是冰蓝色的，因为我大气层里有甲烷。我很冷，而且是躺着转的！',
     temperature: '-197°C',
     composition: '冰 (水, 氨, 甲烷)',
     funFact: '天王星拥有太阳系中最冷的行星大气层，最低温度可达-224°C。',
     textureConfig: {
-      type: 'solid',
-      colors: ['#A6E3E9', '#71C9CE']
+      type: 'uranus', // New realistic type
+      colors: ['#D1F5F8', '#A9E2EF', '#91D2E3'] // Pale Cyan -> Mid Cyan -> Deeper Cyan
     }
   },
   {
