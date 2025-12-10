@@ -237,15 +237,6 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
           <div className="flex items-center gap-4 pt-2">
             
             <div className="flex gap-4">
-              {/* Pause Button */}
-              <button 
-                onClick={togglePause}
-                className={`action-btn pokeball pointer-events-auto ${!isPaused ? 'spinning' : 'paused'}`}
-                title={isPaused ? "Go! (继续)" : "Wait! (暂停)"}
-              >
-                <span className="text-2xl">{isPaused ? "⏸" : "▶️"}</span>
-              </button>
-
               {/* Interstellar Travel Button */}
               <button
                 onClick={toggleStarship}
@@ -282,13 +273,13 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                <div className="flex items-center gap-2 mb-2 justify-end">
                  <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider flex items-center gap-1">
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    时间加速
+                    加速器
                  </span>
                  <span className="text-xs font-bold text-white font-mono bg-cyan-500/20 px-1.5 rounded text-cyan-300 shadow-[0_0_5px_rgba(6,182,212,0.3)]">{simulationSpeed}x</span>
                </div>
                
                <div className="flex gap-1.5 bg-black/20 p-1 rounded-lg justify-end">
-                  {[0.5, 1, 5, 10].map((speed) => (
+                  {[0, 1, 5, 10, 20].map((speed) => (
                     <button
                       key={speed}
                       onClick={() => setSimulationSpeed(speed)}
@@ -298,7 +289,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                           : 'bg-white/5 text-cyan-300/70 border-white/5 hover:bg-white/10 hover:text-cyan-200 hover:border-white/20'
                       }`}
                     >
-                      {speed}
+                      {speed === 0 ? '0' : speed}
                     </button>
                   ))}
                </div>
