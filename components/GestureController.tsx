@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { FilesetResolver, HandLandmarker, HandLandmarkerResult } from '@mediapipe/tasks-vision';
 
@@ -131,50 +132,75 @@ export const GestureController: React.FC<GestureControllerProps> = ({
       return;
     }
 
+    // --- TWO HANDS MODE (ZOOM) ---
     if (hands.length === 2) {
+      // Use palm center (index 0 - wrist or 9 - middle knuckle) for stability
       const h1 = hands[0][9]; 
       const h2 = hands[1][9];
       const dist = Math.hypot(h1.x - h2.x, h1.y - h2.y);
       
       if (prevHandDistanceRef.current !== null) {
+        // Calculate change in distance
         const delta = dist - prevHandDistanceRef.current;
-        if (Math.abs(delta) > 0.005) {
-           onControl(0, delta * 200, 'zoom'); 
-           if (delta < 0) setStatusMessage("🔍 拉近镜头");
-           else setStatusMessage("🔭 拉远镜头");
+        
+        // Threshold to ignore micro-jitters
+        if (Math.abs(delta) > 0.002) {
+           // Pass delta directly. Positive = Spreading. Negative = Pinching.
+           // Multiplier 300 makes the value useful for camera dolly speed
+           onControl(0, delta * 300, 'zoom'); 
+           
+           if (delta > 0) setStatusMessage("🔍 放大 (拉近视角)");
+           else setStatusMessage("🔭 缩小 (拉远视角)");
         } else {
            onControl(0, 0, 'zoom');
+           setStatusMessage("✋ 双手保持距离");
         }
       }
       prevHandDistanceRef.current = dist;
       return;
     }
 
+    // --- ONE HAND MODE (ROTATE) ---
     if (hands.length === 1) {
       prevHandDistanceRef.current = null;
       const hand = hands[0];
-      const cursor = hand[9];
-      const x = 1.0 - cursor.x; // Mirror X
-      const y = cursor.y;
+      const cursor = hand[9]; // Middle finger knuckle (more stable than tip)
+      
+      // X coordinates are 0-1. Mirroring is handled by CSS scale-x, but for logic:
+      // MediaPipe coords: 0 is Left, 1 is Right (relative to camera feed)
+      // If we mirror the video visually, we need to match that logic.
+      // Let's assume standard: Move hand Right -> Rotate Right.
+      
+      const x = 1.0 - cursor.x; // Mirroring logic (0 becomes 1)
+      const y = cursor.y; // 0 is Top, 1 is Bottom
       
       let dx = 0;
       let dy = 0;
-      const DEADZONE = 0.2;
+      const DEADZONE = 0.15; // Slightly tighter deadzone
       const CENTER = 0.5;
       
+      // Horizontal Control
       if (Math.abs(x - CENTER) > DEADZONE) {
-         dx = (x - CENTER) * 2.5; 
+         dx = (x - CENTER) * 2.0; 
       }
+      
+      // Vertical Control
       if (Math.abs(y - CENTER) > DEADZONE) {
-         dy = (y - CENTER) * 2.5;
+         dy = (y - CENTER) * 2.0;
       }
       
       if (dx !== 0 || dy !== 0) {
         onControl(dx, dy, 'rotate');
-        setStatusMessage("👆 正在移动方向");
+        
+        // Dynamic Status Message
+        if (Math.abs(dx) > Math.abs(dy)) {
+            setStatusMessage(dx > 0 ? "👉 向右旋转" : "👈 向左旋转");
+        } else {
+            setStatusMessage(dy > 0 ? "👇 向上看 (相机上移)" : "👆 向下看 (相机下移)");
+        }
       } else {
         onControl(0, 0, 'rotate');
-        setStatusMessage("✋ 暂停中");
+        setStatusMessage("✋ 居中暂停");
       }
     }
   };
@@ -198,11 +224,17 @@ export const GestureController: React.FC<GestureControllerProps> = ({
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Guide Box
+        // Guide Box (Center Safe Zone)
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.lineWidth = 2;
         ctx.setLineDash([5, 5]);
-        ctx.strokeRect(canvas.width * 0.3, canvas.height * 0.3, canvas.width * 0.4, canvas.height * 0.4);
+        // Draw deadzone box relative to center
+        const deadzoneSize = 0.3; // 30% of screen
+        const x = canvas.width * (0.5 - deadzoneSize/2);
+        const y = canvas.height * (0.5 - deadzoneSize/2);
+        const w = canvas.width * deadzoneSize;
+        const h = canvas.height * deadzoneSize;
+        ctx.strokeRect(x, y, w, h);
         ctx.setLineDash([]);
     }
 
@@ -228,6 +260,13 @@ export const GestureController: React.FC<GestureControllerProps> = ({
            ctx.arc((1 - lm.x) * canvas.width, lm.y * canvas.height, 4, 0, 2 * Math.PI);
            ctx.fill();
         }
+        
+        // Draw Palm Center for debug visualization
+        const palmCenter = landmarks[9];
+        ctx.fillStyle = "#ffff00";
+        ctx.beginPath();
+        ctx.arc((1 - palmCenter.x) * canvas.width, palmCenter.y * canvas.height, 8, 0, 2 * Math.PI);
+        ctx.fill();
       }
     }
   };
@@ -258,6 +297,16 @@ export const GestureController: React.FC<GestureControllerProps> = ({
          <div className="fixed inset-0 w-full h-full bg-blue-950/40 z-[-9] pointer-events-none transition-colors duration-500" />
       )}
 
+      {/* Helper Canvas for drawing feedback (Used in both modes potentially, but mainly mini mode) */}
+      <canvas 
+        ref={canvasRef}
+        width={320}
+        height={240}
+        className={`fixed bottom-20 right-4 w-40 h-32 rounded-lg border-2 border-white/20 shadow-lg z-50 bg-black/50 pointer-events-none transition-opacity duration-300
+           ${isARMode ? 'opacity-0' : 'opacity-100'}
+        `}
+      />
+
       <div className="absolute bottom-4 right-4 z-50 flex flex-col items-end gap-3 pointer-events-auto animate-fade-in">
         
         {/* Status Bubble */}
@@ -266,12 +315,6 @@ export const GestureController: React.FC<GestureControllerProps> = ({
            {statusMessage}
         </div>
 
-        {/* 
-           Mini Preview Box - REMOVED DEFAULT DISPLAY 
-           We keep the canvasRef for potential future use or debug, but don't render it.
-           If user wanted it back, we'd add a toggle.
-        */}
-        
         {/* Error Message Display */}
         {permissionError && (
            <div className="bg-red-500/80 text-white px-4 py-2 rounded-lg text-sm max-w-[200px]">

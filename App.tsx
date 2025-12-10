@@ -1,3 +1,4 @@
+
 import React, { useState, Suspense, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sparkles, PerspectiveCamera, Environment, Stars } from '@react-three/drei';
@@ -65,8 +66,16 @@ const OrbitController = ({ controlsRef, gestureVelocity }: { controlsRef: any, g
       if (isActive) {
           if (gestureType === 'rotate') {
              // ROTATE MODE
+             // Hand Left/Right (dx) -> Rotate Azimuth
              controlsRef.current.setAzimuthalAngle(controlsRef.current.getAzimuthalAngle() - activeDx * 0.02);
+             
+             // Hand Up/Down (dy) -> Rotate Polar Angle
+             // Requirement: "Up movement -> Camera angle moves down"
+             // Hand Up (dy < 0). 'activeDy' is negative.
+             // We want Camera Down -> Increase Polar Angle (towards PI/2).
+             // Subtracting negative activeDy adds to the angle.
              controlsRef.current.setPolarAngle(controlsRef.current.getPolarAngle() - activeDy * 0.02);
+             
           } else if (gestureType === 'zoom') {
              // ZOOM MODE
              const zoomSensitivity = 0.015; // Adjusted sensitivity
@@ -74,11 +83,13 @@ const OrbitController = ({ controlsRef, gestureVelocity }: { controlsRef: any, g
              // Smooth zoom application
              const speed = 1.0 + Math.abs(activeDy * zoomSensitivity);
 
-             if (activeDy < 0) {
-                 // Negative delta = hands closer = Zoom In
+             // activeDy corresponds to change in distance between hands (Spread > 0, Close < 0)
+             // Requirement: "Hands spread and lengthen distance -> view zooms in"
+             if (activeDy > 0) {
+                 // Spread -> Zoom In (Dolly In)
                  controlsRef.current.dollyIn(speed);
              } else {
-                 // Positive delta = hands apart = Zoom Out
+                 // Close -> Zoom Out (Dolly Out)
                  controlsRef.current.dollyOut(speed);
              }
           }

@@ -1,3 +1,4 @@
+
 import { PlanetData } from '../types';
 
 /**
@@ -1000,6 +1001,89 @@ export const generateRingTexture = (planetId: string, baseColor: string): string
        <circle cx="512" cy="512" r="440" stroke="#FFFFFF" stroke-width="4" fill="none" opacity="0.8" />
        <circle cx="512" cy="512" r="364" stroke="#FFFFFF" stroke-width="2" fill="none" opacity="0.5" />
     `;
+  } else if (planetId === 'neptune') {
+      // --- NEPTUNE RINGS (Added) ---
+      // Neptune has 5 distinct but faint rings. The outer one (Adams) has arcs.
+      // We simulate this with faint white/blue-grey lines and clumps.
+      svgContent = `
+        <defs>
+          <radialGradient id="neptuneRings" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+             <!-- Inner gap -->
+             <stop offset="55%" style="stop-color:transparent;stop-opacity:0" />
+
+             <!-- Broad faint inner ring (Galle) -->
+             <stop offset="60%" style="stop-color:#A0C4FF;stop-opacity:0.1" />
+             <stop offset="65%" style="stop-color:#A0C4FF;stop-opacity:0.05" />
+             <stop offset="66%" style="stop-color:transparent;stop-opacity:0" />
+
+             <!-- Middle thin ring (Le Verrier) -->
+             <stop offset="75%" style="stop-color:transparent;stop-opacity:0" />
+             <stop offset="75.5%" style="stop-color:#E0F0FF;stop-opacity:0.4" />
+             <stop offset="76%" style="stop-color:transparent;stop-opacity:0" />
+
+             <!-- Outer ring (Adams) - Clumpy -->
+             <stop offset="88%" style="stop-color:transparent;stop-opacity:0" />
+             <stop offset="88.5%" style="stop-color:#FFFFFF;stop-opacity:0.5" />
+             <stop offset="89%" style="stop-color:#FFFFFF;stop-opacity:0.5" />
+             <stop offset="89.5%" style="stop-color:transparent;stop-opacity:0" />
+          </radialGradient>
+          
+          <filter id="neptuneNoise">
+             <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" />
+          </filter>
+        </defs>
+
+        <rect width="100%" height="100%" fill="url(#neptuneRings)" />
+        
+        <!-- Add some noise for the "dust" look -->
+        <rect width="100%" height="100%" filter="url(#neptuneNoise)" opacity="0.3" style="mix-blend-mode: multiply;" />
+
+        <!-- Ring Arcs (The famous Adams ring arcs: Liberté, Egalité, Fraternité) -->
+        <!-- Simulated by a dashed stroke overlay on the outer ring position (approx r=455) -->
+        <!-- Dash array creates the "broken arc" look -->
+        <circle cx="512" cy="512" r="455" stroke="#FFFFFF" stroke-width="4" fill="none" opacity="0.7" stroke-dasharray="40 250 60 180 50 1000" stroke-linecap="round" />
+      `;
+  } else if (planetId === 'jupiter') {
+      // --- JUPITER RINGS (New!) ---
+      // Faint dusty rings, mainly the Main Ring and Halo.
+      // Color is reddish-brown/dusty. Very faint compared to Saturn.
+      svgContent = `
+        <defs>
+          <radialGradient id="jupiterRingGrad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+            <!-- Gap -->
+            <stop offset="50%" style="stop-color:transparent;stop-opacity:0" />
+            
+            <!-- The Halo (Thick inner fuzzy part) -->
+            <stop offset="52%" style="stop-color:#8D7B68;stop-opacity:0.05" />
+            <stop offset="58%" style="stop-color:#8D7B68;stop-opacity:0.1" />
+
+            <!-- The Main Ring (Brightest part, still faint) -->
+            <stop offset="60%" style="stop-color:#A4907C;stop-opacity:0.2" /> 
+            <stop offset="61%" style="stop-color:#BCAFA3;stop-opacity:0.25" />
+            <stop offset="62%" style="stop-color:#A4907C;stop-opacity:0.2" />
+            
+            <!-- The Gossamer Rings (Outer, very faint) -->
+            <stop offset="63%" style="stop-color:#8D7B68;stop-opacity:0.05" />
+            <stop offset="70%" style="stop-color:#8D7B68;stop-opacity:0.02" />
+            
+            <!-- Fade out -->
+            <stop offset="72%" style="stop-color:transparent;stop-opacity:0" />
+          </radialGradient>
+          
+          <filter id="dustNoise">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" />
+            <feColorMatrix type="saturate" values="0"/>
+          </filter>
+        </defs>
+        
+        <rect width="100%" height="100%" fill="url(#jupiterRingGrad)" />
+        
+        <!-- Dusty texture overlay -->
+        <rect width="100%" height="100%" filter="url(#dustNoise)" opacity="0.3" style="mix-blend-mode: multiply;" />
+        
+        <!-- Subtle thin lines for structure -->
+        <circle cx="512" cy="512" r="312" stroke="#BCAFA3" stroke-width="1" fill="none" opacity="0.1" />
+      `;
   } else {
     // Generic logic for other planets with rings
     svgContent = `

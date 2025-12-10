@@ -1,5 +1,4 @@
 
-
 import { PlanetData } from './types';
 
 // Note: Sizes are adjusted for a better "relative realism" suitable for kids.
@@ -122,8 +121,10 @@ export const PLANETS: PlanetData[] = [
     rotationSpeed: 0.012, 
     axisTilt: 0.05, 
     orbitInclination: 0.02, 
+    hasRings: true, // Enabled Rings!
+    ringColor: '#BCAFA3', // Dusty Faint Brown
     atmosphereColor: '#FBC02D', 
-    description: '巨大的气态行星！我有漂亮的条纹，那是被风拉长的云。我是八大行星里最大的大哥。',
+    description: '巨大的气态行星！我有漂亮的条纹和大红斑。你知道吗？其实我也有光环，只是它们由尘埃组成，非常暗淡。',
     temperature: '-108°C',
     composition: '氢气, 氦气',
     funFact: '木星的大红斑是一个已经刮了350多年的超级反气旋风暴，能装下整个地球。',
@@ -189,8 +190,10 @@ export const PLANETS: PlanetData[] = [
     rotationSpeed: 0.008, 
     axisTilt: 0.49, 
     orbitInclination: 0.03, 
+    hasRings: true, // Enabled Rings!
+    ringColor: '#A0C4FF', // Faint Blue-White
     atmosphereColor: '#4169E1', // Royal Blue Glow
-    description: '深蓝色的风暴世界，离太阳最远，非常寒冷。我有太阳系最快的风和大暗斑！',
+    description: '深蓝色的风暴世界，离太阳最远。其实我也有光环，只是比较暗淡，而且有一部分像断开的弧线！',
     temperature: '-201°C',
     composition: '冰 (水, 氨, 甲烷)',
     funFact: '海王星上有太阳系最快的风，时速可达2100公里，是音速的1.5倍以上。',
