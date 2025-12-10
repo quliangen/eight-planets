@@ -1,4 +1,5 @@
 
+
 import { PlanetData } from './types';
 
 // Note: Sizes are adjusted for a better "relative realism" suitable for kids.
@@ -179,7 +180,7 @@ export const PLANETS: PlanetData[] = [
   {
     id: 'neptune',
     name: '海王星 (Neptune)',
-    color: '#4B70DD', 
+    color: '#3457D5', // Deep Royal Blue
     size: 1.9, // Similar to Uranus
     distance: 110,
     realDistance: 4500,
@@ -187,14 +188,14 @@ export const PLANETS: PlanetData[] = [
     rotationSpeed: 0.008, 
     axisTilt: 0.49, 
     orbitInclination: 0.03, 
-    atmosphereColor: '#3A5BB8', 
-    description: '深蓝色的风暴世界，离太阳最远，非常寒冷。我有太阳系最快的风！',
+    atmosphereColor: '#4169E1', // Royal Blue Glow
+    description: '深蓝色的风暴世界，离太阳最远，非常寒冷。我有太阳系最快的风和大暗斑！',
     temperature: '-201°C',
     composition: '冰 (水, 氨, 甲烷)',
     funFact: '海王星上有太阳系最快的风，时速可达2100公里，是音速的1.5倍以上。',
     textureConfig: {
-      type: 'solid',
-      colors: ['#3A5BB8', '#2C4496']
+      type: 'neptune', // New realistic type
+      colors: ['#1A237E', '#2979FF', '#82B1FF'] // Midnight Blue -> Blue -> Light Blue
     }
   },
   {

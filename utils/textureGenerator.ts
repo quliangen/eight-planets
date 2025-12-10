@@ -6,9 +6,9 @@ import { PlanetData } from '../types';
  */
 export const generatePlanetTexture = (data: PlanetData): string => {
   const { type, colors } = data.textureConfig;
-  // Jupiter needs higher resolution for the gas turbulence details
-  const width = data.id === 'jupiter' ? 1024 : 512;
-  const height = data.id === 'jupiter' ? 512 : 256; 
+  // Jupiter and Neptune need higher resolution for details
+  const width = (data.id === 'jupiter' || data.id === 'neptune') ? 1024 : 512;
+  const height = (data.id === 'jupiter' || data.id === 'neptune') ? 512 : 256; 
   
   let svgContent = '';
   const baseColor = colors[0];
@@ -27,6 +27,87 @@ export const generatePlanetTexture = (data: PlanetData): string => {
         <rect width="100%" height="100%" fill="url(#grad1)" opacity="0.5" />
       `;
       break;
+
+    case 'neptune':
+        // --- NEPTUNE SPECIFIC REALISTIC GENERATION ---
+        // Colors: Deep Blue (#1A237E), Royal Blue (#2979FF), Pale Blue (#82B1FF)
+        const deepBlue = colors[0];
+        const midBlue = colors[1];
+        const brightBlue = colors[2];
+        const darkSpotColor = '#0D1546'; // Almost black-blue
+
+        svgContent = `
+          <defs>
+            <!-- 1. Supersonic Winds Filter: Horizontal stretching turbulence -->
+            <filter id="neptuneWinds" x="-20%" y="-20%" width="140%" height="140%">
+               <!-- Base Frequency X=0.006 (Very stretched), Y=0.05 (Varied) -->
+               <feTurbulence type="fractalNoise" baseFrequency="0.006 0.05" numOctaves="5" seed="88" result="noise"/>
+               <feDisplacementMap in="SourceGraphic" in2="noise" scale="30" xChannelSelector="R" yChannelSelector="G" />
+               <feGaussianBlur stdDeviation="1.5" />
+            </filter>
+            
+            <!-- 2. Cloud Glow Filter -->
+            <filter id="cloudGlow">
+               <feGaussianBlur stdDeviation="3" result="blur" />
+               <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+
+            <!-- 3. Base Gradient: Dark Poles, Lighter Equator -->
+            <linearGradient id="neptuneGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="${deepBlue}" />
+              <stop offset="20%" stop-color="${midBlue}" />
+              <stop offset="50%" stop-color="${brightBlue}" stop-opacity="0.6" /> <!-- Lighter equator -->
+              <stop offset="80%" stop-color="${midBlue}" />
+              <stop offset="100%" stop-color="${deepBlue}" />
+            </linearGradient>
+          </defs>
+
+          <!-- A. Deep Atmosphere Base -->
+          <rect width="100%" height="100%" fill="${deepBlue}" />
+          <rect width="100%" height="100%" fill="url(#neptuneGrad)" opacity="0.8" />
+
+          <!-- B. Wind Streaks Layer (The high speed winds) -->
+          <g filter="url(#neptuneWinds)" opacity="0.4">
+             ${Array.from({length: 12}).map((_, i) => {
+                 const y = Math.random() * height;
+                 const h = Math.random() * 20 + 5;
+                 // Some streaks dark, some light
+                 const isDark = Math.random() > 0.5;
+                 const streakColor = isDark ? darkSpotColor : brightBlue;
+                 const op = Math.random() * 0.4;
+                 return `<rect x="0" y="${y}" width="100%" height="${h}" fill="${streakColor}" opacity="${op}" />`;
+             }).join('')}
+          </g>
+
+          <!-- C. The Great Dark Spot (Approx 22 S) -->
+          <!-- A hole in the methane deck -->
+          <g transform="translate(${width * 0.3}, ${height * 0.6})">
+             <ellipse cx="0" cy="0" rx="${width * 0.08}" ry="${height * 0.05}" fill="${darkSpotColor}" opacity="0.9" />
+             <!-- Subtle rim -->
+             <ellipse cx="0" cy="0" rx="${width * 0.085}" ry="${height * 0.055}" stroke="${midBlue}" stroke-width="2" fill="none" opacity="0.3" filter="url(#cloudGlow)"/>
+          </g>
+
+          <!-- D. The "Scooter" and High Altitude Clouds -->
+          <!-- Bright white cirrus clouds that cast shadows (simulated by offset dark copy, simple here) -->
+          <g filter="url(#cloudGlow)" opacity="0.8">
+             <!-- Near the Dark Spot (Orographic clouds) -->
+             <path d="M ${width * 0.25} ${height * 0.55} Q ${width * 0.3} ${height * 0.53} ${width * 0.35} ${height * 0.56}" 
+                   stroke="white" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.7" />
+             
+             <!-- The Scooter (Fast moving small bright cloud) -->
+             <ellipse cx="${width * 0.32}" cy="${height * 0.72}" rx="${width * 0.02}" ry="${height * 0.008}" fill="white" opacity="0.9" />
+
+             <!-- High streaks in Northern Hemisphere -->
+             <path d="M ${width * 0.6} ${height * 0.25} L ${width * 0.8} ${height * 0.26}" 
+                   stroke="white" stroke-width="2" fill="none" opacity="0.4" />
+             <path d="M ${width * 0.1} ${height * 0.3} L ${width * 0.25} ${height * 0.28}" 
+                   stroke="white" stroke-width="3" fill="none" opacity="0.3" />
+          </g>
+          
+          <!-- E. Global Blue Haze Overlay -->
+          <rect width="100%" height="100%" fill="${midBlue}" opacity="0.1" style="mix-blend-mode: overlay;" />
+        `;
+        break;
 
     case 'banded':
       // --- JUPITER SPECIFIC HIGH-FIDELITY GENERATION ---
