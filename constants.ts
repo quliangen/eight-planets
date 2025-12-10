@@ -135,7 +135,7 @@ export const PLANETS: PlanetData[] = [
   {
     id: 'saturn',
     name: '土星 (Saturn)',
-    color: '#E4D5B6', 
+    color: '#E0D2B4', // More accurate Pale Gold/Beige
     size: 3.6, // Slightly smaller than Jupiter
     distance: 72,
     realDistance: 1430,
@@ -144,14 +144,15 @@ export const PLANETS: PlanetData[] = [
     axisTilt: 0.47, 
     orbitInclination: 0.04, 
     hasRings: true,
-    ringColor: '#C5AB6E',
+    ringColor: '#CDBA88', // Light Gold
+    atmosphereColor: '#F4E4BC', // Soft Gold Haze
     description: '我是戴着戒指的宝石。我的光环非常漂亮，是由无数小冰块和石头组成的。',
     temperature: '-139°C',
     composition: '氢气, 氦气',
-    funFact: '土星的密度比水还小，如果有一个足够大的浴缸，土星会浮在水面上！',
+    funFact: '土星的北极有一个神奇的六边形风暴，大得能装下两个地球！',
     textureConfig: {
-      type: 'banded',
-      colors: ['#F4E4BC', '#EAD6A6', '#DCC491']
+      type: 'saturn', // New specialized type
+      colors: ['#EBE3CC', '#D6C69B', '#C1A976', '#A0957D'] // Pale Cream -> Gold -> Dark Ochre -> Polar Grey
     }
   },
   {

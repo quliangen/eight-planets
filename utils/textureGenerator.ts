@@ -7,8 +7,8 @@ import { PlanetData } from '../types';
 export const generatePlanetTexture = (data: PlanetData): string => {
   const { type, colors } = data.textureConfig;
   // Jupiter and Neptune need higher resolution for details
-  const width = (data.id === 'jupiter' || data.id === 'neptune' || data.id === 'uranus') ? 1024 : 512;
-  const height = (data.id === 'jupiter' || data.id === 'neptune' || data.id === 'uranus') ? 512 : 256; 
+  const width = (data.id === 'jupiter' || data.id === 'neptune' || data.id === 'uranus' || data.id === 'saturn') ? 1024 : 512;
+  const height = (data.id === 'jupiter' || data.id === 'neptune' || data.id === 'uranus' || data.id === 'saturn') ? 512 : 256; 
   
   let svgContent = '';
   const baseColor = colors[0];
@@ -27,6 +27,80 @@ export const generatePlanetTexture = (data: PlanetData): string => {
         <rect width="100%" height="100%" fill="url(#grad1)" opacity="0.5" />
       `;
       break;
+
+    case 'saturn':
+        // --- SATURN SPECIFIC REALISTIC GENERATION ---
+        // Distinct from Jupiter: Much smoother, "velvet" look due to thick ammonia haze.
+        // Less contrasty, more golden/beige. Distinct North Polar Hexagon.
+        const creamGold = colors[0]; // #EBE3CC
+        const mainGold = colors[1];  // #D6C69B
+        const deepBand = colors[2];  // #C1A976
+        const polarGrey = colors[3]; // #A0957D
+
+        svgContent = `
+          <defs>
+            <!-- 1. Heavy Haze Filter: Saturn's bands are not sharp like Jupiter's -->
+            <filter id="saturnHaze" x="-10%" y="-10%" width="120%" height="120%">
+               <feGaussianBlur stdDeviation="6" />
+            </filter>
+            
+            <!-- 2. Subtle Wind Noise: Fast zonal winds -->
+            <filter id="saturnWinds">
+               <feTurbulence type="fractalNoise" baseFrequency="0.005 0.1" numOctaves="3" result="noise"/>
+               <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.15 0" />
+            </filter>
+
+            <!-- 3. Band Gradient: Many subtle zones -->
+            <linearGradient id="saturnBands" x1="0%" y1="0%" x2="0%" y2="100%">
+               <stop offset="0%" stop-color="${polarGrey}" /> <!-- North Pole Hexagon Area -->
+               <stop offset="5%" stop-color="${deepBand}" />
+               <stop offset="15%" stop-color="${mainGold}" />
+               <stop offset="30%" stop-color="${creamGold}" /> <!-- Eq Zone -->
+               <stop offset="50%" stop-color="${creamGold}" />
+               <stop offset="70%" stop-color="${mainGold}" />
+               <stop offset="85%" stop-color="${deepBand}" />
+               <stop offset="95%" stop-color="${polarGrey}" /> <!-- South Pole -->
+            </linearGradient>
+            
+            <!-- 4. North Polar Hexagon Gradient (Visual hint) -->
+            <!-- Creating a hexagonal path is hard in equirectangular projection (it spans the top edge) -->
+            <!-- Instead we use a dark distinct cap with a lighter rim -->
+            <linearGradient id="hexGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#3C3C3C" stop-opacity="0.6"/>
+                <stop offset="100%" stop-color="${deepBand}" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+
+          <!-- A. Base Layer: The Smooth Bands -->
+          <rect width="100%" height="100%" fill="url(#saturnBands)" />
+          
+          <!-- B. Wind Texture (Horizontal Streaks) -->
+          <rect width="100%" height="100%" filter="url(#saturnWinds)" opacity="0.4" style="mix-blend-mode: overlay;" />
+
+          <!-- C. The "Velvet" Smoothing Overlay -->
+          <!-- We draw some rects and blur them heavily to mix the bands -->
+          <g filter="url(#saturnHaze)" opacity="0.6">
+             <rect y="${height * 0.2}" width="100%" height="${height * 0.1}" fill="${deepBand}" />
+             <rect y="${height * 0.6}" width="100%" height="${height * 0.05}" fill="${mainGold}" />
+             <rect y="${height * 0.45}" width="100%" height="${height * 0.1}" fill="#FFFFFF" opacity="0.2" /> <!-- Equatorial brightening -->
+          </g>
+
+          <!-- D. North Polar Hexagon Region (Symbolic) -->
+          <!-- In texture space, the pole is the top edge. We add a distinct color band there. -->
+          <!-- We create a wavy bottom edge to this rect to suggest the hexagon structure shape when wrapped -->
+          <path d="M 0 0 L ${width} 0 L ${width} ${height*0.06} 
+                   Q ${width*0.8} ${height*0.08}, ${width*0.6} ${height*0.05}
+                   T ${width*0.2} ${height*0.07}
+                   L 0 ${height*0.06} Z" 
+                fill="${polarGrey}" opacity="0.9" filter="url(#saturnHaze)" />
+                
+          <!-- Internal Hexagon Eye -->
+          <rect x="0" y="0" width="100%" height="${height*0.02}" fill="#2A2A2A" opacity="0.5" filter="url(#saturnHaze)" />
+
+          <!-- E. Global Golden Sheen -->
+          <rect width="100%" height="100%" fill="#FFD700" opacity="0.1" style="mix-blend-mode: overlay;" />
+        `;
+        break;
 
     case 'uranus':
         // --- URANUS SPECIFIC REALISTIC GENERATION ---
