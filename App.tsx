@@ -107,6 +107,13 @@ const App: React.FC = () => {
   
   const gestureVelocity = useRef<{dx: number, dy: number, gestureType: 'rotate' | 'zoom'}>({ dx: 0, dy: 0, gestureType: 'rotate' });
 
+  // Safety Effect: Ensure body background is black on mount, and transparent on AR
+  useEffect(() => {
+    document.body.style.backgroundColor = isARMode ? 'transparent' : '#000';
+    const root = document.getElementById('root');
+    if (root) root.style.backgroundColor = isARMode ? 'transparent' : '#000';
+  }, [isARMode]);
+
   const handleSelect = (id: string) => {
     setSelectedPlanetId(id);
     setIsPaused(true); 

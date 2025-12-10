@@ -113,7 +113,10 @@ export const GestureController: React.FC<GestureControllerProps> = ({
     const result = landmarkerRef.current.detectForVideo(videoRef.current, startTimeMs);
 
     processGestures(result);
-    draw(result);
+    // Only draw if canvas exists (it's hidden by default now)
+    if (canvasRef.current) {
+        draw(result);
+    }
 
     requestRef.current = requestAnimationFrame(predictWebcam);
   };
@@ -250,6 +253,11 @@ export const GestureController: React.FC<GestureControllerProps> = ({
         }}
       />
 
+      {/* AR Mode Overlay Background - Darken the video feed with Blue Tint 0.4 */}
+      {isARMode && (
+         <div className="fixed inset-0 w-full h-full bg-blue-950/40 z-[-9] pointer-events-none transition-colors duration-500" />
+      )}
+
       <div className="absolute bottom-4 right-4 z-50 flex flex-col items-end gap-3 pointer-events-auto animate-fade-in">
         
         {/* Status Bubble */}
@@ -258,18 +266,11 @@ export const GestureController: React.FC<GestureControllerProps> = ({
            {statusMessage}
         </div>
 
-        {/* Mini Preview Box - Only show if successfully loaded and NOT in AR mode */}
-        {!isARMode && !loading && !permissionError && (
-          <div className="relative rounded-xl overflow-hidden border-2 border-white/20 shadow-xl bg-black/50 w-[200px] h-[150px]">
-             {/* Canvas handles both video rendering (mirror) and debug lines */}
-             <canvas 
-               ref={canvasRef} 
-               width={200}
-               height={150}
-               className="absolute top-0 left-0 w-full h-full"
-             />
-          </div>
-        )}
+        {/* 
+           Mini Preview Box - REMOVED DEFAULT DISPLAY 
+           We keep the canvasRef for potential future use or debug, but don't render it.
+           If user wanted it back, we'd add a toggle.
+        */}
         
         {/* Error Message Display */}
         {permissionError && (
