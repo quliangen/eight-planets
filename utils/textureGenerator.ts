@@ -399,6 +399,74 @@ export const generateStarFieldTexture = (): string => {
 };
 
 /**
+ * Generates a procedural China flag texture.
+ * Red background with 5 yellow stars.
+ */
+export const generateChinaFlagTexture = (): string => {
+  const width = 300;
+  const height = 200;
+  const starYellow = "#FFDE00";
+  const bgRed = "#DE2910";
+
+  // Helper to draw a star
+  // cx, cy: center coordinates
+  // spikes: number of points (5)
+  // outerRadius: size
+  // innerRadius: size of inner corners
+  // angle: initial rotation
+  const getStarPoints = (cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number, angleOffset: number = 0) => {
+    let points = "";
+    let step = Math.PI / spikes;
+    
+    // Adjust starting angle (SVG stars usually point up at -PI/2)
+    let rot = (Math.PI / 2) * 3; 
+    // Add custom rotation
+    rot += angleOffset;
+
+    let x = cx;
+    let y = cy;
+
+    for (let i = 0; i < spikes; i++) {
+      x = cx + Math.cos(rot) * outerRadius;
+      y = cy + Math.sin(rot) * outerRadius;
+      points += `${x},${y} `;
+      rot += step;
+
+      x = cx + Math.cos(rot) * innerRadius;
+      y = cy + Math.sin(rot) * innerRadius;
+      points += `${x},${y} `;
+      rot += step;
+    }
+    return points;
+  }
+
+  // Large Star
+  const bigStar = getStarPoints(45, 50, 5, 28, 11);
+  
+  // Small Stars (Arc)
+  // 1: Top
+  const s1 = getStarPoints(90, 25, 5, 9, 3.5, 0.4);
+  // 2: Middle-Top
+  const s2 = getStarPoints(110, 45, 5, 9, 3.5, 0.1);
+  // 3: Middle-Bottom
+  const s3 = getStarPoints(110, 75, 5, 9, 3.5, 0);
+  // 4: Bottom
+  const s4 = getStarPoints(90, 95, 5, 9, 3.5, -0.4);
+
+  const svgContent = `
+    <rect width="100%" height="100%" fill="${bgRed}" />
+    <polygon points="${bigStar}" fill="${starYellow}" />
+    <polygon points="${s1}" fill="${starYellow}" />
+    <polygon points="${s2}" fill="${starYellow}" />
+    <polygon points="${s3}" fill="${starYellow}" />
+    <polygon points="${s4}" fill="${starYellow}" />
+  `;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${svgContent}</svg>`;
+  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+};
+
+/**
  * Generates a procedural ring texture.
  * Customized for Saturn (realistic bands + gaps) and Uranus (thin dark rings).
  */

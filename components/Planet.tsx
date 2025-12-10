@@ -1,10 +1,9 @@
-
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Mesh, Color, DoubleSide, Vector3, TextureLoader, AdditiveBlending, Object3D, Group } from 'three';
 import { Html, Billboard } from '@react-three/drei';
 import { PlanetData } from '../types';
-import { generatePlanetTexture, generateRingTexture, generateGenericGlowTexture } from '../utils/textureGenerator';
+import { generatePlanetTexture, generateRingTexture, generateGenericGlowTexture, generateChinaFlagTexture } from '../utils/textureGenerator';
 
 interface PlanetProps {
   data: PlanetData;
@@ -16,6 +15,178 @@ interface PlanetProps {
   planetRefs: React.MutableRefObject<{ [key: string]: Object3D }>;
   isStarshipActive: boolean;
 }
+
+// --- 中国空间站 (Tiangong Space Station) ---
+const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number }> = ({ isPaused, simulationSpeed }) => {
+  const stationRef = useRef<Group>(null);
+  const solarPanelRef = useRef<Group>(null);
+
+  // Generate the China flag texture
+  const flagUrl = useMemo(() => generateChinaFlagTexture(), []);
+  const flagTexture = useMemo(() => new TextureLoader().load(flagUrl), [flagUrl]);
+
+  useFrame((state, delta) => {
+    if (stationRef.current && !isPaused) {
+      // 空间站位于近地轨道，速度比月球快得多
+      // Real physics: ISS/Tiangong orbits ~16x a day. Moon orbits ~1x a month.
+      // Simulation: We make it spin fast enough to be noticeable and fun.
+      stationRef.current.rotation.y += delta * 1.5 * simulationSpeed;
+    }
+    
+    // 太阳翼缓慢调整角度（模拟对日定向）
+    if (solarPanelRef.current && !isPaused) {
+       // Gentle oscillation
+       solarPanelRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
+    }
+  });
+
+  return (
+    // 轨道倾角：天宫真实倾角约41度，这里视觉上稍微倾斜一点以区别于赤道
+    <group rotation={[Math.PI / 6, 0, Math.PI / 4]}>
+      <group ref={stationRef}>
+        {/* 轨道半径：1.4 (地球表面是0.5, 月球在3.5) */}
+        <group position={[1.4, 0, 0]} scale={[0.12, 0.12, 0.12]}> 
+           
+           {/* REMOVED: Text Label Billboard */}
+
+           {/* --- Q版天宫空间站 (T字构型) --- */}
+           {/* Rotate so the T shape lays flat relative to Earth surface initially, or perpendicular? */}
+           {/* Let's align it so the 'forward' flight direction matches the orbit tangent roughly */}
+           <group rotation={[0, Math.PI / 2, 0]}>
+
+             {/* 1. 核心舱 Tianhe Core (Center/Back) */}
+             {/* Main Cylinder */}
+             <mesh position={[0, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]}>
+                <cylinderGeometry args={[0.4, 0.45, 1.8, 16]} />
+                <meshStandardMaterial color="#f8f9fa" roughness={0.3} metalness={0.5} />
+             </mesh>
+             
+             {/* 🇨🇳 Flag on Pole (Left Side / Above Wentian) - Replaces Hull Decal */}
+             <group position={[-0.9, 0.5, 0]}>
+                {/* Pole - attached to hull area - Made taller/thicker for 2x flag */}
+                <mesh position={[0, 0.9, 0]}>
+                   <cylinderGeometry args={[0.03, 0.03, 1.8]} />
+                   <meshStandardMaterial color="#cbd5e1" roughness={0.4} />
+                </mesh>
+                
+                {/* Flag - Attached to pole top, extending Left (-X) */}
+                {/* Magnified 2x: Width 1.4, Height 0.94 */}
+                <mesh position={[-0.7, 1.1, 0]} rotation={[0, Math.PI / 8, 0]}>
+                   <planeGeometry args={[1.4, 0.94]} />
+                   <meshBasicMaterial 
+                      map={flagTexture} 
+                      side={DoubleSide} 
+                      transparent
+                      opacity={0.95}
+                   />
+                </mesh>
+             </group>
+
+             {/* 2. 节点舱 Node (Intersection Hub) */}
+             <mesh position={[0, 0, -0.6]}>
+                <sphereGeometry args={[0.5, 16, 16]} />
+                <meshStandardMaterial color="#ffffff" roughness={0.3} metalness={0.5} />
+             </mesh>
+
+             {/* 3. 实验舱 I (Wentian) - Left Arm */}
+             <mesh position={[-1.2, 0, -0.6]} rotation={[0, 0, Math.PI / 2]}>
+                <cylinderGeometry args={[0.35, 0.4, 1.8, 16]} />
+                <meshStandardMaterial color="#f1f5f9" roughness={0.3} metalness={0.4} />
+             </mesh>
+
+             {/* 4. 实验舱 II (Mengtian) - Right Arm */}
+             <mesh position={[1.2, 0, -0.6]} rotation={[0, 0, Math.PI / 2]}>
+                <cylinderGeometry args={[0.35, 0.4, 1.8, 16]} />
+                <meshStandardMaterial color="#f1f5f9" roughness={0.3} metalness={0.4} />
+             </mesh>
+             
+             {/* 5. 载人飞船 Shenzhou (Docked at Front Node) */}
+             <group position={[0, 0, -1.4]} rotation={[Math.PI / 2, 0, 0]}>
+                 <mesh position={[0, 0.1, 0]}>
+                    <cylinderGeometry args={[0.2, 0.3, 0.4, 16]} /> {/* Re-entry */}
+                    <meshStandardMaterial color="#cbd5e1" />
+                 </mesh>
+                 <mesh position={[0, 0.5, 0]}>
+                    <sphereGeometry args={[0.22, 16, 16]} /> {/* Orbital */}
+                    <meshStandardMaterial color="#e2e8f0" />
+                 </mesh>
+             </group>
+
+             {/* --- 太阳翼系统 (Solar Wings) --- */}
+             <group ref={solarPanelRef}>
+               {/* 实验舱末端 巨大太阳翼 (Huge Wings on Labs) */}
+               {/* Left Wing */}
+               <group position={[-2.3, 0, -0.6]}>
+                  <mesh rotation={[0, 0, 0]}>
+                     <boxGeometry args={[0.1, 0.05, 1.5]} /> {/* Rod */}
+                     <meshStandardMaterial color="#333" />
+                  </mesh>
+                  <mesh position={[-0.8, 0, 0]}>
+                     <boxGeometry args={[1.6, 0.02, 0.8]} /> {/* Panel */}
+                     <meshStandardMaterial color="#1e3a8a" roughness={0.2} metalness={0.8} emissive="#172554" emissiveIntensity={0.3} />
+                     {/* Grid lines texture hint via wireframe mesh overlay? simpler to just use color for low poly */}
+                  </mesh>
+               </group>
+
+               {/* Right Wing */}
+               <group position={[2.3, 0, -0.6]}>
+                  <mesh rotation={[0, 0, 0]}>
+                     <boxGeometry args={[0.1, 0.05, 1.5]} /> {/* Rod */}
+                     <meshStandardMaterial color="#333" />
+                  </mesh>
+                  <mesh position={[0.8, 0, 0]}>
+                     <boxGeometry args={[1.6, 0.02, 0.8]} /> {/* Panel */}
+                     <meshStandardMaterial color="#1e3a8a" roughness={0.2} metalness={0.8} emissive="#172554" emissiveIntensity={0.3} />
+                  </mesh>
+               </group>
+
+               {/* 核心舱 柔性太阳翼 (Core Flexible Wings - Smaller) */}
+               <group position={[0, 0, 0.8]}>
+                   <mesh position={[1.0, 0, 0]} rotation={[0, 0, -0.2]}>
+                       <boxGeometry args={[1.2, 0.02, 0.4]} />
+                       <meshStandardMaterial color="#1e40af" roughness={0.2} metalness={0.7} />
+                   </mesh>
+                   <mesh position={[-1.0, 0, 0]} rotation={[0, 0, 0.2]}>
+                       <boxGeometry args={[1.2, 0.02, 0.4]} />
+                       <meshStandardMaterial color="#1e40af" roughness={0.2} metalness={0.7} />
+                   </mesh>
+               </group>
+             </group>
+
+           </group>
+
+        </group>
+        
+        {/* 轨道线 (Orbit Line) */}
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+           <ringGeometry args={[1.38, 1.42, 64]} />
+           <meshBasicMaterial color="#38bdf8" opacity={0.3} transparent side={DoubleSide} />
+        </mesh>
+      </group>
+    </group>
+  );
+};
+
+// 简单的内部组件用于显示3D标签
+const TextLabel = ({ text, color, bgColor }: { text: string, color: string, bgColor: string }) => (
+  <Html center distanceFactor={10} style={{ pointerEvents: 'none' }}>
+    <div style={{ 
+      backgroundColor: bgColor, 
+      color: color, 
+      padding: '4px 8px', 
+      borderRadius: '6px', 
+      fontSize: '10px', 
+      fontWeight: 'bold',
+      whiteSpace: 'nowrap',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+      fontFamily: '"ZCOOL KuaiLe", sans-serif',
+      border: '1px solid rgba(0,0,0,0.1)'
+    }}>
+      {text}
+    </div>
+  </Html>
+);
+
 
 const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number }> = ({ isPaused, simulationSpeed }) => {
   const moonRef = useRef<Group>(null);
@@ -237,9 +408,16 @@ export const Planet: React.FC<PlanetProps> = ({
           )}
         </group>
 
-        {/* Moon: If this is Earth, render the Moon orbiting it */}
-        {/* Placed outside the axial tilt group so it orbits the center of Earth's position, but with its own inclination */}
-        {data.id === 'earth' && <Moon isPaused={isPaused} simulationSpeed={simulationSpeed} />}
+        {/* --- EARTH SPECIFIC SATELLITES --- */}
+        {data.id === 'earth' && (
+          <>
+            {/* Moon: Placed outside the axial tilt group so it orbits the center of Earth's position */}
+            <Moon isPaused={isPaused} simulationSpeed={simulationSpeed} />
+            
+            {/* Tiangong Space Station: Lower orbit than Moon */}
+            <TiangongStation isPaused={isPaused} simulationSpeed={simulationSpeed} />
+          </>
+        )}
 
         {/* Atmosphere Glow Shell (Billboard) - Replaced Shader with Sprite/Billboard method */}
         {/* We place it OUTSIDE the tilted group so it stays upright facing the camera properly, but follows position */}
