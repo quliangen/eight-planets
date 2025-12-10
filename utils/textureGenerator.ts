@@ -1,5 +1,3 @@
-
-
 import { PlanetData } from '../types';
 
 /**
@@ -8,8 +6,9 @@ import { PlanetData } from '../types';
  */
 export const generatePlanetTexture = (data: PlanetData): string => {
   const { type, colors } = data.textureConfig;
-  const width = 512;
-  const height = 256; // 2:1 Aspect ratio for equirectangular projection
+  // Jupiter needs higher resolution for the gas turbulence details
+  const width = data.id === 'jupiter' ? 1024 : 512;
+  const height = data.id === 'jupiter' ? 512 : 256; 
   
   let svgContent = '';
   const baseColor = colors[0];
@@ -30,16 +29,114 @@ export const generatePlanetTexture = (data: PlanetData): string => {
       break;
 
     case 'banded':
-      // Jupiter/Saturn style bands
-      svgContent = `<rect width="100%" height="100%" fill="${baseColor}" />`;
-      const numBands = 10;
-      const bandHeight = height / numBands;
-      for (let i = 0; i < numBands; i++) {
-        const color = colors[i % colors.length];
-        // Add some irregularity to band height
-        const h = bandHeight + (Math.random() * 10 - 5);
-        const y = i * bandHeight;
-        svgContent += `<rect x="0" y="${y}" width="${width}" height="${h}" fill="${color}" />`;
+      // --- JUPITER SPECIFIC HIGH-FIDELITY GENERATION ---
+      if (data.id === 'jupiter') {
+        // NASA-Inspired Palette
+        const zoneLight = "#FDF2E3"; // Bright Zones (Ammonia clouds)
+        const beltDark = "#C99056";  // Dark Belts
+        const beltDarker = "#9F6C41"; // North Eq Belt
+        const polarGrey = "#8C8C94"; // Polar Haze
+        const redSpotCore = "#BC5B38";
+        const redSpotOuter = "#D68D64";
+
+        svgContent = `
+          <defs>
+            <!-- 1. Gas Turbulence Filter: Creates the wavy, stretched cloud look -->
+            <filter id="jupiterGas" x="-20%" y="-20%" width="140%" height="140%">
+               <!-- High X frequency stretches noise horizontally like high winds -->
+               <feTurbulence type="fractalNoise" baseFrequency="0.004 0.04" numOctaves="4" seed="42" result="noise"/>
+               <feDisplacementMap in="SourceGraphic" in2="noise" scale="35" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+
+            <!-- 2. Storm Turbulence Filter: Swirly noise for the GRS -->
+            <filter id="stormSwirl">
+               <feTurbulence type="turbulence" baseFrequency="0.03" numOctaves="3" seed="10"/>
+               <feDisplacementMap scale="10" />
+               <feGaussianBlur stdDeviation="1" />
+            </filter>
+
+            <!-- 3. Base Gradient (Belts and Zones Structure) -->
+            <!-- Jupiter has distinct bands: NPR, NNTB, NTB, NEB, EZ, SEB, STB, SPR -->
+            <linearGradient id="jupiterBands" x1="0%" y1="0%" x2="0%" y2="100%">
+               <stop offset="0%" stop-color="${polarGrey}" />   <!-- N. Pole -->
+               <stop offset="10%" stop-color="${beltDark}" />
+               <stop offset="20%" stop-color="${zoneLight}" />
+               <stop offset="30%" stop-color="${beltDarker}" /> <!-- N. Eq Belt -->
+               <stop offset="40%" stop-color="${zoneLight}" />  <!-- Equatorial Zone -->
+               <stop offset="50%" stop-color="${zoneLight}" />
+               <stop offset="55%" stop-color="${beltDarker}" /> <!-- S. Eq Belt (GRS location) -->
+               <stop offset="65%" stop-color="${zoneLight}" />
+               <stop offset="75%" stop-color="${beltDark}" />
+               <stop offset="90%" stop-color="${polarGrey}" />   <!-- S. Pole -->
+               <stop offset="100%" stop-color="${polarGrey}" />
+            </linearGradient>
+            
+            <!-- 4. Great Red Spot Gradient -->
+            <radialGradient id="grsGrad" cx="50%" cy="50%" r="50%">
+               <stop offset="0%" stop-color="${redSpotCore}" />
+               <stop offset="60%" stop-color="${redSpotOuter}" />
+               <stop offset="90%" stop-color="${zoneLight}" stop-opacity="0.5" />
+               <stop offset="100%" stop-color="${zoneLight}" stop-opacity="0" />
+            </radialGradient>
+          </defs>
+
+          <!-- A. Base Layer: The Banded Gradient -->
+          <rect width="100%" height="100%" fill="url(#jupiterBands)" />
+
+          <!-- B. Turbulent Details Layer (The "Gas" effect) -->
+          <!-- We draw horizontal rects with the filter applied to distort them -->
+          <g filter="url(#jupiterGas)" opacity="0.7">
+             <!-- Extra dark streaks -->
+             <rect y="${height * 0.28}" width="100%" height="${height * 0.08}" fill="${beltDarker}" opacity="0.6" />
+             <rect y="${height * 0.53}" width="100%" height="${height * 0.10}" fill="${beltDarker}" opacity="0.6" />
+             <!-- Thin turbulent lines -->
+             ${Array.from({length: 15}).map((_, i) => {
+                 const y = Math.random() * height;
+                 const h = Math.random() * 5 + 1;
+                 const op = Math.random() * 0.3;
+                 return `<rect y="${y}" width="100%" height="${h}" fill="#5e4b35" opacity="${op}" />`;
+             }).join('')}
+          </g>
+
+          <!-- C. The Great Red Spot (GRS) -->
+          <!-- Located South Equatorial Belt, approx 22deg S -->
+          <g transform="translate(${width * 0.7}, ${height * 0.6})">
+             <!-- The Wake (Turbulence following the spot) -->
+             <path d="M -80 -10 Q -40 -30 0 0 T 80 10" stroke="${beltDarker}" stroke-width="20" fill="none" opacity="0.6" filter="url(#jupiterGas)" />
+             
+             <!-- Main Spot Body -->
+             <g>
+                <ellipse cx="0" cy="0" rx="${width * 0.07}" ry="${height * 0.06}" fill="url(#grsGrad)" />
+                
+                <!-- Internal Storm Swirls -->
+                <path d="M -30 10 Q 0 25 30 5" stroke="#8B3A1B" stroke-width="3" fill="none" opacity="0.5" filter="url(#stormSwirl)" />
+                <path d="M 20 -15 Q -10 -25 -25 -5" stroke="#E8B090" stroke-width="2" fill="none" opacity="0.4" filter="url(#stormSwirl)" />
+             </g>
+          </g>
+
+          <!-- D. String of Pearls (White storms in S. Temperate Belt) -->
+          <g transform="translate(0, ${height * 0.72})" opacity="0.8">
+             <circle cx="${width * 0.2}" cy="0" r="${width * 0.015}" fill="white" filter="url(#stormSwirl)" />
+             <circle cx="${width * 0.35}" cy="5" r="${width * 0.012}" fill="white" filter="url(#stormSwirl)" />
+             <circle cx="${width * 0.55}" cy="-2" r="${width * 0.018}" fill="white" filter="url(#stormSwirl)" />
+             <circle cx="${width * 0.85}" cy="3" r="${width * 0.014}" fill="white" filter="url(#stormSwirl)" />
+          </g>
+          
+          <!-- E. Global Atmosphere Haze -->
+          <rect width="100%" height="100%" fill="#FFD700" opacity="0.05" style="mix-blend-mode: overlay;" />
+        `;
+      } else {
+        // --- GENERIC BANDED (Saturn etc.) ---
+        svgContent = `<rect width="100%" height="100%" fill="${baseColor}" />`;
+        const numBands = 10;
+        const bandHeight = height / numBands;
+        for (let i = 0; i < numBands; i++) {
+          const color = colors[i % colors.length];
+          // Add some irregularity to band height
+          const h = bandHeight + (Math.random() * 10 - 5);
+          const y = i * bandHeight;
+          svgContent += `<rect x="0" y="${y}" width="${width}" height="${h}" fill="${color}" />`;
+        }
       }
       break;
 
