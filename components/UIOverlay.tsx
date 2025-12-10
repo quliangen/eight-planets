@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { PlanetData } from '../types';
 
@@ -184,59 +185,72 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
       <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 sm:p-6 z-10 font-sans select-none">
         
         {/* Header Section - Astronaut/HUD Theme */}
-        <header className="flex flex-col sm:flex-row justify-between items-start pointer-events-auto w-full max-w-6xl mx-auto sm:mx-0 gap-4">
-          <div className="flex flex-col items-start relative pl-2 pt-2">
+        {/* UPDATED: Removed max-w-6xl and mx-auto to allow full width right alignment */}
+        <header className="flex flex-col sm:flex-row justify-between items-start pointer-events-auto w-full gap-4">
+          <div className="flex flex-col items-start relative pl-4 pt-4">
             
             {/* Background Decorative HUD Ring */}
             <div className="absolute -left-12 -top-12 text-cyan-500/10 z-0 animate-spin-slow" style={{animationDuration: '60s'}}>
-               <svg width="200" height="200" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1">
-                 <circle cx="50" cy="50" r="48" strokeDasharray="10 5" />
-                 <circle cx="50" cy="50" r="35" opacity="0.5" />
-                 <path d="M50 2 L50 10 M50 90 L50 98 M2 50 L10 50 M90 50 L98 50" strokeWidth="2" />
+               <svg width="220" height="220" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1">
+                 <circle cx="50" cy="50" r="48" strokeDasharray="5 5" />
+                 <circle cx="50" cy="50" r="38" opacity="0.3" />
+                 <path d="M50 5 L50 15 M50 85 L50 95 M5 50 L15 50 M85 50 L95 50" strokeWidth="2" strokeLinecap="round" />
                </svg>
             </div>
 
-            {/* Recipient Tag - HUD Style - MORE TRANSPARENT */}
-            <div className="relative z-10 flex items-center gap-3 bg-slate-900/10 border border-cyan-500/10 backdrop-blur-md px-4 py-1.5 rounded-tr-xl rounded-bl-xl shadow-[0_0_15px_rgba(6,182,212,0.1)] mb-3 animate-float">
-               <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]"></div>
-                  <span className="text-cyan-400 font-mono text-[10px] tracking-widest uppercase">Mission Target</span>
+            {/* Captain Badge (Top) - Retained for Kid Appeal */}
+            <div className="relative z-10 flex items-center gap-3 bg-transparent px-2 py-1.5 mb-3 animate-float transform transition-transform hover:scale-105 origin-left">
+               <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center text-lg shadow-[0_0_10px_#facc15] border-2 border-white/20">
+                 👩‍🚀
                </div>
-               <div className="w-[1px] h-3 bg-white/20"></div>
-               <span className="text-blue-50 font-bold text-sm tracking-wide">给：一年3班 小豆子</span>
+               <div className="flex flex-col">
+                  <span className="text-[9px] text-cyan-300 font-mono font-bold tracking-widest uppercase leading-tight text-shadow-sm">Space Captain</span>
+                  <span className="text-white font-bold text-sm tracking-wide drop-shadow-md">一年3班 小豆子</span>
+               </div>
             </div>
 
-            {/* Main Title - Space Badge with Cute Font - MORE TRANSPARENT */}
+            {/* NEW TITLE: Roaming Solar System */}
             <div className="relative z-10">
-              <div className="bg-slate-900/5 border-l-4 border-blue-500 border-y border-r border-blue-500/10 backdrop-blur-xl px-6 py-4 rounded-r-2xl shadow-2xl relative overflow-hidden group">
-                {/* Glossy sheen */}
-                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
-                {/* Scanline */}
-                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-50 animate-pulse"></div>
-                
-                <div className="flex flex-col">
-                   <div className="flex items-center gap-2 mb-1 opacity-80">
-                      <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-2.5l7.51-3.22-7.52-1.5 1.5-7.52 3.22 7.51z"/>
-                      </svg>
-                      <span className="text-[10px] font-mono text-blue-300 tracking-[0.3em] uppercase">System Online</span>
-                   </div>
-                   {/* UPDATED FONT STYLE HERE */}
-                   <h1 className="text-3xl sm:text-4xl text-white tracking-widest flex items-center gap-2" 
-                       style={{ 
-                         fontFamily: '"ZCOOL KuaiLe", cursive, sans-serif',
-                         textShadow: '0 0 15px rgba(59,130,246,0.6), 2px 2px 0px rgba(0,0,0,0.3)' 
-                       }}>
-                     太阳和它的朋友们
-                   </h1>
-                </div>
-              </div>
+               {/* Holographic Glow Container - FULLY TRANSPARENT - Removed Borders/Background/Grid */}
+               <div className="bg-transparent p-4 sm:p-5 relative overflow-hidden group">
+                  
+                  {/* Top Label Row */}
+                  <div className="flex items-center justify-between mb-1 opacity-90 relative z-20">
+                     <div className="flex items-center gap-2">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        </span>
+                        <span className="text-[10px] font-mono text-cyan-200 tracking-[0.2em] uppercase font-bold drop-shadow-md">System Online</span>
+                     </div>
+                     <div className="flex gap-0.5 opacity-50">
+                        <div className="w-1 h-1 bg-white rounded-full shadow-sm"></div>
+                        <div className="w-1 h-1 bg-white rounded-full shadow-sm"></div>
+                        <div className="w-1 h-1 bg-white rounded-full shadow-sm"></div>
+                     </div>
+                  </div>
+
+                  {/* Main Title Text - UPDATED COLORS & CONTRAST */}
+                  <h1 className="text-3xl sm:text-5xl tracking-wider flex items-center gap-3 relative z-20" 
+                      style={{ 
+                        fontFamily: '"ZCOOL KuaiLe", cursive, sans-serif',
+                        // Stronger text shadow for readability against transparent background
+                        textShadow: '0 4px 0 rgba(0,0,0,0.3), 0 0 15px rgba(255,255,255,0.2)' 
+                      }}>
+                    {/* 漫游 - Bright Golden/Orange Gradient */}
+                    <span className="bg-gradient-to-br from-yellow-300 via-orange-400 to-red-400 bg-clip-text text-transparent filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">漫游</span>
+                    {/* 太阳系 - Bright Cyan/Blue/Purple Gradient */}
+                    <span className="bg-gradient-to-br from-cyan-300 via-blue-500 to-purple-500 bg-clip-text text-transparent filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">太阳系</span>
+                  </h1>
+               </div>
             </div>
+
           </div>
           
-          <div className="flex items-center gap-4 pt-2">
+          {/* Controls - Right Aligned */}
+          <div className="flex flex-col items-end gap-4 pt-2 self-end sm:self-auto pointer-events-none">
             
-            <div className="flex gap-4">
+            <div className="flex gap-4 pointer-events-auto">
               {/* Interstellar Travel Button */}
               <button
                 onClick={toggleStarship}
@@ -268,31 +282,65 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
               </button>
             </div>
 
-            {/* SPEED CONTROL HUD - DISCRETE BUTTONS - RIGHT ALIGNED */}
-            <div className="hidden sm:flex flex-col bg-slate-900/20 border border-white/10 backdrop-blur-md rounded-xl p-3 w-auto items-end justify-center relative shadow-lg transition-all hover:bg-slate-900/30">
-               <div className="flex items-center gap-2 mb-2 justify-end">
-                 <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    加速器
-                 </span>
-                 <span className="text-xs font-bold text-white font-mono bg-cyan-500/20 px-1.5 rounded text-cyan-300 shadow-[0_0_5px_rgba(6,182,212,0.3)]">{simulationSpeed}x</span>
-               </div>
-               
-               <div className="flex gap-1.5 bg-black/20 p-1 rounded-lg justify-end">
-                  {[0, 1, 5, 10, 20].map((speed) => (
-                    <button
-                      key={speed}
-                      onClick={() => setSimulationSpeed(speed)}
-                      className={`w-9 h-6 rounded text-[10px] font-bold font-mono transition-all duration-200 border ${
-                        simulationSpeed === speed
-                          ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.6)] scale-105 z-10'
-                          : 'bg-white/5 text-cyan-300/70 border-white/5 hover:bg-white/10 hover:text-cyan-200 hover:border-white/20'
-                      }`}
-                    >
-                      {speed === 0 ? '0' : speed}
-                    </button>
-                  ))}
-               </div>
+            {/* SPEED CONTROL HUD - SCI-FI TIME ENGINE - FULLY TRANSPARENT */}
+            <div className="hidden sm:flex flex-col items-end pointer-events-auto relative mt-2">
+                {/* Decorator Line */}
+                <div className="h-4 w-1 bg-cyan-400 absolute -top-2 right-4 rounded-b-sm z-20 shadow-[0_0_8px_#22d3ee]"></div>
+
+                {/* Updated Background: Fully transparent - Removed Borders/Background/Grid */}
+                <div className="bg-transparent rounded-xl p-1 w-auto relative group">
+                    
+                    {/* Title Row - Transparent Background */}
+                    <div className="flex items-center justify-between px-3 py-2 bg-transparent">
+                        <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full border-2 border-cyan-400 ${simulationSpeed > 0 ? 'animate-spin' : ''}`} style={{ borderTopColor: 'transparent' }}></div>
+                            <span className="text-xs font-bold text-cyan-300 tracking-wider font-mono drop-shadow-sm">TIME ENGINE</span>
+                        </div>
+                        <span className="text-[10px] font-bold text-cyan-100/70 ml-4 font-mono">时光引擎</span>
+                    </div>
+
+                    {/* Content Row */}
+                    <div className="p-3 flex items-center gap-4">
+                        {/* Big Digital Display */}
+                        <div className="flex flex-col items-end min-w-[3.5rem]">
+                            <span className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 to-white leading-none drop-shadow-md" style={{ fontFamily: 'monospace' }}>
+                              {simulationSpeed}<span className="text-sm text-cyan-400 not-italic ml-0.5">x</span>
+                            </span>
+                            <span className="text-[9px] text-cyan-300/80 tracking-[0.2em] uppercase mt-1 font-bold">Speed</span>
+                        </div>
+
+                        {/* Power Bars (Buttons) */}
+                        <div className="flex items-end gap-1.5 h-10 pb-1">
+                            {[0, 1, 5, 10, 20].map((speed, idx) => {
+                                const isActive = simulationSpeed === speed;
+                                // Height calculation for "rising" effect
+                                const heightClass = ['h-3', 'h-4', 'h-6', 'h-8', 'h-10'][idx];
+                                const activeColor = speed === 0 ? 'bg-red-500 shadow-[0_0_10px_#ef4444]' :
+                                                    speed === 20 ? 'bg-purple-500 shadow-[0_0_10px_#a855f7]' : 
+                                                    'bg-cyan-400 shadow-[0_0_10px_#22d3ee]';
+                                
+                                return (
+                                    <button
+                                        key={speed}
+                                        onClick={() => setSimulationSpeed(speed)}
+                                        className={`w-5 rounded-t-sm transition-all duration-300 relative group/btn ${heightClass}
+                                          ${isActive 
+                                            ? `${activeColor} z-10 scale-110` 
+                                            : 'bg-white/10 hover:bg-white/30 border border-white/5'
+                                          }
+                                        `}
+                                    >
+                                        {/* Tooltip number on Hover */}
+                                        <span className={`absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-bold font-mono transition-opacity pointer-events-none 
+                                            ${isActive ? 'opacity-100 text-white drop-shadow-md' : 'opacity-0 text-cyan-200 group-hover/btn:opacity-100'}`}>
+                                          {speed === 0 ? 'STOP' : speed}
+                                        </span>
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </div>
             </div>
 
           </div>
