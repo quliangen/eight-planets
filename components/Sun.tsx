@@ -1,6 +1,6 @@
 import React, { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Mesh, TextureLoader, Color } from 'three';
+import { Mesh, TextureLoader } from 'three';
 import { Billboard, Html } from '@react-three/drei';
 import { generatePlanetTexture, generateSunGlowTexture } from '../utils/textureGenerator';
 import { SUN_DATA } from '../constants';
@@ -26,7 +26,8 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
   useFrame((state, delta) => {
     if (meshRef.current && !isPaused) {
       // Rotate the sun slowly to show off the sunspots
-      meshRef.current.rotation.y += delta * 0.04 * simulationSpeed;
+      // Reduced from 0.04 to 0.02 for slower 1x simulation
+      meshRef.current.rotation.y += delta * 0.02 * simulationSpeed;
     }
   });
 
@@ -72,7 +73,7 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
               map={glowTexture} 
               transparent 
               opacity={0.8} 
-              depthWrite={false}
+              depthWrite={false} 
               blending={2} // Additive
               color="#FF8C00"
             />
@@ -82,20 +83,17 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
       {/* Outer Glow Layer (Large Halo) - Scaled by size */}
        <Billboard>
          <mesh position={[0, 0, -0.2]}>
-            <planeGeometry args={[SUN_DATA.size * 4.8, SUN_DATA.size * 4.8]} />
+            <planeGeometry args={[SUN_DATA.size * 5.0, SUN_DATA.size * 5.0]} />
             <meshBasicMaterial 
               map={glowTexture} 
               transparent 
               opacity={0.4} 
-              depthWrite={false}
+              depthWrite={false} 
               blending={2} // Additive
-              color="#FFD700"
+              color="#FF4500"
             />
          </mesh>
-      </Billboard>
-
-      {/* Lens Flare substitute - simple central bright point */}
-      <pointLight intensity={2} distance={100} decay={2} color="#FFFFFF" />
+       </Billboard>
     </group>
   );
 };

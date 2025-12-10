@@ -1,7 +1,7 @@
 import React, { useState, Suspense, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sparkles, PerspectiveCamera, Environment, Stars } from '@react-three/drei';
-import { Vector3, TextureLoader, BackSide, Mesh, Object3D, RepeatWrapping, ClampToEdgeWrapping } from 'three';
+import { Vector3, TextureLoader, BackSide, Mesh, Object3D, RepeatWrapping, ClampToEdgeWrapping, MathUtils } from 'three';
 import { PLANETS, SUN_DATA } from './constants';
 import { Planet } from './components/Planet';
 import { Sun } from './components/Sun';
@@ -23,7 +23,7 @@ const Skybox: React.FC = () => {
 
   useFrame((state, delta) => {
     if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.0002; 
+      meshRef.current.rotation.y += delta * 0.0001; // Slower background rotation
     }
   });
 
@@ -39,44 +39,42 @@ const Skybox: React.FC = () => {
   );
 };
 
+// Updated Controller with Smoothing to prevent Jitter
 const OrbitController = ({ controlsRef, gestureVelocity }: { controlsRef: any, gestureVelocity: React.MutableRefObject<{dx: number, dy: number, gestureType: 'rotate' | 'zoom'}> }) => {
-  useFrame(() => {
+  // Store smoothed values to prevent camera shaking from noisy hand data
+  const smoothed = useRef({ dx: 0, dy: 0 });
+
+  useFrame((state, delta) => {
     if (controlsRef.current && controlsRef.current.enabled) {
       const { dx, dy, gestureType } = gestureVelocity.current;
       
-      const threshold = 0.01;
-      const isActive = Math.abs(dx) > threshold || Math.abs(dy) > threshold;
+      // Smoothing factor: Lower = Smoother/Slower, Higher = More responsive/Jittery
+      // 5.0 * delta gives a nice weighted average over ~0.2 seconds
+      const smoothFactor = 5.0 * delta;
+      
+      smoothed.current.dx = MathUtils.lerp(smoothed.current.dx, dx, smoothFactor);
+      smoothed.current.dy = MathUtils.lerp(smoothed.current.dy, dy, smoothFactor);
+
+      // Use a small deadzone to stop movement completely when hands are steady
+      const threshold = 0.001; 
+      const activeDx = Math.abs(smoothed.current.dx) > threshold ? smoothed.current.dx : 0;
+      const activeDy = Math.abs(smoothed.current.dy) > threshold ? smoothed.current.dy : 0;
+
+      const isActive = activeDx !== 0 || activeDy !== 0;
 
       if (isActive) {
           if (gestureType === 'rotate') {
              // ROTATE MODE
-             // dx: Left/Right movement.
-             // dy: Up/Down movement.
-             
-             // Smooth damping is handled by OrbitControls 'enableDamping', 
-             // but we need to feed it small increments.
-             
-             controlsRef.current.setAzimuthalAngle(controlsRef.current.getAzimuthalAngle() - dx * 0.02);
-             controlsRef.current.setPolarAngle(controlsRef.current.getPolarAngle() - dy * 0.02);
+             controlsRef.current.setAzimuthalAngle(controlsRef.current.getAzimuthalAngle() - activeDx * 0.02);
+             controlsRef.current.setPolarAngle(controlsRef.current.getPolarAngle() - activeDy * 0.02);
           } else if (gestureType === 'zoom') {
              // ZOOM MODE
-             // dy contains the "Delta" of hand distance.
-             // dy < 0: Hands getting closer (Pull Near) -> Zoom In (Dolly In)
-             // dy > 0: Hands getting apart (Pull Far) -> Zoom Out (Dolly Out)
+             const zoomSensitivity = 0.015; // Adjusted sensitivity
              
-             const zoomSensitivity = 0.01;
-             
-             // We use a base scale of 1.0. 
-             // Dolly In needs scale > 1.0 (e.g. 1.05)
-             // Dolly Out needs scale < 1.0 (e.g. 0.95) OR use dollyOut helper.
-             
-             // Let's rely on direction.
-             // Note: OrbitControls dollyIn(s) means "move camera closer by scale s". s > 1 means bigger step? 
-             // Actually dollyIn(1.05) moves closer. dollyOut(1.05) moves further.
-             
-             const speed = 1.0 + Math.abs(dy * zoomSensitivity);
+             // Smooth zoom application
+             const speed = 1.0 + Math.abs(activeDy * zoomSensitivity);
 
-             if (dy < 0) {
+             if (activeDy < 0) {
                  // Negative delta = hands closer = Zoom In
                  controlsRef.current.dollyIn(speed);
              } else {
@@ -219,8 +217,9 @@ const App: React.FC = () => {
             minDistance={20}
             maxDistance={300}
             maxPolarAngle={Math.PI / 1.8}
+            // Slower auto-rotate for better default experience
             autoRotate={!selectedPlanetId && !isPaused && !isGestureMode && !isStarshipActive}
-            autoRotateSpeed={0.15 * simulationSpeed}
+            autoRotateSpeed={0.1 * simulationSpeed} 
           />
           
           <OrbitController controlsRef={controlsRef} gestureVelocity={gestureVelocity} />

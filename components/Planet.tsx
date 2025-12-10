@@ -27,10 +27,8 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number }> 
 
   useFrame((state, delta) => {
     if (stationRef.current && !isPaused) {
-      // 空间站位于近地轨道，速度比月球快得多
-      // Real physics: ISS/Tiangong orbits ~16x a day. Moon orbits ~1x a month.
-      // Simulation: We make it spin fast enough to be noticeable and fun.
-      stationRef.current.rotation.y += delta * 1.5 * simulationSpeed;
+      // Reduced speed from 1.5 to 0.8
+      stationRef.current.rotation.y += delta * 0.8 * simulationSpeed;
     }
     
     // 太阳翼缓慢调整角度（模拟对日定向）
@@ -212,8 +210,8 @@ const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number }> = ({ isPaus
 
   useFrame((state, delta) => {
     if (moonRef.current && !isPaused) {
-      // Moon orbits Earth (faster than Earth orbits Sun)
-      moonRef.current.rotation.y += delta * 0.4 * simulationSpeed;
+      // Moon orbits Earth (Reduced speed from 0.4 to 0.2)
+      moonRef.current.rotation.y += delta * 0.2 * simulationSpeed;
     }
   });
 
@@ -288,7 +286,8 @@ export const Planet: React.FC<PlanetProps> = ({
 
     if (!isPaused) {
       // Orbit logic - Update Accumulator
-      orbitAngleRef.current += delta * data.speed * 0.2 * simulationSpeed;
+      // Reduced base speed multiplier from 0.2 to 0.1 for slower 1x simulation
+      orbitAngleRef.current += delta * data.speed * 0.1 * simulationSpeed;
       
       // Counter-Clockwise Revolution:
       // x = cos(angle), z = -sin(angle)
