@@ -1,4 +1,3 @@
-
 import React, { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Mesh, TextureLoader, Color } from 'three';
@@ -26,7 +25,8 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
 
   useFrame((state, delta) => {
     if (meshRef.current && !isPaused) {
-      meshRef.current.rotation.y += delta * 0.02 * simulationSpeed;
+      // Rotate the sun slowly to show off the sunspots
+      meshRef.current.rotation.y += delta * 0.04 * simulationSpeed;
     }
   });
 

@@ -57,16 +57,81 @@ export const generatePlanetTexture = (data: PlanetData): string => {
       break;
 
     case 'moon':
-      // Moon - Gray surface + Craters
-      const moonBase = colors[0];
-      svgContent = `<rect width="100%" height="100%" fill="${moonBase}" />`;
-      const numMoonCraters = 50;
+      // Realistic Moon Texture based on NASA references
+      // Highlands (Light) vs Maria (Dark Seas)
+      const moonHighland = '#E6E6E6'; // Lighter gray
+      const moonMare = '#8C8C8C';     // Darker gray for seas
+      const moonCraterShadow = '#555555';
+
+      svgContent = `
+        <defs>
+          <!-- Noise filter for regolith texture -->
+          <filter id="moonNoise">
+            <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" result="noise"/>
+            <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.2 0" in="noise" result="coloredNoise"/>
+            <feComposite operator="in" in="coloredNoise" in2="SourceGraphic" result="composite"/>
+          </filter>
+          
+          <!-- Blur for Maria edges -->
+          <filter id="mareBlur">
+            <feGaussianBlur stdDeviation="8" />
+          </filter>
+        </defs>
+
+        <!-- 1. Base: Lunar Highlands (Light Gray) -->
+        <rect width="100%" height="100%" fill="${moonHighland}" />
+        
+        <!-- 2. Lunar Maria (The dark "Seas") - Approximating real locations -->
+        <g filter="url(#mareBlur)" opacity="0.8">
+           <!-- Oceanus Procellarum (Left/West) -->
+           <ellipse cx="${width * 0.25}" cy="${height * 0.4}" rx="${width * 0.15}" ry="${height * 0.2}" fill="${moonMare}" />
+           
+           <!-- Mare Imbrium (Top Left) -->
+           <circle cx="${width * 0.35}" cy="${height * 0.25}" r="${height * 0.12}" fill="${moonMare}" />
+           
+           <!-- Mare Serenitatis & Tranquillitatis (Right/East) -->
+           <ellipse cx="${width * 0.6}" cy="${height * 0.35}" rx="${width * 0.12}" ry="${height * 0.15}" fill="${moonMare}" />
+           <circle cx="${width * 0.7}" cy="${height * 0.4}" r="${height * 0.08}" fill="${moonMare}" />
+           
+           <!-- Random smaller maria patches -->
+           <circle cx="${width * 0.85}" cy="${height * 0.5}" r="${height * 0.06}" fill="${moonMare}" />
+           <circle cx="${width * 0.1}" cy="${height * 0.6}" r="${height * 0.05}" fill="${moonMare}" />
+        </g>
+
+        <!-- 3. Texture Grain Overlay -->
+        <rect width="100%" height="100%" fill="#000000" opacity="0.1" filter="url(#moonNoise)" />
+
+        <!-- 4. Tycho Crater (Prominent Ray System in South) -->
+        <g opacity="0.7">
+           <!-- Rays -->
+           <path d="
+             M ${width*0.45} ${height*0.75} L ${width*0.3} ${height*0.4} L ${width*0.46} ${height*0.75} 
+             L ${width*0.5} ${height*0.2} L ${width*0.48} ${height*0.75}
+             L ${width*0.7} ${height*0.5} L ${width*0.5} ${height*0.78}
+             L ${width*0.2} ${height*0.8} L ${width*0.45} ${height*0.8}
+           " fill="#FFFFFF" opacity="0.4" filter="url(#mareBlur)" />
+           
+           <!-- Crater Center -->
+           <circle cx="${width * 0.47}" cy="${height * 0.78}" r="4" fill="#FFFFFF" />
+           <circle cx="${width * 0.47}" cy="${height * 0.78}" r="1.5" fill="${moonCraterShadow}" />
+        </g>
+
+        <!-- 5. Copernicus Crater (Bright spot in Mare) -->
+        <circle cx="${width * 0.32}" cy="${height * 0.42}" r="3" fill="#FFFFFF" opacity="0.8" />
+        <circle cx="${width * 0.32}" cy="${height * 0.42}" r="10" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.3" />
+
+        <!-- 6. General Craters -->
+      `;
+      
+      const numMoonCraters = 60;
       for (let i = 0; i < numMoonCraters; i++) {
         const cx = Math.random() * width;
         const cy = Math.random() * height;
-        const r = Math.random() * 8 + 1;
-        const color = colors[Math.floor(Math.random() * (colors.length - 1)) + 1];
-        svgContent += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" opacity="0.7" />`;
+        const r = Math.random() * 6 + 1;
+        // Simple 3D effect: Dark circle with lighter stroke
+        svgContent += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${moonCraterShadow}" opacity="0.5" />`;
+        // Rim highlight
+        svgContent += `<path d="M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}" fill="none" stroke="#FFFFFF" stroke-width="0.5" opacity="0.3" />`;
       }
       break;
 
@@ -157,53 +222,75 @@ export const generatePlanetTexture = (data: PlanetData): string => {
       break;
 
     case 'earth':
-      // Earth style - Blue ocean + Green Land blobs + White clouds
-      const ocean = colors[0];
-      const land = colors[1];
-      const cloud = colors[2];
-      
-      // Use Radial Gradient for deep ocean effect
+      // Improved Earth Style with NASA-inspired procedural features
+      const oceanDeep = '#002F6C'; // Deep Ocean Blue
+      const oceanShallow = '#0057D9'; // Lighter Ocean
+      const landGreen = '#2E7D32'; // Forest Green
+      const landBrown = '#8D6E63'; // Mountain/Dry
+      const iceWhite = '#F5F5F5'; 
+      const cloudWhite = '#FFFFFF';
+
       svgContent = `
         <defs>
-          <radialGradient id="oceanGrad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-            <stop offset="0%" style="stop-color:#2196F3;stop-opacity:1" /> <!-- Lighter Blue Center -->
-            <stop offset="100%" style="stop-color:#0D47A1;stop-opacity:1" /> <!-- Deep Blue Edge -->
-          </radialGradient>
-          
-          <filter id="cloudTurbulence">
-            <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" result="noise" />
-            <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 -0.4" in="noise" result="cloudAlpha" />
-            <feComposite operator="in" in="SourceGraphic" in2="cloudAlpha" />
+          <!-- 1. Ocean Gradient (Latitudinal depth simulation) -->
+          <linearGradient id="earthOcean" x1="0%" y1="0%" x2="0%" y2="100%">
+             <stop offset="0%" style="stop-color:${oceanDeep}" />
+             <stop offset="20%" style="stop-color:${oceanShallow}" />
+             <stop offset="50%" style="stop-color:${oceanDeep}" />
+             <stop offset="80%" style="stop-color:${oceanShallow}" />
+             <stop offset="100%" style="stop-color:${oceanDeep}" />
+          </linearGradient>
+
+          <!-- 2. Land Generation Filter: Creates fractal continents -->
+          <filter id="landNoise">
+             <!-- Low frequency noise for large land masses -->
+             <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="6" seed="42" result="noise"/>
+             
+             <!-- Sharp Thresholding to create distinct coastlines -->
+             <feComponentTransfer in="noise" result="landMask">
+                <!-- If noise value > threshold, alpha = 1, else 0 -->
+                <feFuncA type="linear" slope="20" intercept="-11"/> 
+             </feComponentTransfer>
+             
+             <!-- Composite to masked output -->
+             <feComposite operator="in" in="SourceGraphic" in2="landMask" />
+          </filter>
+
+          <!-- 3. Cloud Generation Filter: Swirling atmospheric patterns -->
+          <filter id="cloudFilter">
+             <feTurbulence type="fractalNoise" baseFrequency="0.025" numOctaves="4" seed="123" result="cloudNoise"/>
+             <!-- Map noise to alpha for wispy clouds -->
+             <feColorMatrix type="matrix" values="1 0 0 0 1  0 1 0 0 1  0 0 1 0 1  1 0 0 -0.2 -0.1" in="cloudNoise" result="cloudAlpha"/>
+             <feComposite operator="in" in="SourceGraphic" in2="cloudAlpha" />
           </filter>
         </defs>
-        <rect width="100%" height="100%" fill="url(#oceanGrad)" />
-      `;
-      
-      // Simple procedural landmasses (polygons)
-      const numLandmasses = 15;
-      for(let i=0; i<numLandmasses; i++) {
-          const cx = Math.random() * width;
-          const cy = Math.random() * height * 0.8 + height * 0.1; // Avoid extreme poles
-          
-          // Generate a random blob path
-          let d = `M ${cx} ${cy}`;
-          for(let j=0; j<6; j++) {
-              d += ` L ${cx + (Math.random()-0.5)*120} ${cy + (Math.random()-0.5)*90}`;
-          }
-          d += " Z";
-          svgContent += `<path d="${d}" fill="${land}" stroke="none" opacity="0.9" />`;
-      }
 
-      // Clouds
-      for(let i=0; i<25; i++) {
-           const cx = Math.random() * width;
-           const cy = Math.random() * height;
-           const rx = Math.random() * 60 + 20;
-           const ry = Math.random() * 30 + 10;
-           // White cloud with variable opacity
-           const op = Math.random() * 0.3 + 0.2;
-           svgContent += `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${cloud}" opacity="${op}" />`;
-      }
+        <!-- A. Base Layer: Ocean -->
+        <rect width="100%" height="100%" fill="url(#earthOcean)" />
+
+        <!-- B. Land Layer: Green Continents -->
+        <g filter="url(#landNoise)">
+           <!-- Main Green Base -->
+           <rect width="100%" height="100%" fill="${landGreen}" />
+           
+           <!-- Add Texture to Land (Mountains) -->
+           <filter id="mountainDetail">
+              <feTurbulence type="turbulence" baseFrequency="0.05" numOctaves="2" seed="7" />
+           </filter>
+           <rect width="100%" height="100%" fill="${landBrown}" opacity="0.3" filter="url(#mountainDetail)" style="mix-blend-mode: multiply;" />
+        </g>
+
+        <!-- C. Polar Ice Caps (Simple Geometry overlay) -->
+        <!-- North Pole -->
+        <path d="M 0 0 L ${width} 0 L ${width} ${height*0.12} Q ${width/2} ${height*0.18} 0 ${height*0.12} Z" fill="${iceWhite}" opacity="0.95" />
+        <!-- South Pole -->
+        <path d="M 0 ${height} L ${width} ${height} L ${width} ${height*0.88} Q ${width/2} ${height*0.82} 0 ${height*0.88} Z" fill="${iceWhite}" opacity="0.95" />
+
+        <!-- D. Cloud Layer -->
+        <g filter="url(#cloudFilter)" opacity="0.85">
+           <rect width="100%" height="100%" fill="${cloudWhite}" />
+        </g>
+      `;
       break;
 
     case 'sun':
@@ -230,14 +317,39 @@ export const generatePlanetTexture = (data: PlanetData): string => {
         <rect width="100%" height="100%" fill="#FF4500" opacity="0.4" filter="url(#sunNoise)" />
       `;
       
-      // Sunspots
-      const sunSpot = colors[2] || '#3E2723';
-      for (let i = 0; i < 6; i++) {
+      // Sunspots - Enhanced clustering
+      const sunSpotDark = '#3E2723'; // Dark Umbra
+      const sunSpotPenumbra = colors[2] || '#8B0000'; // Penumbra
+
+      // Helper to generate a sunspot group (Umbra + Penumbra + Satellites)
+      // Note: We use string concatenation inside the case logic
+      const numGroups = 5;
+      for (let g = 0; g < numGroups; g++) {
+         // Place in bands (avoid poles and exact equator)
          const cx = Math.random() * width;
-         const cy = Math.random() * height * 0.6 + height * 0.2;
-         const rx = Math.random() * 12 + 4;
-         const ry = Math.random() * 8 + 4;
-         svgContent += `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${sunSpot}" opacity="0.85" />`;
+         // Latitudes: 20-40 degrees North or South approx
+         // height 0 to 256. 
+         // North band: 70-100. South band: 156-186.
+         const isNorth = Math.random() > 0.5;
+         const cy = isNorth 
+            ? (height * 0.3) + (Math.random() * height * 0.15) 
+            : (height * 0.6) + (Math.random() * height * 0.15);
+
+         const mainR = Math.random() * 6 + 3;
+
+         // Penumbra (Lighter halo)
+         svgContent += `<ellipse cx="${cx}" cy="${cy}" rx="${mainR * 1.6}" ry="${mainR * 1.3}" fill="${sunSpotPenumbra}" opacity="0.6" />`;
+         // Umbra (Dark core)
+         svgContent += `<ellipse cx="${cx}" cy="${cy}" rx="${mainR}" ry="${mainR * 0.8}" fill="${sunSpotDark}" opacity="0.9" />`;
+
+         // Satellite spots
+         const satellites = Math.floor(Math.random() * 4);
+         for(let s=0; s<satellites; s++) {
+             const offX = (Math.random() - 0.5) * 30;
+             const offY = (Math.random() - 0.5) * 15;
+             const sr = Math.random() * 2 + 1;
+             svgContent += `<ellipse cx="${cx + offX}" cy="${cy + offY}" rx="${sr}" ry="${sr}" fill="${sunSpotDark}" opacity="0.75" />`;
+         }
       }
       break;
   }
