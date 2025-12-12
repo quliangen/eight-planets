@@ -1,7 +1,7 @@
 
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Mesh, Color, DoubleSide, Vector3, TextureLoader, AdditiveBlending, Object3D, Group } from 'three';
+import { Mesh, Color, DoubleSide, Vector3, TextureLoader, AdditiveBlending, Object3D, Group, PlaneGeometry, Texture } from 'three';
 import { Html, Billboard } from '@react-three/drei';
 import { PlanetData } from '../types';
 import { generatePlanetTexture, generateRingTexture, generateGenericGlowTexture, generateChinaFlagTexture } from '../utils/textureGenerator';
@@ -17,6 +17,71 @@ interface PlanetProps {
   planetRefs: React.MutableRefObject<{ [key: string]: Object3D }>;
   isStarshipActive: boolean;
 }
+
+// --- Animated Waving Flag Component ---
+const AnimatedFlag = ({ texture }: { texture: Texture }) => {
+  const meshRef = useRef<Mesh>(null);
+  
+  // Create geometry with segments for waving
+  const geometry = useMemo(() => new PlaneGeometry(1.5, 1.0, 10, 8), []);
+
+  useFrame((state) => {
+    if (!meshRef.current) return;
+    
+    const pos = geometry.attributes.position;
+    const count = pos.count;
+    const time = state.clock.elapsedTime;
+
+    for (let i = 0; i < count; i++) {
+      const x = pos.getX(i); // Local x from -0.75 to 0.75
+      
+      // Calculate Factor: 0 at Pole (Stars), 1 at Tail
+      // PlaneGeometry standard: Left (-0.75) is Stars (UV 0). Right (0.75) is Tail (UV 1).
+      // We want amplitude to be 0 at Stars, Max at Tail.
+      const factor = (x + 0.75) / 1.5; 
+      
+      // Wave function: propagate along X
+      const wave = Math.sin(x * 5.0 - time * 8.0);
+      
+      // Apply Z displacement (Flutter)
+      const z = wave * 0.1 * factor; 
+      
+      pos.setZ(i, z);
+    }
+    pos.needsUpdate = true;
+  });
+
+  return (
+    <mesh 
+      ref={meshRef} 
+      geometry={geometry} 
+      // Position Logic:
+      // Station Orbit Motion: Local +X (due to Y-rotation of group relative to orbit).
+      // Drag/Tail Direction: Local -X.
+      // We want Flag to extend from 0 to -1.5 (Backward).
+      // Plane Geom: -0.75 to +0.75.
+      // We need Left(-0.75/Stars) to be at 0. Right(+0.75/Tail) to be at -1.5.
+      // Scale X by -1 flips geometry relative to local origin.
+      //   Left(-0.75) * -1 = +0.75.
+      //   Right(+0.75) * -1 = -0.75.
+      // Shift center to -0.75.
+      //   New Left = +0.75 - 0.75 = 0 (Pole).
+      //   New Right = -0.75 - 0.75 = -1.5 (Tail).
+      // This orientation puts Stars at Pole (0) and Tail at Back (-1.5).
+      // AND Geometry Left (-0.75) is Stars.
+      // factor calculation (x + 0.75)/1.5 is 0 at Stars. Correct.
+      position={[-0.75, 1.1, 0]} 
+      scale={[-1, 1, 1]} 
+    >
+      <meshBasicMaterial 
+        map={texture} 
+        side={DoubleSide} 
+        transparent 
+        opacity={0.95} 
+      />
+    </mesh>
+  );
+};
 
 // --- 中国空间站 (Tiangong Space Station) ---
 const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number }> = ({ isPaused, simulationSpeed }) => {
@@ -47,11 +112,8 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number }> 
         {/* 轨道半径：1.4 (地球表面是0.5, 月球在3.5) */}
         <group position={[1.4, 0, 0]} scale={[0.12, 0.12, 0.12]}> 
            
-           {/* REMOVED: Text Label Billboard */}
-
            {/* --- Q版天宫空间站 (T字构型) --- */}
-           {/* Rotate so the T shape lays flat relative to Earth surface initially, or perpendicular? */}
-           {/* Let's align it so the 'forward' flight direction matches the orbit tangent roughly */}
+           {/* Rotation aligns Core along Z axis. Orbit motion is along Local X (Parent -Z tangent) */}
            <group rotation={[0, Math.PI / 2, 0]}>
 
              {/* 1. 核心舱 Tianhe Core (Center/Back) */}
@@ -61,25 +123,16 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number }> 
                 <meshStandardMaterial color="#f8f9fa" roughness={0.3} metalness={0.5} />
              </mesh>
              
-             {/* 🇨🇳 Flag on Pole (Left Side / Above Wentian) - Replaces Hull Decal */}
+             {/* 🇨🇳 Flag on Pole - Optimized Position & Orientation */}
              <group position={[-0.9, 0.5, 0]}>
-                {/* Pole - attached to hull area - Made taller/thicker for 2x flag */}
+                {/* Pole - attached to hull area */}
                 <mesh position={[0, 0.9, 0]}>
                    <cylinderGeometry args={[0.03, 0.03, 1.8]} />
                    <meshStandardMaterial color="#cbd5e1" roughness={0.4} />
                 </mesh>
                 
-                {/* Flag - Attached to pole top, extending Right (+X) now so stars (left of texture) align with pole */}
-                {/* Magnified 2x: Width 1.5, Height 1.0 (Exact 3:2 Ratio) */}
-                <mesh position={[0.75, 1.1, 0]} rotation={[0, -Math.PI / 8, 0]}>
-                   <planeGeometry args={[1.5, 1.0]} />
-                   <meshBasicMaterial 
-                      map={flagTexture} 
-                      side={DoubleSide} 
-                      transparent
-                      opacity={0.95}
-                   />
-                </mesh>
+                {/* Animated Flag */}
+                <AnimatedFlag texture={flagTexture} />
              </group>
 
              {/* 2. 节点舱 Node (Intersection Hub) */}
@@ -124,7 +177,6 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number }> 
                   <mesh position={[-0.8, 0, 0]}>
                      <boxGeometry args={[1.6, 0.02, 0.8]} /> {/* Panel */}
                      <meshStandardMaterial color="#1e3a8a" roughness={0.2} metalness={0.8} emissive="#172554" emissiveIntensity={0.3} />
-                     {/* Grid lines texture hint via wireframe mesh overlay? simpler to just use color for low poly */}
                   </mesh>
                </group>
 
