@@ -56,8 +56,10 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
 
   const travelInfo = selectedPlanet ? calculateTravelTime(selectedPlanet) : null;
 
-  // Determine if we should show travel time (Not for Earth or Sun)
-  const showTravelTime = selectedPlanet && selectedPlanet.id !== 'earth' && selectedPlanet.id !== 'sun';
+  // Determine if we should show travel time (Not for Earth, Sun, or Moons)
+  const isMoon = selectedPlanet && ['io', 'europa', 'ganymede', 'callisto', 'moon'].includes(selectedPlanet.id);
+  const showTravelTime = selectedPlanet && selectedPlanet.id !== 'earth' && selectedPlanet.id !== 'sun' && !isMoon;
+  
   // Determine if we should show Habitat Info (Only for Earth)
   const isEarth = selectedPlanet?.id === 'earth';
 
@@ -65,6 +67,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
     if (planet.id === 'sun') return { icon: '☀️', type: '恒星' };
     if (planet.id === 'earth') return { icon: '🌍', type: '生命家园' };
     if (planet.id === 'pluto') return { icon: '❄️', type: '矮行星' };
+    if (['io', 'europa', 'ganymede', 'callisto', 'moon'].includes(planet.id)) return { icon: '🌑', type: '卫星' };
     if (planet.realDistance < 200) return { icon: '🪨', type: '岩石系' }; 
     if (planet.hasRings) return { icon: '🪐', type: '飞行系' };
     if (planet.realDistance > 2000) return { icon: '🧊', type: '冰系' };
@@ -412,7 +415,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                     )}
                   </div>
 
-                  {/* Travel Stats */}
+                  {/* Travel Stats - HIDDEN FOR MOONS */}
                   {showTravelTime && travelInfo && (
                     <div className="bg-black/40 rounded-lg p-3 border border-white/10">
                        <h3 className="text-cyan-400 text-xs font-bold uppercase mb-3 flex items-center gap-1">

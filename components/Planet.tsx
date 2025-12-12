@@ -1,9 +1,11 @@
+
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Mesh, Color, DoubleSide, Vector3, TextureLoader, AdditiveBlending, Object3D, Group } from 'three';
 import { Html, Billboard } from '@react-three/drei';
 import { PlanetData } from '../types';
 import { generatePlanetTexture, generateRingTexture, generateGenericGlowTexture, generateChinaFlagTexture } from '../utils/textureGenerator';
+import { JUPITER_MOONS } from '../constants';
 
 interface PlanetProps {
   data: PlanetData;
@@ -67,10 +69,10 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number }> 
                    <meshStandardMaterial color="#cbd5e1" roughness={0.4} />
                 </mesh>
                 
-                {/* Flag - Attached to pole top, extending Left (-X) */}
-                {/* Magnified 2x: Width 1.4, Height 0.94 */}
-                <mesh position={[-0.7, 1.1, 0]} rotation={[0, Math.PI / 8, 0]}>
-                   <planeGeometry args={[1.4, 0.94]} />
+                {/* Flag - Attached to pole top, extending Right (+X) now so stars (left of texture) align with pole */}
+                {/* Magnified 2x: Width 1.5, Height 1.0 (Exact 3:2 Ratio) */}
+                <mesh position={[0.75, 1.1, 0]} rotation={[0, -Math.PI / 8, 0]}>
+                   <planeGeometry args={[1.5, 1.0]} />
                    <meshBasicMaterial 
                       map={flagTexture} 
                       side={DoubleSide} 
@@ -239,6 +241,95 @@ const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number }> = ({ isPaus
   );
 };
 
+// Generic Satellite Component (Used for Jupiter's Moons)
+const Satellite: React.FC<{ 
+  data: PlanetData;
+  isPaused: boolean; 
+  simulationSpeed: number;
+  onSelect: (id: string) => void;
+  isSelected: boolean;
+}> = ({ data, isPaused, simulationSpeed, onSelect, isSelected }) => {
+  const ref = useRef<Group>(null);
+  const [hovered, setHovered] = useState(false);
+  
+  const textureUrl = useMemo(() => generatePlanetTexture(data), [data]);
+  const texture = useMemo(() => new TextureLoader().load(textureUrl), [textureUrl]);
+
+  useFrame((state, delta) => {
+    if (ref.current && !isPaused) {
+      ref.current.rotation.y += delta * data.speed * simulationSpeed;
+    }
+  });
+
+  return (
+    <group ref={ref}>
+      {/* Satellite Object */}
+      <mesh 
+        position={[data.distance, 0, 0]}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect(data.id);
+        }}
+        onPointerOver={() => {
+          document.body.style.cursor = 'pointer';
+          setHovered(true);
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = 'auto';
+          setHovered(false);
+        }}
+      >
+        <sphereGeometry args={[data.size, 32, 32]} />
+        <meshPhysicalMaterial 
+          map={texture}
+          color="#ffffff" 
+          roughness={0.7}
+          metalness={0.1}
+          emissive={isSelected || hovered ? new Color(data.color) : new Color('#000000')}
+          emissiveIntensity={isSelected || hovered ? 0.3 : 0}
+        />
+        {/* Hover Label for Moon */}
+        {hovered && (
+          <Html position={[0, data.size + 1.0, 0]} center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
+            <div className="bg-black/80 text-white px-3 py-1.5 rounded-lg text-xs whitespace-nowrap border border-white/30 backdrop-blur-sm shadow-lg font-bold">
+              {data.name}
+            </div>
+          </Html>
+        )}
+      </mesh>
+      
+      {/* Orbit Path Visual */}
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+         <ringGeometry args={[data.distance - 0.03, data.distance + 0.03, 64]} />
+         <meshBasicMaterial color="#ffffff" opacity={0.1} transparent side={DoubleSide} />
+      </mesh>
+    </group>
+  );
+};
+
+const JupiterMoons: React.FC<{ 
+  isPaused: boolean; 
+  simulationSpeed: number; 
+  onSelect: (id: string) => void;
+  selectedId: string | null;
+}> = ({ isPaused, simulationSpeed, onSelect, selectedId }) => {
+  
+  return (
+    <group rotation={[0, 0, 0.05]}> {/* Slight inclination for the whole moon system */}
+      {JUPITER_MOONS.map(moon => (
+        <Satellite 
+          key={moon.id}
+          data={moon}
+          isPaused={isPaused} 
+          simulationSpeed={simulationSpeed}
+          onSelect={onSelect}
+          isSelected={selectedId === moon.id}
+        />
+      ))}
+    </group>
+  );
+};
+
 export const Planet: React.FC<PlanetProps> = ({ 
   data, 
   isSelected, 
@@ -375,7 +466,7 @@ export const Planet: React.FC<PlanetProps> = ({
             {hovered && (
               <Html position={[0, data.size + 3.0, 0]} center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
                 <div className="flex flex-col items-center gap-2 pointer-events-none select-none transition-all duration-200">
-                  <div className="bg-black/80 text-white px-4 py-2 rounded-xl text-sm whitespace-nowrap border border-white/30 backdrop-blur-md font-bold shadow-[0_4px_20px_rgba(0,0,0,0.5)] animate-fade-in-up">
+                  <div className="bg-black/80 text-white px-4 py-2 rounded-xl text-sm whitespace-nowrap border border-white/30 backdrop-blur-sm font-bold shadow-[0_4px_20px_rgba(0,0,0,0.5)] animate-fade-in-up">
                     {data.name}
                   </div>
                   {/* Dynamic Distance Label */}
@@ -416,6 +507,16 @@ export const Planet: React.FC<PlanetProps> = ({
             {/* Tiangong Space Station: Lower orbit than Moon */}
             <TiangongStation isPaused={isPaused} simulationSpeed={simulationSpeed} />
           </>
+        )}
+
+        {/* --- JUPITER SPECIFIC SATELLITES (GALILEAN MOONS) --- */}
+        {data.id === 'jupiter' && (
+           <JupiterMoons 
+             isPaused={isPaused} 
+             simulationSpeed={simulationSpeed}
+             onSelect={onSelect}
+             selectedId={isSelected ? data.id : null} // Simple pass-through check, handled better in App state
+           />
         )}
 
         {/* Atmosphere Glow Shell (Billboard) - Replaced Shader with Sprite/Billboard method */}

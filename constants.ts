@@ -26,6 +26,69 @@ export const SUN_DATA: PlanetData = {
   }
 };
 
+export const JUPITER_MOONS: PlanetData[] = [
+  {
+    id: 'io',
+    name: '木卫一 (Io)',
+    color: '#FAD5A5',
+    size: 0.28, 
+    distance: 6.0, 
+    realDistance: 0.42, 
+    speed: 0.8,
+    rotationSpeed: 0.01,
+    description: '我是太阳系中火山活动最剧烈的星球！因为木星巨大的引力不断拉扯我，我的表面布满了400多座活火山。看起来是不是像一块巨大的起司披萨？',
+    temperature: '火山口 1600°C / 表面 -130°C',
+    composition: '硅酸盐岩石, 硫磺',
+    funFact: '木卫一喷出的火山羽流可以高达500公里！',
+    textureConfig: { type: 'io', colors: ['#FAD5A5', '#F96C18', '#FFF'] }
+  },
+  {
+    id: 'europa',
+    name: '木卫二 (Europa)',
+    color: '#F5F5DC',
+    size: 0.25, 
+    distance: 9.0,
+    realDistance: 0.67,
+    speed: 0.5,
+    rotationSpeed: 0.008,
+    description: '我是一个冰冻的世界，表面非常光滑，布满了红褐色的裂纹。在厚厚的冰层下面，可能隐藏着一个巨大的液态咸水海洋，甚至可能有生命！',
+    temperature: '-160°C',
+    composition: '冰层, 地下海洋, 岩石核心',
+    funFact: '木卫二的地下海洋水量可能比地球上所有海洋加起来还要多两倍！',
+    textureConfig: { type: 'europa', colors: ['#F5F5DC', '#C49C76', '#FFF'] }
+  },
+  {
+    id: 'ganymede',
+    name: '木卫三 (Ganymede)',
+    color: '#7C7368',
+    size: 0.45, 
+    distance: 13.0,
+    realDistance: 1.07,
+    speed: 0.3,
+    rotationSpeed: 0.005,
+    description: '我是太阳系中最大的卫星，个头比水星还要大！我也是唯一拥有自己磁场的卫星。我的表面一半是古老的黑暗陨石坑，一半是年轻的明亮冰脊。',
+    temperature: '-163°C',
+    composition: '硅酸盐岩石, 冰',
+    funFact: '如果你站在木卫三上，你会看到巨大的木星挂在天上，比地球上看到的月亮大15倍！',
+    textureConfig: { type: 'ganymede', colors: ['#7C7368', '#C4B9AC', '#FFF'] }
+  },
+  {
+    id: 'callisto',
+    name: '木卫四 (Callisto)',
+    color: '#524B43',
+    size: 0.38, 
+    distance: 18.0,
+    realDistance: 1.88,
+    speed: 0.15,
+    rotationSpeed: 0.003,
+    description: '我是太阳系中遭受撞击最多的星球，表面布满了密密麻麻的古老陨石坑。我像一颗死寂的冰球，几十亿年来几乎没有发生过变化。',
+    temperature: '-139°C',
+    composition: '岩石, 冰',
+    funFact: '木卫四是这四颗卫星中离木星最远的，所以它受到的辐射最少，可能是未来人类建立基地的候选地。',
+    textureConfig: { type: 'callisto', colors: ['#3E3A36', '#8B8680', '#FFF'] }
+  }
+];
+
 export const PLANETS: PlanetData[] = [
   {
     id: 'mercury',
@@ -124,7 +187,7 @@ export const PLANETS: PlanetData[] = [
     hasRings: true, // Enabled Rings!
     ringColor: '#BCAFA3', // Dusty Faint Brown
     atmosphereColor: '#FBC02D', 
-    description: '巨大的气态行星！我有漂亮的条纹和大红斑。你知道吗？其实我也有光环，只是它们由尘埃组成，非常暗淡。',
+    description: '巨大的气态行星！我有漂亮的条纹和大红斑。你知道吗？其实我也有光环，只是它们由尘埃组成，非常暗淡。而且我有非常多的卫星朋友！',
     temperature: '-108°C',
     composition: '氢气, 氦气',
     funFact: '木星的大红斑是一个已经刮了350多年的超级反气旋风暴，能装下整个地球。',
