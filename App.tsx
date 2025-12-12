@@ -217,8 +217,17 @@ const App: React.FC = () => {
       {/* 
          Canvas needs alpha: true for transparency.
          When AR Mode is ON, we hide the Skybox and opaque layers so the video behind shows through.
+         onPointerMissed handles clicking empty space to deselect/close popups.
       */}
-      <Canvas gl={{ antialias: true, toneMappingExposure: 1.2, alpha: true }}>
+      <Canvas 
+        gl={{ antialias: true, toneMappingExposure: 1.2, alpha: true }}
+        onPointerMissed={() => {
+          // If we clicked on empty space (not a mesh), close the info panel
+          if (selectedPlanetId) {
+            handleClose();
+          }
+        }}
+      >
         <Suspense fallback={null}>
           <PerspectiveCamera makeDefault position={[0, 80, 120]} fov={45} />
           

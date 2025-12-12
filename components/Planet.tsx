@@ -55,21 +55,6 @@ const AnimatedFlag = ({ texture }: { texture: Texture }) => {
     <mesh 
       ref={meshRef} 
       geometry={geometry} 
-      // Position Logic:
-      // Station Orbit Motion: Local +X (due to Y-rotation of group relative to orbit).
-      // Drag/Tail Direction: Local -X.
-      // We want Flag to extend from 0 to -1.5 (Backward).
-      // Plane Geom: -0.75 to +0.75.
-      // We need Left(-0.75/Stars) to be at 0. Right(+0.75/Tail) to be at -1.5.
-      // Scale X by -1 flips geometry relative to local origin.
-      //   Left(-0.75) * -1 = +0.75.
-      //   Right(+0.75) * -1 = -0.75.
-      // Shift center to -0.75.
-      //   New Left = +0.75 - 0.75 = 0 (Pole).
-      //   New Right = -0.75 - 0.75 = -1.5 (Tail).
-      // This orientation puts Stars at Pole (0) and Tail at Back (-1.5).
-      // AND Geometry Left (-0.75) is Stars.
-      // factor calculation (x + 0.75)/1.5 is 0 at Stars. Correct.
       position={[-0.75, 1.1, 0]} 
       scale={[-1, 1, 1]} 
     >
@@ -219,27 +204,6 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number }> 
   );
 };
 
-// 简单的内部组件用于显示3D标签
-const TextLabel = ({ text, color, bgColor }: { text: string, color: string, bgColor: string }) => (
-  <Html center distanceFactor={10} style={{ pointerEvents: 'none' }}>
-    <div style={{ 
-      backgroundColor: bgColor, 
-      color: color, 
-      padding: '4px 8px', 
-      borderRadius: '6px', 
-      fontSize: '10px', 
-      fontWeight: 'bold',
-      whiteSpace: 'nowrap',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-      fontFamily: '"ZCOOL KuaiLe", sans-serif',
-      border: '1px solid rgba(0,0,0,0.1)'
-    }}>
-      {text}
-    </div>
-  </Html>
-);
-
-
 const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number }> = ({ isPaused, simulationSpeed }) => {
   const moonRef = useRef<Group>(null);
   
@@ -303,6 +267,7 @@ const Satellite: React.FC<{
 }> = ({ data, isPaused, simulationSpeed, onSelect, isSelected }) => {
   const ref = useRef<Group>(null);
   const [hovered, setHovered] = useState(false);
+  const clickStartRef = useRef({ x: 0, y: 0 });
   
   const textureUrl = useMemo(() => generatePlanetTexture(data), [data]);
   const texture = useMemo(() => new TextureLoader().load(textureUrl), [textureUrl]);
@@ -318,9 +283,21 @@ const Satellite: React.FC<{
       {/* Satellite Object */}
       <mesh 
         position={[data.distance, 0, 0]}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          clickStartRef.current = { x: e.clientX, y: e.clientY };
+        }}
         onClick={(e) => {
           e.stopPropagation();
-          onSelect(data.id);
+          // Calculate distance moved
+          const dx = e.clientX - clickStartRef.current.x;
+          const dy = e.clientY - clickStartRef.current.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          // Only trigger select if moved less than 5 pixels (click, not drag)
+          if (distance < 5) {
+            onSelect(data.id);
+          }
         }}
         onPointerOver={() => {
           document.body.style.cursor = 'pointer';
@@ -397,6 +374,9 @@ export const Planet: React.FC<PlanetProps> = ({
   const inclinationGroupRef = useRef<Group>(null); // New group for orbital inclination
   const distanceLabelRef = useRef<HTMLSpanElement>(null);
   const [hovered, setHovered] = useState(false);
+  
+  // Track click start position to differentiate click from drag
+  const clickStartRef = useRef({ x: 0, y: 0 });
   
   // Register this planet to the refs map for the Starship
   useEffect(() => {
@@ -489,9 +469,21 @@ export const Planet: React.FC<PlanetProps> = ({
           {/* Main Planet Sphere - Rotation (Day/Night) happens here */}
           <mesh
             ref={meshRef}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              clickStartRef.current = { x: e.clientX, y: e.clientY };
+            }}
             onClick={(e) => {
               e.stopPropagation();
-              onSelect(data.id);
+              // Calculate distance moved
+              const dx = e.clientX - clickStartRef.current.x;
+              const dy = e.clientY - clickStartRef.current.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              
+              // Only trigger select if moved less than 5 pixels (click, not drag)
+              if (distance < 5) {
+                onSelect(data.id);
+              }
             }}
             onPointerOver={() => {
               document.body.style.cursor = 'pointer';

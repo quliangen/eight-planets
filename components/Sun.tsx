@@ -1,3 +1,4 @@
+
 import React, { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Mesh, TextureLoader } from 'three';
@@ -15,6 +16,7 @@ interface SunProps {
 export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simulationSpeed }) => {
   const meshRef = useRef<Mesh>(null);
   const [hovered, setHovered] = useState(false);
+  const clickStartRef = useRef({ x: 0, y: 0 });
 
   const textureUrl = useMemo(() => generatePlanetTexture(SUN_DATA), []);
   const texture = useMemo(() => new TextureLoader().load(textureUrl), [textureUrl]);
@@ -36,9 +38,21 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
       {/* Main Sun Body - Use dynamic size */}
       <mesh 
         ref={meshRef}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          clickStartRef.current = { x: e.clientX, y: e.clientY };
+        }}
         onClick={(e) => {
           e.stopPropagation();
-          onSelect(SUN_DATA.id);
+          // Calculate distance moved
+          const dx = e.clientX - clickStartRef.current.x;
+          const dy = e.clientY - clickStartRef.current.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          // Only trigger select if moved less than 5 pixels (click, not drag)
+          if (distance < 5) {
+            onSelect(SUN_DATA.id);
+          }
         }}
         onPointerOver={() => {
           document.body.style.cursor = 'pointer';
