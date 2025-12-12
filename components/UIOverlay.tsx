@@ -307,17 +307,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
 
                       {/* Content Row */}
                       <div className="p-3 flex items-center gap-4">
-                          {/* Play/Pause Button */}
-                          <button 
-                            onClick={togglePause}
-                            className={`w-10 h-10 rounded-full flex items-center justify-center border-2 shadow-lg transition-all active:scale-95
-                                ${isPaused 
-                                    ? 'bg-yellow-500 border-yellow-300 text-black animate-pulse' 
-                                    : 'bg-cyan-600 border-cyan-400 text-white hover:bg-cyan-500'
-                                }`}
-                          >
-                             {isPaused ? '▶' : '⏸'}
-                          </button>
+                          {/* Play/Pause Button REMOVED */}
 
                           {/* Big Digital Display */}
                           <div className="flex flex-col items-end min-w-[3.5rem]">
