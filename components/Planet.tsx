@@ -5,7 +5,7 @@ import { Mesh, Color, DoubleSide, Vector3, TextureLoader, AdditiveBlending, Obje
 import { Html, Billboard } from '@react-three/drei';
 import { PlanetData } from '../types';
 import { generatePlanetTexture, generateRingTexture, generateGenericGlowTexture, generateChinaFlagTexture } from '../utils/textureGenerator';
-import { JUPITER_MOONS } from '../constants';
+import { JUPITER_MOONS, SATURN_MOONS } from '../constants';
 
 interface PlanetProps {
   data: PlanetData;
@@ -16,6 +16,7 @@ interface PlanetProps {
   earthPositionRef: React.MutableRefObject<Vector3>;
   planetRefs: React.MutableRefObject<{ [key: string]: Object3D }>;
   isStarshipActive: boolean;
+  showOrbit: boolean;
 }
 
 // --- Animated Waving Flag Component ---
@@ -69,7 +70,7 @@ const AnimatedFlag = ({ texture }: { texture: Texture }) => {
 };
 
 // --- 中国空间站 (Tiangong Space Station) ---
-const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number }> = ({ isPaused, simulationSpeed }) => {
+const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: boolean }> = ({ isPaused, simulationSpeed, showOrbit }) => {
   const stationRef = useRef<Group>(null);
   const solarPanelRef = useRef<Group>(null);
 
@@ -195,7 +196,7 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number }> 
         </group>
         
         {/* 轨道线 (Orbit Line) */}
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]} visible={showOrbit}>
            <ringGeometry args={[1.38, 1.42, 64]} />
            <meshBasicMaterial color="#38bdf8" opacity={0.3} transparent side={DoubleSide} />
         </mesh>
@@ -204,7 +205,7 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number }> 
   );
 };
 
-const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number }> = ({ isPaused, simulationSpeed }) => {
+const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: boolean }> = ({ isPaused, simulationSpeed, showOrbit }) => {
   const moonRef = useRef<Group>(null);
   
   // Create static data for Moon texture generation
@@ -248,7 +249,7 @@ const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number }> = ({ isPaus
         </mesh>
         
         {/* Moon Orbit Path Visual */}
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]} visible={showOrbit}>
            <ringGeometry args={[3.45, 3.55, 64]} />
            <meshBasicMaterial color="#ffffff" opacity={0.15} transparent side={DoubleSide} />
         </mesh>
@@ -257,20 +258,26 @@ const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number }> = ({ isPaus
   );
 };
 
-// Generic Satellite Component (Used for Jupiter's Moons)
+// Generic Satellite Component (Used for Jupiter's & Saturn's Moons)
 const Satellite: React.FC<{ 
   data: PlanetData;
   isPaused: boolean; 
   simulationSpeed: number;
   onSelect: (id: string) => void;
   isSelected: boolean;
-}> = ({ data, isPaused, simulationSpeed, onSelect, isSelected }) => {
+  showOrbit: boolean;
+}> = ({ data, isPaused, simulationSpeed, onSelect, isSelected, showOrbit }) => {
   const ref = useRef<Group>(null);
+  const inclinationGroupRef = useRef<Group>(null);
   const [hovered, setHovered] = useState(false);
   const clickStartRef = useRef({ x: 0, y: 0 });
   
   const textureUrl = useMemo(() => generatePlanetTexture(data), [data]);
   const texture = useMemo(() => new TextureLoader().load(textureUrl), [textureUrl]);
+
+  // Generate Atmosphere Glow (For Titan)
+  const glowTextureUrl = useMemo(() => data.atmosphereColor ? generateGenericGlowTexture() : null, [data.atmosphereColor]);
+  const glowTexture = useMemo(() => glowTextureUrl ? new TextureLoader().load(glowTextureUrl) : null, [glowTextureUrl]);
 
   useFrame((state, delta) => {
     if (ref.current && !isPaused) {
@@ -279,59 +286,79 @@ const Satellite: React.FC<{
   });
 
   return (
-    <group ref={ref}>
-      {/* Satellite Object */}
-      <mesh 
-        position={[data.distance, 0, 0]}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          clickStartRef.current = { x: e.clientX, y: e.clientY };
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          // Calculate distance moved
-          const dx = e.clientX - clickStartRef.current.x;
-          const dy = e.clientY - clickStartRef.current.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          // Only trigger select if moved less than 5 pixels (click, not drag)
-          if (distance < 5) {
-            onSelect(data.id);
-          }
-        }}
-        onPointerOver={() => {
-          document.body.style.cursor = 'pointer';
-          setHovered(true);
-        }}
-        onPointerOut={() => {
-          document.body.style.cursor = 'auto';
-          setHovered(false);
-        }}
-      >
-        <sphereGeometry args={[data.size, 32, 32]} />
-        <meshPhysicalMaterial 
-          map={texture}
-          color="#ffffff" 
-          roughness={0.7}
-          metalness={0.1}
-          emissive={isSelected || hovered ? new Color(data.color) : new Color('#000000')}
-          emissiveIntensity={isSelected || hovered ? 0.3 : 0}
-        />
-        {/* Hover Label for Moon */}
-        {hovered && (
-          <Html position={[0, data.size + 1.0, 0]} center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
-            <div className="bg-black/80 text-white px-3 py-1.5 rounded-lg text-xs whitespace-nowrap border border-white/30 backdrop-blur-sm shadow-lg font-bold">
-              {data.name}
-            </div>
-          </Html>
-        )}
-      </mesh>
-      
-      {/* Orbit Path Visual */}
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-         <ringGeometry args={[data.distance - 0.03, data.distance + 0.03, 64]} />
-         <meshBasicMaterial color="#ffffff" opacity={0.1} transparent side={DoubleSide} />
-      </mesh>
+    <group ref={inclinationGroupRef} rotation={[0, 0, data.orbitInclination || 0]}>
+      <group ref={ref}>
+        {/* Satellite Object */}
+        <mesh 
+          position={[data.distance, 0, 0]}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            clickStartRef.current = { x: e.clientX, y: e.clientY };
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            // Calculate distance moved
+            const dx = e.clientX - clickStartRef.current.x;
+            const dy = e.clientY - clickStartRef.current.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Only trigger select if moved less than 5 pixels (click, not drag)
+            if (distance < 5) {
+              onSelect(data.id);
+            }
+          }}
+          onPointerOver={() => {
+            document.body.style.cursor = 'pointer';
+            setHovered(true);
+          }}
+          onPointerOut={() => {
+            document.body.style.cursor = 'auto';
+            setHovered(false);
+          }}
+        >
+          <sphereGeometry args={[data.size, 32, 32]} />
+          <meshPhysicalMaterial 
+            map={texture}
+            color="#ffffff" 
+            roughness={0.7}
+            metalness={0.1}
+            emissive={isSelected || hovered ? new Color(data.color) : new Color('#000000')}
+            emissiveIntensity={isSelected || hovered ? 0.3 : 0}
+          />
+          {/* Hover Label for Moon */}
+          {hovered && (
+            <Html position={[0, data.size + 1.0, 0]} center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
+              <div className="bg-black/80 text-white px-3 py-1.5 rounded-lg text-xs whitespace-nowrap border border-white/30 backdrop-blur-sm shadow-lg font-bold">
+                {data.name}
+              </div>
+            </Html>
+          )}
+
+          {/* Atmosphere Glow for Titan */}
+          {data.atmosphereColor && glowTexture && (
+            <Billboard>
+              <mesh scale={[data.size * 2.8, data.size * 2.8, 1]}>
+                <planeGeometry args={[1, 1]} />
+                <meshBasicMaterial 
+                  map={glowTexture} 
+                  transparent 
+                  opacity={0.3} 
+                  depthWrite={false}
+                  blending={AdditiveBlending}
+                  color={new Color(data.atmosphereColor)}
+                />
+              </mesh>
+            </Billboard>
+          )}
+
+        </mesh>
+        
+        {/* Orbit Path Visual */}
+        <mesh rotation={[Math.PI / 2, 0, 0]} visible={showOrbit}>
+           <ringGeometry args={[data.distance - 0.03, data.distance + 0.03, 64]} />
+           <meshBasicMaterial color="#ffffff" opacity={0.1} transparent side={DoubleSide} />
+        </mesh>
+      </group>
     </group>
   );
 };
@@ -341,7 +368,8 @@ const JupiterMoons: React.FC<{
   simulationSpeed: number; 
   onSelect: (id: string) => void;
   selectedId: string | null;
-}> = ({ isPaused, simulationSpeed, onSelect, selectedId }) => {
+  showOrbit: boolean;
+}> = ({ isPaused, simulationSpeed, onSelect, selectedId, showOrbit }) => {
   
   return (
     <group rotation={[0, 0, 0.05]}> {/* Slight inclination for the whole moon system */}
@@ -353,6 +381,32 @@ const JupiterMoons: React.FC<{
           simulationSpeed={simulationSpeed}
           onSelect={onSelect}
           isSelected={selectedId === moon.id}
+          showOrbit={showOrbit}
+        />
+      ))}
+    </group>
+  );
+};
+
+const SaturnMoons: React.FC<{ 
+  isPaused: boolean; 
+  simulationSpeed: number; 
+  onSelect: (id: string) => void;
+  selectedId: string | null;
+  showOrbit: boolean;
+}> = ({ isPaused, simulationSpeed, onSelect, selectedId, showOrbit }) => {
+  
+  return (
+    <group> {/* Saturn moons align well with the rings/equator generally */}
+      {SATURN_MOONS.map(moon => (
+        <Satellite 
+          key={moon.id}
+          data={moon}
+          isPaused={isPaused} 
+          simulationSpeed={simulationSpeed}
+          onSelect={onSelect}
+          isSelected={selectedId === moon.id}
+          showOrbit={showOrbit}
         />
       ))}
     </group>
@@ -367,7 +421,8 @@ export const Planet: React.FC<PlanetProps> = ({
   simulationSpeed,
   earthPositionRef,
   planetRefs,
-  isStarshipActive
+  isStarshipActive,
+  showOrbit
 }) => {
   const meshRef = useRef<Mesh>(null);
   const orbitGroupRef = useRef<Group>(null);
@@ -455,7 +510,7 @@ export const Planet: React.FC<PlanetProps> = ({
       
       {/* Orbit Path Visual (Ring) - Stays static within the inclined plane */}
       {/* HIDE when Starship is active for cleaner look */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} visible={!isStarshipActive}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} visible={!isStarshipActive && showOrbit}>
         <ringGeometry args={[data.distance - 0.05, data.distance + 0.05, 128]} />
         <meshBasicMaterial color="#ffffff" opacity={0.35} transparent side={DoubleSide} />
       </mesh>
@@ -546,10 +601,10 @@ export const Planet: React.FC<PlanetProps> = ({
         {data.id === 'earth' && (
           <>
             {/* Moon: Placed outside the axial tilt group so it orbits the center of Earth's position */}
-            <Moon isPaused={isPaused} simulationSpeed={simulationSpeed} />
+            <Moon isPaused={isPaused} simulationSpeed={simulationSpeed} showOrbit={showOrbit} />
             
             {/* Tiangong Space Station: Lower orbit than Moon */}
-            <TiangongStation isPaused={isPaused} simulationSpeed={simulationSpeed} />
+            <TiangongStation isPaused={isPaused} simulationSpeed={simulationSpeed} showOrbit={showOrbit} />
           </>
         )}
 
@@ -560,6 +615,18 @@ export const Planet: React.FC<PlanetProps> = ({
              simulationSpeed={simulationSpeed}
              onSelect={onSelect}
              selectedId={isSelected ? data.id : null} // Simple pass-through check, handled better in App state
+             showOrbit={showOrbit}
+           />
+        )}
+
+        {/* --- SATURN SPECIFIC SATELLITES --- */}
+        {data.id === 'saturn' && (
+           <SaturnMoons 
+             isPaused={isPaused} 
+             simulationSpeed={simulationSpeed}
+             onSelect={onSelect}
+             selectedId={isSelected ? data.id : null} 
+             showOrbit={showOrbit}
            />
         )}
 

@@ -29,6 +29,116 @@ export const generatePlanetTexture = (data: PlanetData): string => {
       `;
       break;
 
+    case 'titan':
+        // --- TITAN SPECIFIC (Thick Atmosphere, Orange Haze) ---
+        const titanBase = colors[0]; // #D4A050
+        const titanDark = colors[1]; // #C08535
+        const titanDeep = colors[2]; // #553311
+        
+        svgContent = `
+          <defs>
+             <filter id="titanHaze">
+                <feGaussianBlur stdDeviation="6" />
+             </filter>
+             <linearGradient id="titanGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+               <stop offset="0%" stop-color="${titanDeep}" /> <!-- Dark north hood -->
+               <stop offset="20%" stop-color="${titanDark}" />
+               <stop offset="50%" stop-color="${titanBase}" />
+               <stop offset="80%" stop-color="${titanDark}" />
+               <stop offset="100%" stop-color="${titanDeep}" />
+             </linearGradient>
+          </defs>
+          
+          <rect width="100%" height="100%" fill="url(#titanGrad)" />
+          
+          <!-- Atmospheric haze layers -->
+          <rect width="100%" height="100%" fill="${titanBase}" opacity="0.3" filter="url(#titanHaze)" />
+          
+          <!-- Subtle barely visible surface features (lakes?) -->
+          <path d="M ${width*0.2} ${width*0.4} Q ${width*0.5} ${height*0.3} ${width*0.8} ${height*0.5}" 
+                stroke="${titanDeep}" stroke-width="20" opacity="0.1" fill="none" filter="url(#titanHaze)" />
+        `;
+        break;
+
+    case 'enceladus':
+        // --- ENCELADUS SPECIFIC (Ice White, Blue Tiger Stripes) ---
+        const encWhite = colors[0]; // #FFFFFF
+        const encStripe = colors[2]; // #81D4FA
+        
+        svgContent = `
+          <defs>
+             <filter id="iceCracks">
+                <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" />
+             </filter>
+          </defs>
+          <rect width="100%" height="100%" fill="${encWhite}" />
+          
+          <!-- Tiger Stripes at South Pole -->
+          <g transform="translate(0, ${height * 0.7})">
+             <path d="M ${width*0.2} ${height*0.1} Q ${width*0.5} ${height*0.05} ${width*0.8} ${height*0.1}" stroke="${encStripe}" stroke-width="2" fill="none" opacity="0.6" />
+             <path d="M ${width*0.15} ${height*0.15} Q ${width*0.5} ${height*0.1} ${width*0.85} ${height*0.15}" stroke="${encStripe}" stroke-width="2" fill="none" opacity="0.6" />
+             <path d="M ${width*0.25} ${height*0.2} Q ${width*0.5} ${height*0.15} ${width*0.75} ${height*0.2}" stroke="${encStripe}" stroke-width="2" fill="none" opacity="0.6" />
+             <path d="M ${width*0.3} ${height*0.25} Q ${width*0.5} ${height*0.2} ${width*0.7} ${height*0.25}" stroke="${encStripe}" stroke-width="2" fill="none" opacity="0.6" />
+          </g>
+          
+          <!-- Subtle ice texture -->
+          <rect width="100%" height="100%" fill="#E1F5FE" opacity="0.15" filter="url(#iceCracks)" style="mix-blend-mode: multiply;" />
+        `;
+        break;
+
+    case 'mimas':
+        // --- MIMAS SPECIFIC (Death Star Crater) ---
+        const mimasGrey = colors[0];
+        const mimasShadow = colors[2];
+        
+        svgContent = `
+          <rect width="100%" height="100%" fill="${mimasGrey}" />
+          
+          <!-- Herschel Crater - The Death Star Eye -->
+          <g transform="translate(${width * 0.6}, ${height * 0.4})">
+             <circle cx="0" cy="0" r="${height * 0.15}" fill="${mimasShadow}" opacity="0.8" />
+             <circle cx="0" cy="0" r="${height * 0.14}" fill="${mimasGrey}" opacity="0.2" />
+             <!-- Central Peak -->
+             <circle cx="0" cy="0" r="${height * 0.03}" fill="${colors[1]}" opacity="0.9" />
+          </g>
+          
+          <!-- Other small craters -->
+          ${Array.from({length: 40}).map(() => {
+              const cx = Math.random() * width;
+              const cy = Math.random() * height;
+              const r = Math.random() * 5 + 1;
+              return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${mimasShadow}" opacity="0.4" />`;
+           }).join('')}
+        `;
+        break;
+
+    case 'iapetus':
+        // --- IAPETUS SPECIFIC (Yin Yang / Walnut Ridge) ---
+        const iapWhite = colors[0];
+        const iapBlack = colors[1];
+        
+        svgContent = `
+          <defs>
+            <linearGradient id="iapetusSplit" x1="0%" y1="0%" x2="100%" y2="0%">
+               <stop offset="30%" stop-color="${iapBlack}" />
+               <stop offset="50%" stop-color="${iapBlack}" />
+               <stop offset="70%" stop-color="${iapWhite}" />
+            </linearGradient>
+            <filter id="iapetusNoise">
+               <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="3" />
+            </filter>
+          </defs>
+          
+          <rect width="100%" height="100%" fill="url(#iapetusSplit)" />
+          
+          <!-- Irregularity mask -->
+          <rect width="100%" height="100%" fill="black" opacity="0.3" filter="url(#iapetusNoise)" style="mix-blend-mode: overlay;" />
+          
+          <!-- Equatorial Ridge hint -->
+          <line x1="0" y1="${height/2}" x2="${width}" y2="${height/2}" stroke="#555" stroke-width="2" opacity="0.3" />
+        `;
+        break;
+
     case 'saturn':
         // --- SATURN SPECIFIC REALISTIC GENERATION ---
         const creamGold = colors[0]; // #EBE3CC

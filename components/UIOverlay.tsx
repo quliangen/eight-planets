@@ -13,8 +13,10 @@ interface UIOverlayProps {
   toggleStarship: () => void;
   showPluto: boolean;
   togglePluto: () => void;
-  toggleGestureMode: () => void;
   isGestureMode: boolean;
+  toggleGestureMode: () => void;
+  showOrbits: boolean;
+  toggleOrbits: () => void;
 }
 
 export const UIOverlay: React.FC<UIOverlayProps> = ({ 
@@ -29,7 +31,9 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
   showPluto,
   togglePluto,
   toggleGestureMode,
-  isGestureMode
+  isGestureMode,
+  showOrbits,
+  toggleOrbits
 }) => {
   // Calculations for kids
   const calculateTravelTime = (planet: PlanetData) => {
@@ -57,7 +61,8 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
   const travelInfo = selectedPlanet ? calculateTravelTime(selectedPlanet) : null;
 
   // Determine if we should show travel time (Not for Earth, Sun, or Moons)
-  const isMoon = selectedPlanet && ['io', 'europa', 'ganymede', 'callisto', 'moon'].includes(selectedPlanet.id);
+  const MOON_IDS = ['io', 'europa', 'ganymede', 'callisto', 'moon', 'titan', 'enceladus', 'mimas', 'iapetus'];
+  const isMoon = selectedPlanet && MOON_IDS.includes(selectedPlanet.id);
   const showTravelTime = selectedPlanet && selectedPlanet.id !== 'earth' && selectedPlanet.id !== 'sun' && !isMoon;
   
   // Determine if we should show Habitat Info (Only for Earth)
@@ -67,7 +72,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
     if (planet.id === 'sun') return { icon: '☀️', type: '恒星' };
     if (planet.id === 'earth') return { icon: '🌍', type: '生命家园' };
     if (planet.id === 'pluto') return { icon: '❄️', type: '矮行星' };
-    if (['io', 'europa', 'ganymede', 'callisto', 'moon'].includes(planet.id)) return { icon: '🌑', type: '卫星' };
+    if (MOON_IDS.includes(planet.id)) return { icon: '🌑', type: '卫星' };
     if (planet.realDistance < 200) return { icon: '🪨', type: '岩石系' }; 
     if (planet.hasRings) return { icon: '🪐', type: '飞行系' };
     if (planet.realDistance > 2000) return { icon: '🧊', type: '冰系' };
@@ -107,8 +112,8 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
     
     /* Common Button Base */
     .action-btn {
-      width: 4rem; height: 4rem;
-      border: 3px solid rgba(255,255,255,0.2);
+      width: 3.5rem; height: 3.5rem;
+      border: 2px solid rgba(255,255,255,0.2);
       border-radius: 50%;
       box-shadow: 0 4px 15px rgba(0,0,0,0.5);
       backdrop-filter: blur(10px);
@@ -116,6 +121,9 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
       transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
       position: relative;
       overflow: hidden;
+    }
+    @media (min-width: 640px) {
+      .action-btn { width: 4rem; height: 4rem; border-width: 3px; }
     }
     .action-btn::before {
       content: ''; position: absolute; inset: 0; 
@@ -125,20 +133,14 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
     .action-btn:active { transform: scale(0.95); }
     .action-btn:hover { border-color: rgba(255,255,255,0.8); transform: translateY(-2px); }
 
-    /* Pokeball (Pause) - Space Style */
-    .pokeball {
-      background: linear-gradient(135deg, #e11d48, #881337); /* Red planet style */
-    }
-    .pokeball.paused { filter: grayscale(1); opacity: 0.7; }
-    
     /* Rocket Button Style */
     .rocket-btn {
       background: linear-gradient(135deg, #3b82f6, #1d4ed8);
     }
     .rocket-btn.inactive { background: rgba(30, 41, 59, 0.8); border-color: rgba(255,255,255,0.1); }
     .rocket-btn .indicator {
-       position: absolute; top: 10px; right: 10px;
-       width: 8px; height: 8px; border-radius: 50%;
+       position: absolute; top: 8px; right: 8px;
+       width: 6px; height: 6px; border-radius: 50%;
        box-shadow: 0 0 5px currentColor;
     }
 
@@ -148,19 +150,30 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
     }
     .pluto-btn.inactive { background: rgba(30, 41, 59, 0.8); border-color: rgba(255,255,255,0.1); }
     .pluto-btn .indicator {
-       position: absolute; top: 10px; right: 10px;
-       width: 8px; height: 8px; border-radius: 50%;
+       position: absolute; top: 8px; right: 8px;
+       width: 6px; height: 6px; border-radius: 50%;
        box-shadow: 0 0 5px currentColor;
     }
 
-    /* Gesture Button Style - UPDATED COLOR */
+    /* Orbit Button Style */
+    .orbit-btn {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+    }
+    .orbit-btn.inactive { background: rgba(30, 41, 59, 0.8); border-color: rgba(255,255,255,0.1); }
+    .orbit-btn .indicator {
+       position: absolute; top: 8px; right: 8px;
+       width: 6px; height: 6px; border-radius: 50%;
+       box-shadow: 0 0 5px currentColor;
+    }
+
+    /* Gesture Button Style */
     .gesture-btn {
       background: linear-gradient(135deg, #10b981, #047857);
     }
     .gesture-btn.inactive { background: rgba(30, 41, 59, 0.8); border-color: rgba(255,255,255,0.1); }
     .gesture-btn .indicator {
-       position: absolute; top: 10px; right: 10px;
-       width: 8px; height: 8px; border-radius: 50%;
+       position: absolute; top: 8px; right: 8px;
+       width: 6px; height: 6px; border-radius: 50%;
        box-shadow: 0 0 5px currentColor;
     }
     
@@ -174,7 +187,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
       100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 
-    /* Comic Style Replacement - Space Info Card */
+    /* Space Info Card */
     .space-card-border {
       border: 1px solid rgba(255, 255, 255, 0.2);
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
@@ -188,7 +201,6 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
       <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 sm:p-6 z-10 font-sans select-none">
         
         {/* Header Section - Astronaut/HUD Theme */}
-        {/* UPDATED: Removed max-w-6xl and mx-auto to allow full width right alignment */}
         <header className="flex flex-col sm:flex-row justify-between items-start pointer-events-auto w-full gap-4">
           <div className="flex flex-col items-start relative pl-4 pt-4">
             
@@ -201,50 +213,29 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                </svg>
             </div>
 
-            {/* Captain Badge (Top) - Retained for Kid Appeal */}
-            <div className="relative z-10 flex items-center gap-3 bg-transparent px-2 py-1.5 mb-3 animate-float transform transition-transform hover:scale-105 origin-left">
-               <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center text-lg shadow-[0_0_10px_#facc15] border-2 border-white/20">
-                 👩‍🚀
-               </div>
-               <div className="flex flex-col">
-                  <span className="text-[9px] text-cyan-300 font-mono font-bold tracking-widest uppercase leading-tight text-shadow-sm">Space Captain</span>
-                  <span className="text-white font-bold text-sm tracking-wide drop-shadow-md">一年3班 小豆子</span>
-               </div>
-            </div>
-
-            {/* NEW TITLE: Roaming Solar System */}
+            {/* Title Container */}
             <div className="relative z-10">
-               {/* Holographic Glow Container - FULLY TRANSPARENT - Removed Borders/Background/Grid */}
-               <div className="bg-transparent p-4 sm:p-5 relative overflow-hidden group">
+               <div className="bg-transparent p-2 sm:p-4 relative overflow-hidden group">
                   
-                  {/* Top Label Row */}
-                  <div className="flex items-center justify-between mb-1 opacity-90 relative z-20">
-                     <div className="flex items-center gap-2">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                        </span>
-                        <span className="text-[10px] font-mono text-cyan-200 tracking-[0.2em] uppercase font-bold drop-shadow-md">System Online</span>
-                     </div>
-                     <div className="flex gap-0.5 opacity-50">
-                        <div className="w-1 h-1 bg-white rounded-full shadow-sm"></div>
-                        <div className="w-1 h-1 bg-white rounded-full shadow-sm"></div>
-                        <div className="w-1 h-1 bg-white rounded-full shadow-sm"></div>
-                     </div>
+                  {/* Captain Badge - Moved Above Title */}
+                  <div className="mb-2 flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-3 py-1 animate-fade-in hover:bg-white/20 transition-all w-fit relative z-20">
+                    <span className="text-xl filter drop-shadow-sm">👩‍🚀</span>
+                    <div className="flex flex-col leading-none">
+                        <span className="text-[8px] text-cyan-300 font-mono font-bold tracking-widest uppercase">Captain</span>
+                        <span className="text-white font-bold text-xs sm:text-sm whitespace-nowrap">一年3班 小豆子</span>
+                    </div>
                   </div>
 
-                  {/* Main Title Text - UPDATED COLORS & CONTRAST */}
+                  {/* Main Title Text */}
                   <h1 className="text-3xl sm:text-5xl tracking-wider flex items-center gap-3 relative z-20" 
                       style={{ 
                         fontFamily: '"ZCOOL KuaiLe", cursive, sans-serif',
-                        // Stronger text shadow for readability against transparent background
                         textShadow: '0 4px 0 rgba(0,0,0,0.3), 0 0 15px rgba(255,255,255,0.2)' 
                       }}>
-                    {/* 漫游 - Bright Golden/Orange Gradient */}
                     <span className="bg-gradient-to-br from-yellow-300 via-orange-400 to-red-400 bg-clip-text text-transparent filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">漫游</span>
-                    {/* 太阳系 - Bright Cyan/Blue/Purple Gradient */}
                     <span className="bg-gradient-to-br from-cyan-300 via-blue-500 to-purple-500 bg-clip-text text-transparent filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">太阳系</span>
                   </h1>
+
                </div>
             </div>
 
@@ -253,15 +244,15 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
           {/* Controls - Right Aligned */}
           <div className="flex flex-col items-end gap-4 pt-2 self-end sm:self-auto pointer-events-none">
             
-            <div className="flex gap-4 pointer-events-auto">
+            <div className="flex gap-2 sm:gap-4 pointer-events-auto">
               {/* Interstellar Travel Button */}
               <button
                 onClick={toggleStarship}
-                title="Toggle Starship"
+                title="星际穿越"
                 className={`action-btn rocket-btn pointer-events-auto ${!isStarshipActive ? 'inactive' : ''}`}
               >
                 <div className={`indicator ${isStarshipActive ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
-                <span className="text-2xl mt-1">🚀</span>
+                <span className="text-xl sm:text-2xl mt-1">🚀</span>
               </button>
 
               {/* Gesture Toggle Button */}
@@ -271,87 +262,111 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                 className={`action-btn gesture-btn pointer-events-auto ${!isGestureMode ? 'inactive' : 'gesture-active-pulse'}`}
               >
                 <div className={`indicator ${isGestureMode ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
-                <span className="text-2xl mt-1">👋</span>
+                <span className="text-xl sm:text-2xl mt-1">👋</span>
               </button>
 
               {/* Pluto Toggle Button */}
               <button
                 onClick={togglePluto}
-                title="Toggle Pluto"
+                title="冥王星开关"
                 className={`action-btn pluto-btn pointer-events-auto ${!showPluto ? 'inactive' : ''}`}
               >
                 <div className={`indicator ${showPluto ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
-                <span className="text-2xl mt-1">❄️</span>
+                <span className="text-xl sm:text-2xl mt-1">❄️</span>
+              </button>
+
+              {/* Orbit Toggle Button - Far Right */}
+              <button
+                onClick={toggleOrbits}
+                title="显示/隐藏轨道"
+                className={`action-btn orbit-btn pointer-events-auto ${!showOrbits ? 'inactive' : ''}`}
+              >
+                <div className={`indicator ${showOrbits ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
+                <span className="text-xl sm:text-2xl mt-1">💫</span>
               </button>
             </div>
 
-            {/* SPEED CONTROL HUD - SCI-FI TIME ENGINE - FULLY TRANSPARENT */}
-            <div className="hidden sm:flex flex-col items-end pointer-events-auto relative mt-2">
-                {/* Decorator Line */}
-                <div className="h-4 w-1 bg-cyan-400 absolute -top-2 right-4 rounded-b-sm z-20 shadow-[0_0_8px_#22d3ee]"></div>
+            {/* SPEED CONTROL HUD - SCI-FI TIME ENGINE */}
+            {/* Always rendered unless in Starship/Gesture mode */}
+            {!isStarshipActive && !isGestureMode && (
+              <div className="hidden sm:flex flex-col items-end pointer-events-auto relative mt-2 animate-fade-in">
+                  {/* Decorator Line */}
+                  <div className="h-4 w-1 bg-cyan-400 absolute -top-2 right-4 rounded-b-sm z-20 shadow-[0_0_8px_#22d3ee]"></div>
 
-                {/* Updated Background: Fully transparent - Removed Borders/Background/Grid */}
-                <div className="bg-transparent rounded-xl p-1 w-auto relative group">
-                    
-                    {/* Title Row - Transparent Background */}
-                    <div className="flex items-center justify-between px-3 py-2 bg-transparent">
-                        <div className="flex items-center gap-2">
-                            <div className={`w-3 h-3 rounded-full border-2 border-cyan-400 ${simulationSpeed > 0 ? 'animate-spin' : ''}`} style={{ borderTopColor: 'transparent' }}></div>
-                            <span className="text-xs font-bold text-cyan-300 tracking-wider font-mono drop-shadow-sm">TIME ENGINE</span>
-                        </div>
-                        <span className="text-[10px] font-bold text-cyan-100/70 ml-4 font-mono">时光引擎</span>
-                    </div>
+                  {/* Fully transparent background container */}
+                  <div className="bg-transparent rounded-xl p-1 w-auto relative group">
+                      
+                      {/* Title Row */}
+                      <div className="flex items-center justify-between px-3 py-2 bg-transparent">
+                          <div className="flex items-center gap-2">
+                              <div className={`w-3 h-3 rounded-full border-2 border-cyan-400 ${simulationSpeed > 0 ? 'animate-spin' : ''}`} style={{ borderTopColor: 'transparent' }}></div>
+                              <span className="text-xs font-bold text-cyan-300 tracking-wider font-mono drop-shadow-sm">TIME ENGINE</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-cyan-100/70 ml-4 font-mono">时光引擎</span>
+                      </div>
 
-                    {/* Content Row */}
-                    <div className="p-3 flex items-center gap-4">
-                        {/* Big Digital Display */}
-                        <div className="flex flex-col items-end min-w-[3.5rem]">
-                            <span className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 to-white leading-none drop-shadow-md" style={{ fontFamily: 'monospace' }}>
-                              {simulationSpeed}<span className="text-sm text-cyan-400 not-italic ml-0.5">x</span>
-                            </span>
-                            <span className="text-[9px] text-cyan-300/80 tracking-[0.2em] uppercase mt-1 font-bold">Speed</span>
-                        </div>
+                      {/* Content Row */}
+                      <div className="p-3 flex items-center gap-4">
+                          {/* Play/Pause Button */}
+                          <button 
+                            onClick={togglePause}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center border-2 shadow-lg transition-all active:scale-95
+                                ${isPaused 
+                                    ? 'bg-yellow-500 border-yellow-300 text-black animate-pulse' 
+                                    : 'bg-cyan-600 border-cyan-400 text-white hover:bg-cyan-500'
+                                }`}
+                          >
+                             {isPaused ? '▶' : '⏸'}
+                          </button>
 
-                        {/* Power Bars (Buttons) */}
-                        <div className="flex items-end gap-1.5 h-10 pb-1">
-                            {[0, 1, 5, 10, 20].map((speed, idx) => {
-                                const isActive = simulationSpeed === speed;
-                                // Height calculation for "rising" effect
-                                const heightClass = ['h-3', 'h-4', 'h-6', 'h-8', 'h-10'][idx];
-                                const activeColor = speed === 0 ? 'bg-red-500 shadow-[0_0_10px_#ef4444]' :
-                                                    speed === 20 ? 'bg-purple-500 shadow-[0_0_10px_#a855f7]' : 
-                                                    'bg-cyan-400 shadow-[0_0_10px_#22d3ee]';
-                                
-                                return (
-                                    <button
-                                        key={speed}
-                                        onClick={() => setSimulationSpeed(speed)}
-                                        className={`w-5 rounded-t-sm transition-all duration-300 relative group/btn ${heightClass}
-                                          ${isActive 
-                                            ? `${activeColor} z-10 scale-110` 
-                                            : 'bg-white/10 hover:bg-white/30 border border-white/5'
-                                          }
-                                        `}
-                                    >
-                                        {/* Tooltip number on Hover */}
-                                        <span className={`absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-bold font-mono transition-opacity pointer-events-none 
-                                            ${isActive ? 'opacity-100 text-white drop-shadow-md' : 'opacity-0 text-cyan-200 group-hover/btn:opacity-100'}`}>
-                                          {speed === 0 ? 'STOP' : speed}
-                                        </span>
-                                    </button>
-                                )
-                            })}
-                        </div>
-                    </div>
-                </div>
-            </div>
+                          {/* Big Digital Display */}
+                          <div className="flex flex-col items-end min-w-[3.5rem]">
+                              <span className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 to-white leading-none drop-shadow-md" style={{ fontFamily: 'monospace' }}>
+                                {simulationSpeed}<span className="text-sm text-cyan-400 not-italic ml-0.5">x</span>
+                              </span>
+                              <span className="text-[9px] text-cyan-300/80 tracking-[0.2em] uppercase mt-1 font-bold">Speed</span>
+                          </div>
+
+                          {/* Power Bars (Buttons) */}
+                          <div className="flex items-end gap-1.5 h-10 pb-1">
+                              {[0, 1, 5, 10, 20].map((speed, idx) => {
+                                  const isActive = simulationSpeed === speed;
+                                  // Height calculation for "rising" effect
+                                  const heightClass = ['h-3', 'h-4', 'h-6', 'h-8', 'h-10'][idx];
+                                  const activeColor = speed === 0 ? 'bg-red-500 shadow-[0_0_10px_#ef4444]' :
+                                                      speed === 20 ? 'bg-purple-500 shadow-[0_0_10px_#a855f7]' : 
+                                                      'bg-cyan-400 shadow-[0_0_10px_#22d3ee]';
+                                  
+                                  return (
+                                      <button
+                                          key={speed}
+                                          onClick={() => setSimulationSpeed(speed)}
+                                          className={`w-5 rounded-t-sm transition-all duration-300 relative group/btn ${heightClass}
+                                            ${isActive 
+                                              ? `${activeColor} z-10 scale-110` 
+                                              : 'bg-white/10 hover:bg-white/30 border border-white/5'
+                                            }
+                                          `}
+                                      >
+                                          <span className={`absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-bold font-mono transition-opacity pointer-events-none 
+                                              ${isActive ? 'opacity-100 text-white drop-shadow-md' : 'opacity-0 text-cyan-200 group-hover/btn:opacity-100'}`}>
+                                            {speed === 0 ? 'STOP' : speed}
+                                          </span>
+                                      </button>
+                                  )
+                              })}
+                          </div>
+                      </div>
+                  </div>
+              </div>
+            )}
 
           </div>
         </header>
 
-        {/* Planet Info Card (Right Side) */}
+        {/* Planet Info Card (Right Side) - ADDED z-50 HERE */}
         {selectedPlanet && (
-          <div className="pointer-events-auto self-end sm:self-auto sm:absolute sm:right-6 sm:top-28 sm:w-[380px] w-full max-h-[calc(100vh-160px)] flex flex-col animate-pop-up">
+          <div className="pointer-events-auto self-end sm:self-auto sm:absolute sm:right-6 sm:top-28 sm:w-[380px] w-full max-h-[calc(100vh-160px)] flex flex-col animate-pop-up z-50">
             
             <div className="bg-slate-900/90 space-card-border rounded-3xl p-1 shadow-2xl relative overflow-hidden">
               {/* Card Decoration */}
@@ -375,7 +390,6 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                      <div className="text-cyan-400 text-[10px] font-mono tracking-widest uppercase mb-1">
                        New Discovery
                      </div>
-                     {/* Updated Planet Title Font too */}
                      <h2 className="text-3xl text-white tracking-wide drop-shadow-lg" style={{ fontFamily: '"ZCOOL KuaiLe", cursive, sans-serif' }}>
                        {selectedPlanet.name.split(' ')[0]}
                      </h2>
@@ -415,7 +429,6 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                     )}
                   </div>
 
-                  {/* Travel Stats - HIDDEN FOR MOONS */}
                   {showTravelTime && travelInfo && (
                     <div className="bg-black/40 rounded-lg p-3 border border-white/10">
                        <h3 className="text-cyan-400 text-xs font-bold uppercase mb-3 flex items-center gap-1">
@@ -442,7 +455,6 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                     </div>
                   )}
 
-                  {/* Earth Habitat Info */}
                   {isEarth && (
                      <div className="bg-emerald-900/20 rounded-lg p-3 border border-emerald-500/30">
                         <h3 className="text-emerald-400 text-xs font-bold uppercase mb-2 flex items-center">

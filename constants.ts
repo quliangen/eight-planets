@@ -89,6 +89,71 @@ export const JUPITER_MOONS: PlanetData[] = [
   }
 ];
 
+export const SATURN_MOONS: PlanetData[] = [
+  {
+    id: 'titan',
+    name: '土卫六 (Titan)',
+    color: '#EDB663',
+    size: 0.45, // Comparable to Ganymede/Mercury
+    distance: 12.0, // Relative visual distance inside rings or just outside? Usually outside main rings visually
+    realDistance: 1.2,
+    speed: 0.25,
+    rotationSpeed: 0.005,
+    atmosphereColor: '#FFA500',
+    description: '我是土星最大的卫星，也是太阳系唯一拥有浓厚大气层的卫星！我的天空是橙色的，表面有液态甲烷组成的湖泊和河流。',
+    temperature: '-179°C',
+    composition: '冰, 岩石, 氮气大气层',
+    funFact: '泰坦星的大气层比地球还要厚，如果你装上一对翅膀，也许真的能在那里飞起来！',
+    textureConfig: { type: 'titan', colors: ['#D4A050', '#C08535', '#553311'] }
+  },
+  {
+    id: 'enceladus',
+    name: '土卫二 (Enceladus)',
+    color: '#F0F8FF',
+    size: 0.15,
+    distance: 5.0,
+    realDistance: 0.24,
+    speed: 0.6,
+    rotationSpeed: 0.01,
+    description: '我是一颗非常明亮的冰球，表面洁白光滑。我的南极有像老虎条纹一样的裂缝，会喷出巨大的冰喷泉！',
+    temperature: '-198°C',
+    composition: '冰, 岩石',
+    funFact: '土卫二喷出的冰粒构成了土星最外层的E环，它是太阳系中最反光的星球之一。',
+    textureConfig: { type: 'enceladus', colors: ['#FFFFFF', '#E0F7FA', '#81D4FA'] }
+  },
+  {
+    id: 'mimas',
+    name: '土卫一 (Mimas)',
+    color: '#A9A9A9',
+    size: 0.12,
+    distance: 3.5,
+    realDistance: 0.18,
+    speed: 0.8,
+    rotationSpeed: 0.01,
+    description: '我身上有一个巨大的撞击坑，叫赫歇尔陨石坑。这让我看起来非常像电影里的“死星”！',
+    temperature: '-209°C',
+    composition: '冰',
+    funFact: '那个大坑占据了我身体直径的三分之一，如果再大一点，我可能就被撞碎了！',
+    textureConfig: { type: 'mimas', colors: ['#C0C0C0', '#808080', '#505050'] }
+  },
+   {
+    id: 'iapetus',
+    name: '土卫八 (Iapetus)',
+    color: '#7f7f7f',
+    size: 0.2,
+    distance: 22.0, // Far out
+    realDistance: 3.5,
+    speed: 0.1,
+    rotationSpeed: 0.002,
+    orbitInclination: 0.26, // Notable inclination
+    description: '我是“阴阳脸”卫星，一面非常黑，像煤炭；另一面非常白，像雪。我的赤道上还有一道高高的山脊，看起来像核桃。',
+    temperature: '-143°C',
+    composition: '冰, 碳质物质',
+    funFact: '我的黑脸是因为扫过了土星外围的一圈暗色尘埃环。',
+    textureConfig: { type: 'iapetus', colors: ['#FFFFFF', '#1a1a1a', '#555555'] }
+  }
+];
+
 export const PLANETS: PlanetData[] = [
   {
     id: 'mercury',
@@ -210,7 +275,7 @@ export const PLANETS: PlanetData[] = [
     hasRings: true,
     ringColor: '#CDBA88', // Light Gold
     atmosphereColor: '#F4E4BC', // Soft Gold Haze
-    description: '我是戴着戒指的宝石。我的光环非常漂亮，是由无数小冰块和石头组成的。',
+    description: '我是戴着戒指的宝石。我的光环非常漂亮，是由无数小冰块和石头组成的。我也有很多卫星，包括神奇的泰坦星。',
     temperature: '-139°C',
     composition: '氢气, 氦气',
     funFact: '土星的北极有一个神奇的六边形风暴，大得能装下两个地球！',

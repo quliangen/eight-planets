@@ -15,7 +15,7 @@ export interface PlanetData {
   orbitInclination?: number; // Orbital inclination in radians (Orbit tilt)
   atmosphereColor?: string; // Color of the glowing atmosphere shell
   textureConfig: {
-    type: 'solid' | 'banded' | 'crater' | 'earth' | 'atmosphere' | 'sun' | 'mars' | 'moon' | 'pluto' | 'neptune' | 'uranus' | 'saturn' | 'io' | 'europa' | 'ganymede' | 'callisto';
+    type: 'solid' | 'banded' | 'crater' | 'earth' | 'atmosphere' | 'sun' | 'mars' | 'moon' | 'pluto' | 'neptune' | 'uranus' | 'saturn' | 'io' | 'europa' | 'ganymede' | 'callisto' | 'titan' | 'enceladus' | 'mimas' | 'iapetus';
     colors: string[]; // Palette for the texture
   };
   temperature?: string;

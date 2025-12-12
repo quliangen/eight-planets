@@ -3,7 +3,7 @@ import React, { useState, Suspense, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sparkles, PerspectiveCamera, Environment, Stars } from '@react-three/drei';
 import { Vector3, TextureLoader, BackSide, Mesh, Object3D, RepeatWrapping, ClampToEdgeWrapping, MathUtils } from 'three';
-import { PLANETS, SUN_DATA, JUPITER_MOONS } from './constants';
+import { PLANETS, SUN_DATA, JUPITER_MOONS, SATURN_MOONS } from './constants';
 import { Planet } from './components/Planet';
 import { Sun } from './components/Sun';
 import { Starship } from './components/Starship';
@@ -106,6 +106,7 @@ const App: React.FC = () => {
   const [simulationSpeed, setSimulationSpeed] = useState(1.0); 
   const [isStarshipActive, setIsStarshipActive] = useState(false);
   const [showPluto, setShowPluto] = useState(false);
+  const [showOrbits, setShowOrbits] = useState(true);
   
   const [isGestureMode, setIsGestureMode] = useState(false);
   const [isARMode, setIsARMode] = useState(false); // AR Mode State
@@ -139,6 +140,10 @@ const App: React.FC = () => {
     if (!newValue && selectedPlanetId === 'pluto') {
       handleClose();
     }
+  };
+
+  const toggleOrbits = () => {
+    setShowOrbits(!showOrbits);
   };
 
   const handleGestureControl = (dx: number, dy: number, gestureType: 'rotate' | 'zoom') => {
@@ -178,7 +183,10 @@ const App: React.FC = () => {
     const planet = PLANETS.find(p => p.id === selectedPlanetId);
     if (planet) return planet;
     // Check Jupiter's moons
-    return JUPITER_MOONS.find(m => m.id === selectedPlanetId) || null;
+    const jMoon = JUPITER_MOONS.find(m => m.id === selectedPlanetId);
+    if (jMoon) return jMoon;
+    // Check Saturn's moons
+    return SATURN_MOONS.find(m => m.id === selectedPlanetId) || null;
   }, [selectedPlanetId]);
 
   const displayedPlanets = useMemo(() => {
@@ -203,6 +211,8 @@ const App: React.FC = () => {
         togglePluto={togglePluto}
         isGestureMode={isGestureMode}
         toggleGestureMode={toggleGestureMode}
+        showOrbits={showOrbits}
+        toggleOrbits={toggleOrbits}
       />
 
       {isGestureMode && (
@@ -282,6 +292,7 @@ const App: React.FC = () => {
               earthPositionRef={earthPositionRef}
               planetRefs={planetRefs}
               isStarshipActive={isStarshipActive}
+              showOrbit={showOrbits}
             />
           ))}
 
