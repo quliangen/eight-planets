@@ -256,6 +256,23 @@ const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) =
   );
 };
 
+// --- New Feature: Prominence Warning Label ---
+const ProminenceLabel = () => {
+    return (
+        <div className="flex flex-col items-start pointer-events-none">
+            <div className="flex items-center gap-2 bg-red-900/80 border border-red-500/50 backdrop-blur-md px-3 py-1.5 rounded-sm animate-fade-in origin-bottom-left transform scale-90 sm:scale-100">
+                <span className="text-lg animate-pulse">🔥</span>
+                <div className="flex flex-col">
+                    <span className="text-white font-bold text-xs sm:text-sm whitespace-nowrap tracking-wide">日珥 (Prominence)</span>
+                    <span className="text-[9px] text-red-200 font-mono leading-none">HIGH ENERGY PLASMA</span>
+                </div>
+            </div>
+            <div className="w-[1px] h-6 bg-red-500/50 ml-3"></div>
+            <div className="w-2 h-2 bg-red-500 rounded-full ml-[10px] shadow-[0_0_10px_#ef4444] animate-ping"></div>
+        </div>
+    );
+};
+
 // --- Prominence Component ---
 const Prominence: React.FC<{ 
   radius: number; 
@@ -267,8 +284,10 @@ const Prominence: React.FC<{
 }> = ({ radius, angle, latitude, scale, simulationSpeed, isPaused }) => {
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<ShaderMaterial>(null);
+  const [hovered, setHovered] = useState(false);
   
-  // CRITICAL: Ensure prominence meshes do NOT block raycasting
+  // CRITICAL: Ensure prominence visual mesh does NOT block raycasting
+  // But we want to attach a specific "trigger" mesh for the label
   useLayoutEffect(() => {
     if (meshRef.current) {
         meshRef.current.raycast = () => null;
@@ -293,6 +312,7 @@ const Prominence: React.FC<{
   return (
     <group rotation={[0, angle, 0]}>
       <group rotation={[latitude, 0, 0]}>
+         {/* The Visual Plasma Loop */}
          <mesh ref={meshRef} position={[radius * 0.98, 0, 0]} rotation={[0, 0, Math.PI / 2]} raycast={() => null}>
             <torusGeometry args={[loopRadius, tubeRadius, 16, 64, arcLength]} />
             {/* @ts-ignore */}
@@ -304,6 +324,35 @@ const Prominence: React.FC<{
                 depthWrite={false} 
             />
          </mesh>
+
+         {/* 🎯 Interactive Hotspot at the tip of the prominence */}
+         {/* Positioned at radius + loopHeight to float above the surface */}
+         <mesh 
+            position={[radius * 1.15, 0, 0]} 
+            visible={false} 
+            onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'help'; }}
+            onPointerOut={() => { setHovered(false); document.body.style.cursor = 'auto'; }}
+         >
+             <sphereGeometry args={[radius * 0.1, 8, 8]} />
+             <meshBasicMaterial color="red" wireframe />
+             
+             {/* Reticle / Hint Marker always visible */}
+             <Html center distanceFactor={15} occlude>
+                <div className={`transition-all duration-300 ${hovered ? 'scale-110 opacity-100' : 'scale-100 opacity-60 hover:opacity-100'}`}>
+                    {hovered ? (
+                        <ProminenceLabel />
+                    ) : (
+                        // Resting state: A pulsating target reticle
+                        <div className="relative w-8 h-8 flex items-center justify-center pointer-events-none">
+                             <div className="absolute inset-0 border border-red-500/60 rounded-full animate-ping"></div>
+                             <div className="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_#ef4444]"></div>
+                             {/* Small text hint below */}
+                             <div className="absolute top-8 text-[8px] font-mono text-red-400 whitespace-nowrap bg-black/50 px-1 rounded">?</div>
+                        </div>
+                    )}
+                </div>
+             </Html>
+         </mesh>
       </group>
     </group>
   );
@@ -314,6 +363,7 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
   const materialRef = useRef<ShaderMaterial>(null);
   const glowMeshRef1 = useRef<Mesh>(null);
   const glowMeshRef2 = useRef<Mesh>(null);
+  const coronaMeshRef = useRef<Mesh>(null);
 
   const [hovered, setHovered] = useState(false);
   const clickStartRef = useRef({ x: 0, y: 0 });
@@ -325,6 +375,7 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
   useLayoutEffect(() => {
      if (glowMeshRef1.current) glowMeshRef1.current.raycast = () => null;
      if (glowMeshRef2.current) glowMeshRef2.current.raycast = () => null;
+     if (coronaMeshRef.current) coronaMeshRef.current.raycast = () => null;
   }, []);
 
   useFrame((state, delta) => {
@@ -356,7 +407,7 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
             />
           </mesh>
 
-          {/* Prominences - Explicitly Non-Interactive */}
+          {/* Prominences - Now contain their own labels */}
           <Prominence 
             radius={SUN_DATA.size} angle={0} latitude={0.2} scale={1.2} 
             simulationSpeed={simulationSpeed} isPaused={isPaused} 
@@ -367,8 +418,7 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
           />
       </group>
 
-      {/* 2. INTERACTION HITBOX (Fixed Hit Area) */}
-      {/* This invisible sphere handles all clicks/hovers. It does NOT rotate with the sun texture to ensure stable hovering. */}
+      {/* 2. INTERACTION HITBOX (Fixed Hit Area for Sun Selection) */}
       <mesh 
         visible={false} // Invisible hitbox
         onPointerDown={(e) => { e.stopPropagation(); clickStartRef.current = { x: e.clientX, y: e.clientY }; }}
@@ -388,20 +438,33 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
       
       {/* 3. GLOW LAYERS (Non-Interactive Siblings) */}
       <Billboard>
+         {/* Inner Bright Glow */}
          <mesh ref={glowMeshRef1} position={[0, 0, -0.1]} raycast={() => null}>
             <planeGeometry args={[SUN_DATA.size * 2.8, SUN_DATA.size * 2.8]} />
             <meshBasicMaterial map={glowTexture} transparent opacity={0.6} depthWrite={false} blending={AdditiveBlending} color="#FFD700" />
          </mesh>
-      </Billboard>
-
-      <Billboard>
+         
+         {/* Mid Orange Glow */}
          <mesh ref={glowMeshRef2} position={[0, 0, -0.2]} raycast={() => null}>
             <planeGeometry args={[SUN_DATA.size * 5.5, SUN_DATA.size * 5.5]} />
             <meshBasicMaterial map={glowTexture} transparent opacity={0.4} depthWrite={false} blending={AdditiveBlending} color="#FF4500" />
          </mesh>
+
+         {/* Outer Corona / Solar Wind Haze (New Layer) */}
+         <mesh ref={coronaMeshRef} position={[0, 0, -0.3]} raycast={() => null}>
+             <planeGeometry args={[SUN_DATA.size * 9.0, SUN_DATA.size * 9.0]} />
+             <meshBasicMaterial 
+                map={glowTexture} 
+                transparent 
+                opacity={0.15} 
+                depthWrite={false} 
+                blending={AdditiveBlending} 
+                color="#FFFFFF" // White-hot outer corona
+             />
+         </mesh>
       </Billboard>
 
-      {/* Tech Style Hover Label */}
+      {/* Tech Style Hover Label (Main Sun Label) */}
       {hovered && (
         <Html position={[0, SUN_DATA.size * 1.1, 0]} zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
            <TechLabel name={SUN_DATA.name} color="#FFD700" />

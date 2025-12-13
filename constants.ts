@@ -1,5 +1,4 @@
 
-
 import { PlanetData } from './types';
 
 // Note: Sizes are adjusted for a better "relative realism" suitable for kids.
@@ -18,10 +17,10 @@ export const SUN_DATA: PlanetData = {
   rotationSpeed: 0.0005,
   axisTilt: 0.12, 
   orbitInclination: 0,
-  description: '我是太阳系的大家长，已经46亿岁了！我是唯一会发光的恒星，太阳系里99.8%的重量都在我身上。没有我给地球光和热，植物和动物都没法生存哦！',
+  description: '我是太阳系的“大火球”家长！你看我很大，但实际上我比这还要大得多——如果我是个大篮球，地球只能算是一颗小芝麻！\n\n⚠️ 记住哦：我是唯一会发光发热的恒星，但我太亮了，千万不要直接用眼睛看我，会受伤的！',
   temperature: '表面 5,500°C / 核心 1,500万°C',
   composition: '氢 (73%), 氦 (25%)',
-  funFact: '看到我表面那些像“耳朵”一样的火环了吗？那叫日珥！它们是巨大的磁场环，能喷出比地球还要大几十倍的火焰！',
+  funFact: '看到我外面那一层淡淡的白光了吗？那叫“日冕”(Corona)！有时候我会“打喷嚏”，喷出巨大的“太阳风”，这些带电的风吹到地球南北极，就变成了漂亮的极光！',
   textureConfig: {
     type: 'sun',
     // Golden Palette
@@ -127,7 +126,7 @@ export const JUPITER_MOONS: PlanetData[] = [
     composition: '岩石, 冰',
     funFact: '木卫四是这四颗卫星中离木星最远的，所以它受到的辐射最少，可能是未来人类建立基地的候选地。',
     textureConfig: { type: 'callisto', colors: ['#3E3A36', '#8B8680', '#FFF'] }
-  }
+  },
 ];
 
 export const SATURN_MOONS: PlanetData[] = [

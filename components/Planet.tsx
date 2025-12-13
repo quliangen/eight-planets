@@ -1,7 +1,7 @@
 
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Mesh, Color, DoubleSide, Vector3, TextureLoader, AdditiveBlending, Object3D, Group, PlaneGeometry, Texture } from 'three';
+import { Mesh, Color, DoubleSide, Vector3, TextureLoader, AdditiveBlending, Object3D, Group, PlaneGeometry, Texture, MeshStandardMaterial, MeshPhysicalMaterial } from 'three';
 import { Html, Billboard } from '@react-three/drei';
 import { PlanetData } from '../types';
 import { generatePlanetTexture, generateRingTexture, generateGenericGlowTexture, generateChinaFlagTexture } from '../utils/textureGenerator';
@@ -96,6 +96,7 @@ const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) =
 const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: boolean; onSelect: (id: string) => void; isSelected: boolean }> = ({ isPaused, simulationSpeed, showOrbit, onSelect, isSelected }) => {
   const stationRef = useRef<Group>(null);
   const solarPanelRef = useRef<Group>(null);
+  const materialRef = useRef<MeshStandardMaterial>(null);
   const [hovered, setHovered] = useState(false);
   const clickStartRef = useRef({ x: 0, y: 0 });
 
@@ -108,6 +109,19 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; sh
     }
     if (solarPanelRef.current && !isPaused) {
        solarPanelRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
+    }
+
+    // Breathing Light Effect
+    if (materialRef.current) {
+        if (isSelected || hovered) {
+            const t = state.clock.elapsedTime;
+            materialRef.current.emissive.set(TIANGONG_DATA.color);
+            // Metallic breathing: 0.2 to 0.5 range for higher visibility on metal
+            materialRef.current.emissiveIntensity = 0.2 + (Math.sin(t * 3) + 1) * 0.15; 
+        } else {
+            materialRef.current.emissiveIntensity = 0;
+            materialRef.current.emissive.setHex(0x000000);
+        }
     }
   });
 
@@ -137,9 +151,8 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; sh
              <mesh position={[0, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]}>
                 <cylinderGeometry args={[0.4, 0.45, 1.8, 16]} />
                 <meshStandardMaterial 
+                  ref={materialRef}
                   color="#f8f9fa" roughness={0.3} metalness={0.5} 
-                  emissive={isSelected || hovered ? TIANGONG_DATA.color : "#000000"} 
-                  emissiveIntensity={isSelected || hovered ? 0.4 : 0}
                 />
              </mesh>
              
@@ -185,6 +198,7 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; sh
 
 const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: boolean; onSelect: (id: string) => void; isSelected: boolean }> = ({ isPaused, simulationSpeed, showOrbit, onSelect, isSelected }) => {
   const moonRef = useRef<Group>(null);
+  const materialRef = useRef<MeshPhysicalMaterial>(null);
   const [hovered, setHovered] = useState(false);
   const clickStartRef = useRef({ x: 0, y: 0 });
   
@@ -194,6 +208,19 @@ const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: bo
   useFrame((state, delta) => {
     if (moonRef.current && !isPaused) {
       moonRef.current.rotation.y += delta * 0.2 * simulationSpeed;
+    }
+    
+    // Breathing Light Effect
+    if (materialRef.current) {
+        if (isSelected || hovered) {
+            const t = state.clock.elapsedTime;
+            materialRef.current.emissive.set('#FFFFFF');
+            // Subtle breathing: 0.05 to 0.2
+            materialRef.current.emissiveIntensity = 0.05 + (Math.sin(t * 2.5) + 1) * 0.075; 
+        } else {
+            materialRef.current.emissiveIntensity = 0;
+            materialRef.current.emissive.setHex(0x000000);
+        }
     }
   });
 
@@ -205,12 +232,11 @@ const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: bo
             <mesh>
               <sphereGeometry args={[0.45, 32, 32]} />
               <meshPhysicalMaterial 
+                ref={materialRef}
                 map={texture}
                 color="#ffffff" 
                 roughness={0.8}
                 metalness={0.1}
-                emissive={isSelected || hovered ? "#FFFFFF" : "#000000"}
-                emissiveIntensity={isSelected || hovered ? 0.2 : 0}
               />
             </mesh>
             
@@ -258,6 +284,7 @@ const Satellite: React.FC<{
 }> = ({ data, isPaused, simulationSpeed, onSelect, isSelected, showOrbit }) => {
   const ref = useRef<Group>(null);
   const inclinationGroupRef = useRef<Group>(null);
+  const materialRef = useRef<MeshPhysicalMaterial>(null);
   const [hovered, setHovered] = useState(false);
   const clickStartRef = useRef({ x: 0, y: 0 });
   
@@ -267,6 +294,19 @@ const Satellite: React.FC<{
   useFrame((state, delta) => {
     if (ref.current && !isPaused) {
       ref.current.rotation.y += delta * data.speed * simulationSpeed;
+    }
+
+    // Breathing Light Effect
+    if (materialRef.current) {
+        if (isSelected || hovered) {
+            const t = state.clock.elapsedTime;
+            materialRef.current.emissive.set(data.color);
+            // Breathing: 0.05 to 0.2
+            materialRef.current.emissiveIntensity = 0.05 + (Math.sin(t * 2.5) + 1) * 0.075; 
+        } else {
+            materialRef.current.emissiveIntensity = 0;
+            materialRef.current.emissive.setHex(0x000000);
+        }
     }
   });
 
@@ -287,12 +327,11 @@ const Satellite: React.FC<{
         >
           <sphereGeometry args={[data.size, 32, 32]} />
           <meshPhysicalMaterial 
+            ref={materialRef}
             map={texture}
             color="#ffffff" 
             roughness={0.7}
             metalness={0.1}
-            emissive={isSelected || hovered ? new Color(data.color) : new Color('#000000')}
-            emissiveIntensity={isSelected || hovered ? 0.2 : 0} 
           />
           
           {hovered && (
@@ -337,6 +376,7 @@ export const Planet: React.FC<PlanetProps> = ({
   const meshRef = useRef<Mesh>(null);
   const orbitGroupRef = useRef<Group>(null);
   const inclinationGroupRef = useRef<Group>(null); 
+  const materialRef = useRef<MeshPhysicalMaterial>(null);
   const [hovered, setHovered] = useState(false);
   const clickStartRef = useRef({ x: 0, y: 0 });
   
@@ -373,6 +413,19 @@ export const Planet: React.FC<PlanetProps> = ({
         orbitGroupRef.current.getWorldPosition(earthPositionRef.current);
       }
     }
+
+    // Breathing Light Effect
+    if (materialRef.current) {
+        if (isSelected || hovered) {
+            const t = state.clock.elapsedTime;
+            materialRef.current.emissive.set(data.color);
+            // Range: 0.05 to 0.2 (averaging around ~0.125, slightly dynamic)
+            materialRef.current.emissiveIntensity = 0.05 + (Math.sin(t * 2.5) + 1) * 0.075; 
+        } else {
+            materialRef.current.emissiveIntensity = 0;
+            materialRef.current.emissive.setHex(0x000000);
+        }
+    }
   });
 
   return (
@@ -399,14 +452,12 @@ export const Planet: React.FC<PlanetProps> = ({
           >
             <sphereGeometry args={[data.size, 64, 64]} />
             <meshPhysicalMaterial 
+              ref={materialRef}
               map={texture}
               color="#ffffff" 
               roughness={0.6}
               metalness={0.2}
               clearcoat={0.3}
-              // Improved Hover Effect: Internal Glow (Emissive) with low intensity (0.2)
-              emissive={isSelected || hovered ? new Color(data.color) : new Color('#000000')}
-              emissiveIntensity={isSelected || hovered ? 0.2 : 0} 
             />
             
             {/* New Upward Growing Label */}

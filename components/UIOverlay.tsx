@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PlanetData } from '../types';
 
 interface UIOverlayProps {
@@ -35,6 +35,117 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
   showOrbits,
   toggleOrbits
 }) => {
+  // TTS State
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const synthRef = useRef<SpeechSynthesis>(window.speechSynthesis);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+
+  // 1. Initialize Voices (Wait for browser to load them)
+  useEffect(() => {
+    const loadVoices = () => {
+        const voices = synthRef.current.getVoices();
+        setAvailableVoices(voices);
+    };
+
+    loadVoices();
+    
+    // Chrome loads voices asynchronously
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
+
+  // Stop speech when planet changes or panel closes
+  useEffect(() => {
+    const stopSpeaking = () => {
+      if (synthRef.current.speaking) {
+        synthRef.current.cancel();
+        setIsSpeaking(false);
+      }
+    };
+
+    stopSpeaking(); // Cancel any previous speech immediately on mount/change
+
+    return () => {
+      stopSpeaking(); // Cleanup on unmount
+    };
+  }, [selectedPlanet]);
+
+  // Helper: Find the best "TV Host" like voice
+  const getBestVoice = () => {
+      const zhVoices = availableVoices.filter(v => v.lang.includes('zh') || v.lang.includes('CN'));
+      
+      // Priority 1: Edge's "Xiaoxiao" (Natural/Neural) - Extremely human-like
+      const xiaoxiao = zhVoices.find(v => v.name.includes('Xiaoxiao') || v.name.includes('Natural'));
+      if (xiaoxiao) return xiaoxiao;
+
+      // Priority 2: Google's Online Voice (Chrome) - Smooth
+      const google = zhVoices.find(v => v.name.includes('Google'));
+      if (google) return google;
+
+      // Priority 3: Apple's Tingting or similar (High quality local)
+      const apple = zhVoices.find(v => v.name.includes('Tingting'));
+      if (apple) return apple;
+
+      // Fallback
+      return zhVoices[0] || null;
+  };
+
+  // Handle Speech Toggle
+  const toggleSpeech = () => {
+    if (!selectedPlanet) return;
+
+    if (isSpeaking) {
+      synthRef.current.cancel();
+      setIsSpeaking(false);
+    } else {
+      // 1. Construct "TV Host" Script
+      const planetName = selectedPlanet.name.split(' ')[0];
+      
+      // Add "Host-like" interjections and flow
+      // intro: Friendly greeting
+      const intro = `嗨！小朋友，你好呀！欢迎来到${planetName}。我是你们的导游。`;
+      
+      // desc: The main content
+      const desc = selectedPlanet.description; 
+      
+      // funFact: Add specific transition hook
+      const funFact = selectedPlanet.funFact 
+        ? `哇，还有一个神奇的小秘密要告诉你：${selectedPlanet.funFact}` 
+        : '';
+      
+      // outro: Interactive closing
+      const outro = "怎么样？宇宙是不是超级有趣呢？";
+
+      const fullText = `${intro} ${desc} ${funFact} ${outro}`;
+
+      // 2. Create Utterance
+      const utterance = new SpeechSynthesisUtterance(fullText);
+      utterance.lang = 'zh-CN';
+      
+      // 3. Tweak Voice Properties for "Host" Persona
+      const bestVoice = getBestVoice();
+      if (bestVoice) {
+          utterance.voice = bestVoice;
+      }
+
+      // Tuned for "Warm & Friendly" (亲和力)
+      // Rate: 0.9 (Clear, enunciated, storytelling pace)
+      // Pitch: 1.1 (Slightly lifted, energetic but not squeaky)
+      utterance.rate = 0.9; 
+      utterance.pitch = 1.1; 
+      utterance.volume = 1.0;
+
+      // 4. Handle Events
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+
+      // 5. Speak
+      synthRef.current.speak(utterance);
+      setIsSpeaking(true);
+    }
+  };
+
   // Calculations for kids
   const calculateTravelTime = (planet: PlanetData) => {
     const distanceKm = planet.realDistance * 1000000;
@@ -110,8 +221,14 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
       from { opacity: 0; }
       to { opacity: 1; }
     }
+    @keyframes talking-wave {
+      0% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.7); transform: scale(1); }
+      50% { box-shadow: 0 0 0 10px rgba(34, 211, 238, 0); transform: scale(1.05); }
+      100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); transform: scale(1); }
+    }
     .animate-pop-up { animation: pop-up 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
     .animate-fade-in { animation: fade-in 0.2s ease-out forwards; }
+    .animate-talking { animation: talking-wave 1.5s infinite; }
     
     /* Custom Scrollbar */
     .pika-scrollbar::-webkit-scrollbar { width: 6px; }
@@ -284,6 +401,17 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
 
               <div className="bg-black/40 rounded-2xl border border-white/10 p-4 h-full flex flex-col relative overflow-hidden">
                 <button onClick={onClose} className="absolute top-3 right-3 z-20 w-8 h-8 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center active:scale-95 text-white font-bold backdrop-blur-sm transition-colors">✕</button>
+
+                {/* Voice Playback Button */}
+                <button 
+                  onClick={toggleSpeech}
+                  className={`absolute top-3 right-14 z-20 h-8 px-3 rounded-full flex items-center justify-center active:scale-95 text-white font-bold backdrop-blur-sm transition-all border border-white/20
+                    ${isSpeaking ? 'bg-cyan-500 animate-talking shadow-[0_0_15px_#06b6d4]' : 'bg-white/10 hover:bg-white/20'}
+                  `}
+                >
+                   <span className="mr-1">{isSpeaking ? '🔊' : '🔈'}</span>
+                   <span className="text-xs">{isSpeaking ? '讲解中...' : '听讲解'}</span>
+                </button>
 
                 <div className="flex items-center gap-3 mb-4 z-10">
                    <div className={`w-14 h-14 rounded-full border-2 border-white/30 shadow-[0_0_15px_rgba(255,255,255,0.2)] bg-gradient-to-br from-indigo-500 to-purple-700 flex items-center justify-center text-3xl`}>
