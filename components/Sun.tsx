@@ -13,6 +13,27 @@ interface SunProps {
   simulationSpeed: number;
 }
 
+// Consistent TechLabel style (growing upwards)
+const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) => {
+  return (
+    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center pb-1 pointer-events-none select-none">
+       <div 
+         className="backdrop-blur-md bg-black/70 border px-3 py-1 rounded shadow-[0_0_15px_rgba(0,0,0,0.5)] transform transition-all animate-fade-in-up flex items-center gap-2 mb-[-1px]"
+         style={{ borderColor: `${color}80`, boxShadow: `0 0 10px ${color}30` }}
+       >
+          <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: color }}></div>
+          <span className="text-white font-mono font-bold tracking-widest text-xs uppercase" style={{ textShadow: `0 0 5px ${color}` }}>
+            {name}
+          </span>
+       </div>
+       <div 
+         className="w-px h-12 bg-gradient-to-b from-white/50 to-transparent"
+         style={{ background: `linear-gradient(to bottom, ${color}, transparent)` }}
+       ></div>
+    </div>
+  );
+};
+
 export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simulationSpeed }) => {
   const meshRef = useRef<Mesh>(null);
   const [hovered, setHovered] = useState(false);
@@ -27,85 +48,50 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
 
   useFrame((state, delta) => {
     if (meshRef.current && !isPaused) {
-      // Rotate the sun slowly to show off the sunspots
-      // Reduced from 0.04 to 0.02 for slower 1x simulation
+      // Rotate the sun slowly
       meshRef.current.rotation.y += delta * 0.02 * simulationSpeed;
     }
   });
 
   return (
     <group>
-      {/* Main Sun Body - Use dynamic size */}
+      {/* Main Sun Body */}
       <mesh 
         ref={meshRef}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          clickStartRef.current = { x: e.clientX, y: e.clientY };
-        }}
+        onPointerDown={(e) => { e.stopPropagation(); clickStartRef.current = { x: e.clientX, y: e.clientY }; }}
         onClick={(e) => {
           e.stopPropagation();
-          // Calculate distance moved
           const dx = e.clientX - clickStartRef.current.x;
           const dy = e.clientY - clickStartRef.current.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          // Only trigger select if moved less than 5 pixels (click, not drag)
-          if (distance < 5) {
-            onSelect(SUN_DATA.id);
-          }
+          if (Math.sqrt(dx * dx + dy * dy) < 5) onSelect(SUN_DATA.id);
         }}
-        onPointerOver={() => {
-          document.body.style.cursor = 'pointer';
-          setHovered(true);
-        }}
-        onPointerOut={() => {
-          document.body.style.cursor = 'auto';
-          setHovered(false);
-        }}
+        onPointerOver={() => { document.body.style.cursor = 'pointer'; setHovered(true); }}
+        onPointerOut={() => { document.body.style.cursor = 'auto'; setHovered(false); }}
       >
         <sphereGeometry args={[SUN_DATA.size, 64, 64]} />
-        <meshBasicMaterial 
-          map={texture}
-          color="#FFD700"
-        />
+        <meshBasicMaterial map={texture} color="#FFFFFF" />
         
-        {/* Hover Label for Sun */}
+        {/* Tech Style Hover Label (Upwards) */}
         {hovered && (
-          <Html position={[0, SUN_DATA.size + 1.5, 0]} center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
-            <div className="bg-black/80 text-white px-4 py-2 rounded-xl text-sm whitespace-nowrap border border-white/30 backdrop-blur-md font-bold shadow-[0_4px_20px_rgba(0,0,0,0.5)] animate-fade-in-up">
-              {SUN_DATA.name}
-            </div>
+          <Html position={[0, SUN_DATA.size, 0]} zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
+             <TechLabel name={SUN_DATA.name} color="#FF8C00" />
           </Html>
         )}
       </mesh>
       
-      {/* Inner Glow Layer - Scaled by size */}
+      {/* Inner Glow Layer */}
       <Billboard>
          <mesh position={[0, 0, -0.1]}>
             <planeGeometry args={[SUN_DATA.size * 2.8, SUN_DATA.size * 2.8]} />
-            <meshBasicMaterial 
-              map={glowTexture} 
-              transparent 
-              opacity={0.8} 
-              depthWrite={false} 
-              blending={2} // Additive
-              color="#FF8C00"
-            />
+            <meshBasicMaterial map={glowTexture} transparent opacity={0.8} depthWrite={false} blending={2} color="#FFC400" />
          </mesh>
       </Billboard>
 
-      {/* Outer Glow Layer (Large Halo) - Scaled by size */}
+      {/* Outer Glow Layer */}
        <Billboard>
          <mesh position={[0, 0, -0.2]}>
             <planeGeometry args={[SUN_DATA.size * 5.0, SUN_DATA.size * 5.0]} />
-            <meshBasicMaterial 
-              map={glowTexture} 
-              transparent 
-              opacity={0.4} 
-              depthWrite={false} 
-              blending={2} // Additive
-              color="#FF4500"
-            />
+            <meshBasicMaterial map={glowTexture} transparent opacity={0.5} depthWrite={false} blending={2} color="#FF4500" />
          </mesh>
        </Billboard>
     </group>

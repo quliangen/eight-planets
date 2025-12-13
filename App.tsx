@@ -3,7 +3,7 @@ import React, { useState, Suspense, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sparkles, PerspectiveCamera, Environment, Stars } from '@react-three/drei';
 import { Vector3, TextureLoader, BackSide, Mesh, Object3D, RepeatWrapping, ClampToEdgeWrapping, MathUtils } from 'three';
-import { PLANETS, SUN_DATA, JUPITER_MOONS, SATURN_MOONS } from './constants';
+import { PLANETS, SUN_DATA, JUPITER_MOONS, SATURN_MOONS, MOON_DATA, TIANGONG_DATA } from './constants';
 import { Planet } from './components/Planet';
 import { Sun } from './components/Sun';
 import { Starship } from './components/Starship';
@@ -179,6 +179,9 @@ const App: React.FC = () => {
 
   const selectedPlanet = useMemo(() => {
     if (selectedPlanetId === 'sun') return SUN_DATA;
+    if (selectedPlanetId === 'moon') return MOON_DATA;
+    if (selectedPlanetId === 'tiangong') return TIANGONG_DATA;
+    
     // Check main planets
     const planet = PLANETS.find(p => p.id === selectedPlanetId);
     if (planet) return planet;

@@ -8,7 +8,7 @@ import { PlanetData } from './types';
 export const SUN_DATA: PlanetData = {
   id: 'sun',
   name: '太阳 (The Sun)',
-  color: '#FDB813',
+  color: '#FF8C00',
   size: 8.0, // Reduced from 10.0 to 8.0 (0.8x)
   distance: 0,
   realDistance: 0,
@@ -16,13 +16,51 @@ export const SUN_DATA: PlanetData = {
   rotationSpeed: 0.0005,
   axisTilt: 0.12, 
   orbitInclination: 0,
-  description: '我是太阳系的中心，也是唯一会发光的恒星。没有我，地球上就不会有生命。我的肚子很大，能装下130万个地球！',
+  description: '我是太阳系的中心，也是唯一会发光的恒星。我现在的样子像一个巨大的火球，表面有剧烈的耀斑在喷发！我的肚子很大，能装下130万个地球！',
   temperature: '表面 5,500°C / 核心 1,500万°C',
   composition: '氢 (73%), 氦 (25%)',
   funFact: '太阳发出的光需要走8分20秒才能到达地球。你现在看到的阳光，其实是8分钟前的样子！',
   textureConfig: {
     type: 'sun',
-    colors: ['#FFA500', '#FF4500', '#8B0000']
+    colors: ['#FDB813', '#F27059', '#8C1C13']
+  }
+};
+
+export const MOON_DATA: PlanetData = {
+  id: 'moon',
+  name: '月球 (The Moon)',
+  color: '#CCCCCC',
+  size: 0.27, // relative to earth
+  distance: 0, // Handled locally in component
+  realDistance: 0.38, // 380,000 km (0.38 million km)
+  speed: 0,
+  rotationSpeed: 0,
+  description: '我是地球唯一的天然卫星。我表面布满了陨石坑，但我没有空气，声音无法传播。我总是用同一面看着地球，因为我非常害羞（被潮汐锁定）！',
+  temperature: '127°C / -173°C',
+  composition: '岩石, 尘埃 (月壤)',
+  funFact: '月球正在慢慢远离地球，每年大概跑远3.8厘米，和你的指甲生长速度差不多！',
+  textureConfig: {
+    type: 'moon',
+    colors: ['#F5F5F5', '#D6D6D6', '#A0A0A0']
+  }
+};
+
+export const TIANGONG_DATA: PlanetData = {
+  id: 'tiangong',
+  name: '中国空间站 (Tiangong)',
+  color: '#00BFFF',
+  size: 0.1, 
+  distance: 0,
+  realDistance: 0.0004, // 400km = 0.0004 million km
+  speed: 0,
+  rotationSpeed: 0,
+  description: '我是中国人的“太空豪宅”！我在距离地面400公里的轨道上飞行。我有核心舱、实验舱和载人飞船，航天员叔叔阿姨就在我的肚子里做实验和生活。',
+  temperature: '舱内 23°C (恒温)',
+  composition: '金属, 复合材料, 太阳能电池板',
+  funFact: '我飞得超级快，每90分钟就能绕地球一圈，所以上面的航天员一天可以看到16次日出和日落！',
+  textureConfig: {
+    type: 'solid', // Uses custom model
+    colors: ['#FFFFFF']
   }
 };
 
