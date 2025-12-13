@@ -230,10 +230,11 @@ export const generatePlanetTexture = (data: PlanetData): string => {
 
     case 'neptune':
         // --- NEPTUNE SPECIFIC REALISTIC GENERATION ---
-        const deepBlue = colors[0];
-        const midBlue = colors[1];
-        const brightBlue = colors[2];
-        const darkSpotColor = '#0D1546';
+        // UPDATED: Pale Azure (NASA 2024 Study) instead of Deep Blue
+        const deepBlue = colors[0]; // #4A7FBA
+        const midBlue = colors[1];  // #73A5D6
+        const brightBlue = colors[2]; // #A0C8EF
+        const darkSpotColor = '#3B609C'; // Lighter dark spot
 
         svgContent = `
           <defs>
@@ -267,7 +268,7 @@ export const generatePlanetTexture = (data: PlanetData): string => {
              }).join('')}
           </g>
           <g transform="translate(${width * 0.3}, ${height * 0.6})">
-             <ellipse cx="0" cy="0" rx="${width * 0.08}" ry="${height * 0.05}" fill="${darkSpotColor}" opacity="0.9" />
+             <ellipse cx="0" cy="0" rx="${width * 0.08}" ry="${height * 0.05}" fill="${darkSpotColor}" opacity="0.8" />
              <ellipse cx="0" cy="0" rx="${width * 0.085}" ry="${height * 0.055}" stroke="${midBlue}" stroke-width="2" fill="none" opacity="0.3" filter="url(#cloudGlow)"/>
           </g>
           <g filter="url(#cloudGlow)" opacity="0.8">
@@ -923,41 +924,65 @@ export const generateRingTexture = (planetId: string, baseColor: string): string
   let svgContent = '';
 
   if (planetId === 'saturn') {
+    // NASA REFERENCE COLOR & STRUCTURE (Cassini Division & C-Ring)
     svgContent = `
       <defs>
         <radialGradient id="saturnRing" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-          <stop offset="50%" style="stop-color:transparent;stop-opacity:0" />
-          <stop offset="55%" style="stop-color:#5A5040;stop-opacity:0.3" />
-          <stop offset="63%" style="stop-color:#5A5040;stop-opacity:0.4" />
-          <stop offset="63.5%" style="stop-color:#2a2a2a;stop-opacity:0.1" />
-          <stop offset="64%" style="stop-color:#CDBA88;stop-opacity:0.8" />
-          <stop offset="70%" style="stop-color:#EFEBCF;stop-opacity:1" /> 
-          <stop offset="72%" style="stop-color:#D8C48E;stop-opacity:0.9" />
-          <stop offset="75%" style="stop-color:#BFA667;stop-opacity:0.8" />
-          <stop offset="75.5%" style="stop-color:#000000;stop-opacity:0.05" />
-          <stop offset="78%" style="stop-color:#000000;stop-opacity:0.05" />
-          <stop offset="78.5%" style="stop-color:#A89870;stop-opacity:0.8" />
-          <stop offset="85%" style="stop-color:#B0A076;stop-opacity:0.7" />
-          <stop offset="86%" style="stop-color:#000000;stop-opacity:0.1" />
-          <stop offset="86.5%" style="stop-color:#A89870;stop-opacity:0.7" />
-          <stop offset="90%" style="stop-color:#958763;stop-opacity:0.6" />
+          <!-- Inner Hole (Invisible due to RingGeometry hole, but soft edge start) -->
+          <stop offset="60%" style="stop-color:transparent;stop-opacity:0" />
+
+          <!-- C Ring: Inner transparent, dark, dusty grey-brown -->
+          <!-- OPTIMIZED: Made lighter (Grey-Gold) instead of dark brown to avoid 'muddy' look from below -->
+          <stop offset="61%" style="stop-color:#80756A;stop-opacity:0.4" />
+          <stop offset="70%" style="stop-color:#8F8070;stop-opacity:0.5" />
+
+          <!-- Transition to B Ring -->
+          <stop offset="73%" style="stop-color:#8A7D70;stop-opacity:0.7" />
+
+          <!-- B Ring: The Main, Bright, Dense Ring (Sandy Beige/Off-White) -->
+          <stop offset="74%" style="stop-color:#E3DBCB;stop-opacity:1" /> 
+          <stop offset="80%" style="stop-color:#D6C6AD;stop-opacity:1" />
+          <stop offset="85%" style="stop-color:#C9B9A0;stop-opacity:0.9" />
+
+          <!-- Cassini Division: Sharp Dark Gap (Black/Translucent) -->
+          <stop offset="86%" style="stop-color:#1F1F1F;stop-opacity:0.1" /> 
+          <stop offset="88%" style="stop-color:#1F1F1F;stop-opacity:0.1" />
+
+          <!-- A Ring: Outer, slightly less dense (Greyish Beige) -->
+          <stop offset="88.5%" style="stop-color:#BFB6A6;stop-opacity:0.9" />
+          <stop offset="92%" style="stop-color:#B3AA99;stop-opacity:0.85" />
+          
+          <!-- Encke Gap (Subtle dip) -->
+          <stop offset="95%" style="stop-color:#8C8274;stop-opacity:0.6" />
+          <stop offset="96%" style="stop-color:#B3AA99;stop-opacity:0.8" />
+
+          <!-- Outer Edge Fade -->
+          <stop offset="99%" style="stop-color:#A69C8E;stop-opacity:0.6" />
           <stop offset="100%" style="stop-color:transparent;stop-opacity:0" />
         </radialGradient>
+        
         <filter id="ringNoise">
-          <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/>
-          <feColorMatrix type="saturate" values="0"/>
+          <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/>
+          <feColorMatrix type="saturate" values="0.1"/> <!-- Desaturate noise -->
           <feComponentTransfer>
-            <feFuncA type="linear" slope="0.3"/>
+            <feFuncA type="linear" slope="0.4"/>
           </feComponentTransfer>
         </filter>
       </defs>
+      
+      <!-- Base Gradient -->
       <rect width="100%" height="100%" fill="url(#saturnRing)" />
-      <rect width="100%" height="100%" filter="url(#ringNoise)" opacity="0.4" style="mix-blend-mode: overlay;" />
-      <circle cx="512" cy="512" r="300" stroke="#443322" stroke-width="1" fill="none" opacity="0.2" />
-      <circle cx="512" cy="512" r="350" stroke="#443322" stroke-width="0.5" fill="none" opacity="0.2" />
-      <circle cx="512" cy="512" r="400" stroke="#443322" stroke-width="1" fill="none" opacity="0.2" />
+      
+      <!-- Dirty Snowball Texture (Multiply) -->
+      <!-- OPTIMIZED: Reduced opacity from 0.3 to 0.2 to keep rings brighter -->
+      <rect width="100%" height="100%" filter="url(#ringNoise)" opacity="0.2" style="mix-blend-mode: multiply;" />
+      
+      <!-- Subtle ringlet lines -->
+      <circle cx="512" cy="512" r="380" stroke="#3E3630" stroke-width="1" fill="none" opacity="0.3" /> <!-- Mid B-Ring detail -->
+      <circle cx="512" cy="512" r="450" stroke="#1F1F1F" stroke-width="1.5" fill="none" opacity="0.2" /> <!-- Near Cassini -->
     `;
   } else if (planetId === 'uranus') {
+    // URANUS RINGS: Dark, narrow, faint (Updated to be Grey/Black instead of white)
     svgContent = `
       <defs>
         <radialGradient id="uranusBaseGlow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
@@ -983,8 +1008,10 @@ export const generateRingTexture = (planetId: string, baseColor: string): string
       </defs>
       <rect width="100%" height="100%" fill="url(#uranusBaseGlow)" />
       <rect width="100%" height="100%" fill="url(#uranusBands)" />
-      <circle cx="512" cy="512" r="440" stroke="#FFFFFF" stroke-width="4" fill="none" opacity="0.8" />
-      <circle cx="512" cy="512" r="364" stroke="#FFFFFF" stroke-width="2" fill="none" opacity="0.5" />
+      
+      <!-- Rings: Faint Grey (simulating dark carbon dust) -->
+      <circle cx="512" cy="512" r="440" stroke="#888888" stroke-width="4" fill="none" opacity="0.4" />
+      <circle cx="512" cy="512" r="364" stroke="#888888" stroke-width="2" fill="none" opacity="0.3" />
     `;
   } else if (planetId === 'neptune') {
       svgContent = `

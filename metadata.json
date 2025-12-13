@@ -1,5 +1,5 @@
 {
-  "name": "太阳和它的朋友们",
+  "name": "小豆子的太阳系",
   "description": "专为6岁儿童设计的3D太阳系互动百科。探索八大行星，观看它们围绕太阳公转。",
   "requestFramePermissions": [
     "camera"

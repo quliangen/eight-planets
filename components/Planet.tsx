@@ -592,6 +592,9 @@ export const Planet: React.FC<PlanetProps> = ({
                 side={DoubleSide} 
                 roughness={0.4}
                 metalness={0.2}
+                // Add slight warm glow to prevent dead black on unlit side, simulating scattered light
+                emissive={data.id === 'saturn' ? "#443322" : "#000000"} 
+                emissiveIntensity={0.2}
               />
             </mesh>
           )}

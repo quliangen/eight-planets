@@ -296,9 +296,9 @@ export const PLANETS: PlanetData[] = [
     axisTilt: 1.71, 
     orbitInclination: 0.01, 
     hasRings: true,
-    ringColor: '#FFFFFF',
+    ringColor: '#555555', // Corrected: Dark rings (Carbon dust)
     atmosphereColor: '#D1F5F8', 
-    description: '我是冰蓝色的，因为我大气层里有甲烷。我很冷，而且是躺着转的！',
+    description: '我是冰蓝色的，因为我大气层里有甲烷。我很冷，而且是躺着转的！我的光环非常暗，像煤炭一样黑。',
     temperature: '-197°C',
     composition: '冰 (水, 氨, 甲烷)',
     funFact: '天王星拥有太阳系中最冷的行星大气层，最低温度可达-224°C。',
@@ -310,7 +310,7 @@ export const PLANETS: PlanetData[] = [
   {
     id: 'neptune',
     name: '海王星 (Neptune)',
-    color: '#3457D5', // Deep Royal Blue
+    color: '#5B96C3', // Corrected: Pale Azure (NASA 2024 Study)
     size: 1.9, // Similar to Uranus
     distance: 110,
     realDistance: 4500,
@@ -320,14 +320,14 @@ export const PLANETS: PlanetData[] = [
     orbitInclination: 0.03, 
     hasRings: true, // Enabled Rings!
     ringColor: '#A0C4FF', // Faint Blue-White
-    atmosphereColor: '#4169E1', // Royal Blue Glow
-    description: '深蓝色的风暴世界，离太阳最远。其实我也有光环，只是比较暗淡，而且有一部分像断开的弧线！',
+    atmosphereColor: '#8FAED9', // Pale Azure Glow
+    description: '我是淡蓝色的冰巨星，颜色比天王星稍微深一点点。我有太阳系最快的风，时速可以达到2000公里！',
     temperature: '-201°C',
     composition: '冰 (水, 氨, 甲烷)',
-    funFact: '海王星上有太阳系最快的风，时速可达2100公里，是音速的1.5倍以上。',
+    funFact: '最新的科学研究发现，海王星其实不是深蓝色的，而是和天王星很像的淡青蓝色！',
     textureConfig: {
       type: 'neptune', // New realistic type
-      colors: ['#1A237E', '#2979FF', '#82B1FF'] // Midnight Blue -> Blue -> Light Blue
+      colors: ['#4A7FBA', '#73A5D6', '#A0C8EF'] // Accurate Pale Azure Palette
     }
   },
   {
