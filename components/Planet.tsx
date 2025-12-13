@@ -46,26 +46,48 @@ const AnimatedFlag = ({ texture }: { texture: Texture }) => {
   );
 };
 
-// --- New Upward Growing Tech Label ---
-// Positioned relative to the top of the planet/object so it doesn't cover it.
+// --- Minimalist HUD Tech Label ---
 const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) => {
+  const match = name.match(/^(.+?)\s*\((.+?)\)$/);
+  const cnName = match ? match[1] : name;
+  const enNameRaw = match ? match[2] : '';
+  const enName = enNameRaw.replace(/\s+/g, '');
+
   return (
-    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center pb-1 pointer-events-none select-none">
-       {/* Label Box */}
+    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none select-none w-max">
+       
+       {/* Floating Label Container */}
        <div 
-         className="backdrop-blur-md bg-black/70 border px-3 py-1 rounded shadow-[0_0_15px_rgba(0,0,0,0.5)] transform transition-all animate-fade-in-up flex items-center gap-2 mb-[-1px]"
-         style={{ borderColor: `${color}80`, boxShadow: `0 0 10px ${color}30` }}
+         className="mb-1 px-5 py-2 flex flex-row items-baseline gap-3 
+                    bg-gradient-to-t from-black/80 to-transparent backdrop-blur-sm rounded-sm border-b-2 
+                    transform transition-all duration-300 animate-fade-in-up"
+         style={{ 
+            borderColor: color,
+            textShadow: `0 0 10px ${color}80`
+         }}
        >
-          <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: color }}></div>
-          <span className="text-white font-mono font-bold tracking-widest text-xs uppercase" style={{ textShadow: `0 0 5px ${color}` }}>
-            {name}
+          <span className="text-white font-bold text-2xl tracking-widest drop-shadow-md font-sans">
+            {cnName}
           </span>
+          {enName && (
+             <span className="text-xs font-mono font-medium tracking-[0.15em] text-cyan-200/80 uppercase">
+                {enName}
+             </span>
+          )}
        </div>
-       {/* Connecting Line */}
-       <div 
-         className="w-px h-8 sm:h-12 bg-gradient-to-b from-white/50 to-transparent"
-         style={{ background: `linear-gradient(to bottom, ${color}, transparent)` }}
-       ></div>
+
+       {/* Animated Connection Line & Reticle */}
+       <div className="flex flex-col items-center relative">
+          {/* Vertical Line */}
+          <div className="w-[1px] h-10 bg-gradient-to-b from-white/40 to-transparent"></div>
+          
+          {/* Target Reticle */}
+          <div className="absolute bottom-0 w-6 h-6 flex items-center justify-center translate-y-1/2">
+             <div className="absolute w-full h-full border border-white/20 rounded-full animate-[spin_4s_linear_infinite]"></div>
+             <div className="absolute w-[70%] h-[70%] border-l border-r border-white/50 rounded-full animate-[spin_3s_linear_infinite_reverse]"></div>
+             <div className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_white]"></div>
+          </div>
+       </div>
     </div>
   );
 };
@@ -94,7 +116,6 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; sh
       <group ref={stationRef}>
         <group position={[1.4, 0, 0]} scale={[0.12, 0.12, 0.12]}>
            
-           {/* Invisible Hitbox for easier clicking */}
            <mesh 
              visible={false} 
              scale={[8, 8, 8]}
@@ -193,7 +214,6 @@ const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: bo
               />
             </mesh>
             
-            {/* Invisible Hitbox for easier clicking (Larger than visual mesh) */}
             <mesh
                 visible={false}
                 scale={[1.5, 1.5, 1.5]}
@@ -212,7 +232,7 @@ const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: bo
             </mesh>
 
             {hovered && (
-                <Html position={[0, 0.45, 0]} zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
+                <Html position={[0, 1.2, 0]} zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
                     <TechLabel name={MOON_DATA.name} color={MOON_DATA.color} />
                 </Html>
             )}
@@ -276,7 +296,7 @@ const Satellite: React.FC<{
           />
           
           {hovered && (
-            <Html position={[0, data.size, 0]} zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
+            <Html position={[0, data.size * 1.5, 0]} zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
                <TechLabel name={data.name} color={data.color} />
             </Html>
           )}
@@ -391,7 +411,7 @@ export const Planet: React.FC<PlanetProps> = ({
             
             {/* New Upward Growing Label */}
             {hovered && (
-              <Html position={[0, data.size, 0]} zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
+              <Html position={[0, data.size * 1.1, 0]} zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
                  <TechLabel name={data.name} color={data.color} />
               </Html>
             )}
@@ -425,7 +445,7 @@ export const Planet: React.FC<PlanetProps> = ({
 
         {data.atmosphereColor && glowTexture && (
            <Billboard>
-              <mesh scale={[data.size * 2.8, data.size * 2.8, 1]}>
+              <mesh scale={[data.size * 2.8, data.size * 2.8, 1]} raycast={() => null}>
                 <planeGeometry args={[1, 1]} />
                 <meshBasicMaterial 
                   map={glowTexture} 

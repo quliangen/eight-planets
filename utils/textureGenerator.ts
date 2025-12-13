@@ -8,8 +8,8 @@ import { PlanetData } from '../types';
 export const generatePlanetTexture = (data: PlanetData): string => {
   const { type, colors } = data.textureConfig;
   // Jupiter and Neptune need higher resolution for details
-  const width = (data.id === 'jupiter' || data.id === 'neptune' || data.id === 'uranus' || data.id === 'saturn') ? 1024 : 512;
-  const height = (data.id === 'jupiter' || data.id === 'neptune' || data.id === 'uranus' || data.id === 'saturn') ? 512 : 256; 
+  const width = (data.id === 'jupiter' || data.id === 'neptune' || data.id === 'uranus' || data.id === 'saturn' || data.id === 'sun') ? 1024 : 512;
+  const height = (data.id === 'jupiter' || data.id === 'neptune' || data.id === 'uranus' || data.id === 'saturn' || data.id === 'sun') ? 512 : 256; 
   
   let svgContent = '';
   const baseColor = colors[0];
@@ -698,43 +698,60 @@ export const generatePlanetTexture = (data: PlanetData): string => {
       break;
 
     case 'sun':
-      const sunBase = colors[0]; 
-      const sunDark = colors[1]; 
+      // NASA SDO-inspired "Golden Plasma" style with Limb Darkening and Granulation
+      const sunCenter = '#FFD700'; // Bright Gold (Center)
+      const sunEdge = '#FF8C00';   // Deep Orange (Edge) - Limb Darkening
+      const sunSpotDark = '#3E2723'; 
+
       svgContent = `
         <defs>
-          <filter id="sunNoise" x="0%" y="0%" width="100%" height="100%">
-            <feTurbulence type="turbulence" baseFrequency="0.05" numOctaves="4" result="turbulence"/>
-            <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" in="turbulence" result="colormatrix"/>
-            <feComposite operator="in" in="SourceGraphic" in2="colormatrix"/>
-          </filter>
-          <radialGradient id="sunGrad" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" style="stop-color:${sunBase}" />
-            <stop offset="100%" style="stop-color:${sunDark}" />
+          <radialGradient id="sunBodyGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="20%" stop-color="${sunCenter}" />
+            <stop offset="85%" stop-color="${sunEdge}" />
+            <stop offset="100%" stop-color="#CD5C5C" />
           </radialGradient>
+
+          <filter id="granulation" x="0%" y="0%" width="100%" height="100%">
+            <!-- Create the "bubbling" oatmeal texture -->
+            <feTurbulence type="fractalNoise" baseFrequency="0.15" numOctaves="3" seed="1" result="noise"/>
+            <!-- Adjust contrast to make it subtle -->
+            <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.4 0" in="noise" result="softNoise"/>
+          </filter>
+          
+          <filter id="magneticLoops">
+             <feTurbulence type="turbulence" baseFrequency="0.03" numOctaves="4" seed="5"/>
+             <feDisplacementMap scale="20" />
+          </filter>
         </defs>
-        <rect width="100%" height="100%" fill="url(#sunGrad)" />
-        <rect width="100%" height="100%" fill="#FF4500" opacity="0.4" filter="url(#sunNoise)" />
+
+        <!-- 1. Base Layer with Limb Darkening Gradient -->
+        <rect width="100%" height="100%" fill="url(#sunBodyGrad)" />
+
+        <!-- 2. Granulation Texture (Bubbling Plasma) -->
+        <rect width="100%" height="100%" filter="url(#granulation)" opacity="0.3" style="mix-blend-mode: overlay;" />
+        
+        <!-- 3. Active Regions / Plage (Brighter patches) -->
+        <g filter="url(#magneticLoops)" opacity="0.6" style="mix-blend-mode: screen;">
+           ${Array.from({length: 8}).map(() => {
+               const cx = Math.random() * width;
+               const cy = Math.random() * height * 0.6 + height * 0.2; // Mostly equatorial
+               const rx = Math.random() * 80 + 20;
+               const ry = Math.random() * 40 + 10;
+               return `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#FFFACD" opacity="0.4" />`;
+           }).join('')}
+        </g>
+
+        <!-- 4. Sunspots (Darker, irregular magnetic fields) -->
+        <g filter="url(#magneticLoops)" opacity="0.8">
+           ${Array.from({length: 6}).map(() => {
+               const cx = Math.random() * width;
+               const cy = Math.random() * height * 0.6 + height * 0.2;
+               const r = Math.random() * 5 + 2;
+               return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${sunSpotDark}" />
+                       <circle cx="${cx}" cy="${cy}" r="${r*2.5}" fill="${sunSpotDark}" opacity="0.3" />`;
+           }).join('')}
+        </g>
       `;
-      const sunSpotDark = '#3E2723'; 
-      const sunSpotPenumbra = colors[2] || '#8B0000'; 
-      const numGroups = 5;
-      for (let g = 0; g < numGroups; g++) {
-         const cx = Math.random() * width;
-         const isNorth = Math.random() > 0.5;
-         const cy = isNorth 
-            ? (height * 0.3) + (Math.random() * height * 0.15) 
-            : (height * 0.6) + (Math.random() * height * 0.15);
-         const mainR = Math.random() * 6 + 3;
-         svgContent += `<ellipse cx="${cx}" cy="${cy}" rx="${mainR * 1.6}" ry="${mainR * 1.3}" fill="${sunSpotPenumbra}" opacity="0.6" />`;
-         svgContent += `<ellipse cx="${cx}" cy="${cy}" rx="${mainR}" ry="${mainR * 0.8}" fill="${sunSpotDark}" opacity="0.9" />`;
-         const satellites = Math.floor(Math.random() * 4);
-         for(let s=0; s<satellites; s++) {
-             const offX = (Math.random() - 0.5) * 30;
-             const offY = (Math.random() - 0.5) * 15;
-             const sr = Math.random() * 2 + 1;
-             svgContent += `<ellipse cx="${cx + offX}" cy="${cy + offY}" rx="${sr}" ry="${sr}" fill="${sunSpotDark}" opacity="0.75" />`;
-         }
-      }
       break;
   }
 
@@ -752,10 +769,10 @@ export const generateSunGlowTexture = (): string => {
     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
       <defs>
         <radialGradient id="glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-          <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.9" />
-          <stop offset="15%" style="stop-color:#FFD700;stop-opacity:0.8" />
-          <stop offset="40%" style="stop-color:#FF8C00;stop-opacity:0.5" />
-          <stop offset="70%" style="stop-color:#FF4500;stop-opacity:0.1" />
+          <stop offset="0%" style="stop-color:#FFF8DC;stop-opacity:0.9" /> <!-- Cornsilk White Core -->
+          <stop offset="25%" style="stop-color:#FFD700;stop-opacity:0.7" /> <!-- Gold Inner Corona -->
+          <stop offset="50%" style="stop-color:#FFA500;stop-opacity:0.4" /> <!-- Orange Mid -->
+          <stop offset="75%" style="stop-color:#FF4500;stop-opacity:0.1" /> <!-- Red Outer -->
           <stop offset="100%" style="stop-color:#000000;stop-opacity:0" />
         </radialGradient>
       </defs>

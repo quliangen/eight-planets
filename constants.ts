@@ -1,4 +1,5 @@
 
+
 import { PlanetData } from './types';
 
 // Note: Sizes are adjusted for a better "relative realism" suitable for kids.
@@ -8,7 +9,8 @@ import { PlanetData } from './types';
 export const SUN_DATA: PlanetData = {
   id: 'sun',
   name: '太阳 (The Sun)',
-  color: '#FF8C00',
+  // Updated to Golden Orange
+  color: '#FFD700',
   size: 8.0, // Reduced from 10.0 to 8.0 (0.8x)
   distance: 0,
   realDistance: 0,
@@ -16,13 +18,14 @@ export const SUN_DATA: PlanetData = {
   rotationSpeed: 0.0005,
   axisTilt: 0.12, 
   orbitInclination: 0,
-  description: '我是太阳系的中心，也是唯一会发光的恒星。我现在的样子像一个巨大的火球，表面有剧烈的耀斑在喷发！我的肚子很大，能装下130万个地球！',
+  description: '我是太阳系的大家长，已经46亿岁了！我是唯一会发光的恒星，太阳系里99.8%的重量都在我身上。没有我给地球光和热，植物和动物都没法生存哦！',
   temperature: '表面 5,500°C / 核心 1,500万°C',
   composition: '氢 (73%), 氦 (25%)',
-  funFact: '太阳发出的光需要走8分20秒才能到达地球。你现在看到的阳光，其实是8分钟前的样子！',
+  funFact: '看到我表面那些像“耳朵”一样的火环了吗？那叫日珥！它们是巨大的磁场环，能喷出比地球还要大几十倍的火焰！',
   textureConfig: {
     type: 'sun',
-    colors: ['#FDB813', '#F27059', '#8C1C13']
+    // Golden Palette
+    colors: ['#FFD700', '#FF8C00', '#CD5C5C']
   }
 };
 
@@ -293,7 +296,7 @@ export const PLANETS: PlanetData[] = [
     description: '巨大的气态行星！我有漂亮的条纹和大红斑。你知道吗？其实我也有光环，只是它们由尘埃组成，非常暗淡。而且我有非常多的卫星朋友！',
     temperature: '-108°C',
     composition: '氢气, 氦气',
-    funFact: '木星的大红斑是一个已经刮了350多年的超级反气旋风暴，能装下整个地球。',
+    funFact: '木卫一喷出的火山羽流可以高达500公里！',
     textureConfig: {
       type: 'banded',
       colors: ['#E3DCCB', '#D6BC98', '#C49C76', '#A67B5B']
