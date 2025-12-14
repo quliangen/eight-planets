@@ -806,58 +806,44 @@ export const generateGenericGlowTexture = (): string => {
 
 /**
  * Generates a deep space starfield texture with nebulae and rich gradients.
- * UPDATED: Uses Deep Purple, Dark Blue, and Dark Cyan/Teal nebula clouds for dreaminess.
- * UPDATED: Reduces star size (max radius 0.18 for stars > 0.2) to refine visual quality.
  */
 export const generateStarFieldTexture = (): string => {
   const width = 2048; 
   const height = 1024;
-  
-  // 1. Dark Gradient Background (Space)
   let svgContent = `
     <defs>
       <linearGradient id="skyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" style="stop-color:#020617;stop-opacity:1" /> 
-        <stop offset="40%" style="stop-color:#000000;stop-opacity:1" /> 
-        <stop offset="100%" style="stop-color:#1a0b2e;stop-opacity:1" /> <!-- Subtle Dark Purple at bottom -->
+        <stop offset="0%" style="stop-color:#020409;stop-opacity:1" /> <!-- Nearly black -->
+        <stop offset="40%" style="stop-color:#0D1126;stop-opacity:1" /> <!-- Deep Midnight Blue -->
+        <stop offset="80%" style="stop-color:#1E1636;stop-opacity:1" /> <!-- Deep Purple -->
+        <stop offset="100%" style="stop-color:#000000;stop-opacity:1" />
       </linearGradient>
       <filter id="nebulaBlur">
-        <feGaussianBlur in="SourceGraphic" stdDeviation="60" />
+        <feGaussianBlur in="SourceGraphic" stdDeviation="50" />
       </filter>
     </defs>
     <rect width="100%" height="100%" fill="url(#skyGradient)" />
   `;
 
-  // 2. Dreamy Nebula Colors (Requested)
-  const nebulaColors = [
-    '#3B0764', // Deep Purple (Indigo-900 like)
-    '#172554', // Dark Blue (Blue-950)
-    '#083344', // Dark Cyan (Cyan-950)
-    '#4c1d95', // Violet
-    '#1e1b4b'  // Deep Indigo
-  ]; 
-  
+  const nebulaColors = ['#312E81', '#4C1D95', '#1e3a8a', '#581c87']; 
   const drawSeamlessEllipse = (cx: number, cy: number, rx: number, ry: number, fill: string, opacity: number) => {
-      // Draw main ellipse + seamless clones for wrapping texture
-      let str = `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" opacity="${opacity}" filter="url(#nebulaBlur)" style="mix-blend-mode: screen;" />`;
+      let str = `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" opacity="${opacity}" filter="url(#nebulaBlur)" />`;
       if (cx - rx < 0) {
-           str += `<ellipse cx="${cx + width}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" opacity="${opacity}" filter="url(#nebulaBlur)" style="mix-blend-mode: screen;" />`;
+           str += `<ellipse cx="${cx + width}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" opacity="${opacity}" filter="url(#nebulaBlur)" />`;
       }
       if (cx + rx > width) {
-           str += `<ellipse cx="${cx - width}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" opacity="${opacity}" filter="url(#nebulaBlur)" style="mix-blend-mode: screen;" />`;
+           str += `<ellipse cx="${cx - width}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" opacity="${opacity}" filter="url(#nebulaBlur)" />`;
       }
       return str;
   };
 
-  // 3. Generate Cloud Layers
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 6; i++) {
      const cx = Math.random() * width;
      const cy = Math.random() * height;
-     const rx = Math.random() * 600 + 200;
-     const ry = Math.random() * 500 + 150;
+     const rx = Math.random() * 300 + 200;
+     const ry = Math.random() * 200 + 100;
      const color = nebulaColors[Math.floor(Math.random() * nebulaColors.length)];
-     // Low opacity for subtle blending
-     const opacity = Math.random() * 0.12 + 0.04; 
+     const opacity = Math.random() * 0.15 + 0.05; 
      svgContent += drawSeamlessEllipse(cx, cy, rx, ry, color, opacity);
   }
   
@@ -872,148 +858,217 @@ export const generateStarFieldTexture = (): string => {
       return str;
   };
 
-  // 4. Background Stars (Dust)
-  for (let i = 0; i < 4000; i++) {
+  for (let i = 0; i < 800; i++) {
     const x = Math.random() * width;
     const y = Math.random() * height;
-    let r = Math.random() * 0.5 + 0.1;
-    if (r > 0.2) r = 0.18; // Apply reduced size
-    const opacity = Math.random() * 0.5 + 0.1;
-    svgContent += drawSeamlessCircle(x, y, r, "#FFFFFF", opacity);
-  }
-  
-  // 5. Brighter Stars
-  for (let i = 0; i < 150; i++) {
-    const x = Math.random() * width;
-    const y = Math.random() * height;
-    let r = Math.random() * 1.5 + 0.5;
-    if (r > 0.2) r = 0.18; // Apply reduced size
-    const opacity = Math.random() * 0.8 + 0.2;
-    // Slight blue tint for stars
-    svgContent += drawSeamlessCircle(x, y, r, "#E0F2FE", opacity);
+    const r = Math.random() * 0.6 + 0.2; 
+    const randomVal = Math.random();
+    let fill = "#FFFFFF"; 
+    if (randomVal > 0.85) fill = "#BAE6FD"; 
+    if (randomVal < 0.15) fill = "#FEF3C7"; 
+    const opacity = Math.random() * 0.5 + 0.2;
+    svgContent += drawSeamlessCircle(x, y, r, fill, opacity);
   }
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${svgContent}</svg>`;
+  for (let i = 0; i < 20; i++) {
+     const x = Math.random() * width;
+     const y = Math.random() * height;
+     const r = Math.random() * 0.8 + 0.6;
+     svgContent += drawSeamlessCircle(x, y, r, "#FFFFFF", 0.8);
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" preserveAspectRatio="none" viewBox="0 0 ${width} ${height}">${svgContent}</svg>`;
   return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
 };
 
 /**
- * Generates a ring texture for planets (Saturn, Uranus, etc).
- * Creates a circular texture with transparency bands.
- */
-export const generateRingTexture = (id: string, color: string): string => {
-  const width = 512;
-  const height = 512;
-  
-  // Base SVG
-  let svgContent = '';
-  
-  if (id === 'saturn') {
-     // Saturn Rings: Detailed, multiple bands
-     svgContent = `
-       <defs>
-         <radialGradient id="ringGrad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-            <!-- Inner transparent gap (0-55% roughly hidden by geometry inner radius) -->
-            <stop offset="50%" stop-color="#000000" stop-opacity="0" />
-            
-            <!-- B Ring (Bright, Dense) -->
-            <stop offset="55%" stop-color="#BCAFA3" stop-opacity="0.8" />
-            <stop offset="60%" stop-color="#CDBA88" stop-opacity="1" />
-            <stop offset="70%" stop-color="#D6C69B" stop-opacity="0.9" />
-
-            <!-- Cassini Division (Gap) -->
-            <stop offset="75%" stop-color="#000000" stop-opacity="0.1" />
-            <stop offset="78%" stop-color="#000000" stop-opacity="0.1" />
-
-            <!-- A Ring -->
-            <stop offset="79%" stop-color="#A69E92" stop-opacity="0.7" />
-            <stop offset="85%" stop-color="#9C958B" stop-opacity="0.6" />
-            <stop offset="95%" stop-color="#8B857E" stop-opacity="0.5" />
-            
-            <!-- Outer Edge Fade -->
-            <stop offset="100%" stop-color="#000000" stop-opacity="0" />
-         </radialGradient>
-       </defs>
-       <rect width="100%" height="100%" fill="url(#ringGrad)" />
-       <!-- Add some noise for dust grain effect -->
-       <filter id="noise">
-         <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" />
-       </filter>
-       <rect width="100%" height="100%" filter="url(#noise)" opacity="0.15" style="mix-blend-mode: overlay;" />
-     `;
-  } else if (id === 'uranus') {
-     // Uranus: Thin dark rings
-     svgContent = `
-       <defs>
-         <radialGradient id="ringGrad" cx="50%" cy="50%" r="50%">
-            <stop offset="40%" stop-color="${color}" stop-opacity="0" />
-            <stop offset="60%" stop-color="${color}" stop-opacity="0.1" />
-            <stop offset="65%" stop-color="${color}" stop-opacity="0.4" /> <!-- Epsilon Ring -->
-            <stop offset="66%" stop-color="${color}" stop-opacity="0.1" />
-            <stop offset="75%" stop-color="${color}" stop-opacity="0.3" />
-            <stop offset="80%" stop-color="${color}" stop-opacity="0" />
-         </radialGradient>
-       </defs>
-       <rect width="100%" height="100%" fill="url(#ringGrad)" />
-     `;
-  } else {
-     // Generic (Jupiter/Neptune)
-     svgContent = `
-       <defs>
-         <radialGradient id="ringGrad" cx="50%" cy="50%" r="50%">
-            <stop offset="40%" stop-color="${color}" stop-opacity="0" />
-            <stop offset="50%" stop-color="${color}" stop-opacity="0.2" />
-            <stop offset="70%" stop-color="${color}" stop-opacity="0.4" />
-            <stop offset="80%" stop-color="${color}" stop-opacity="0" />
-         </radialGradient>
-       </defs>
-       <rect width="100%" height="100%" fill="url(#ringGrad)" />
-     `;
-  }
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${svgContent}</svg>`;
-  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
-};
-
-/**
- * Generates a texture for the China flag (Tiangong).
+ * Generates a procedural China flag texture.
  */
 export const generateChinaFlagTexture = (): string => {
-  const width = 512;
-  const height = 341; // Standard 2:3 ratio approx
-  
-  // Star generation helper
-  const drawStar = (cx: number, cy: number, r: number, rot: number) => {
-      const points = [];
-      for(let i=0; i<5; i++){
-          const angle = (rot + i * 72 - 18) * Math.PI / 180; // -18 to start pointing up
-          points.push(`${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`);
-          const innerAngle = (rot + i * 72 + 18) * Math.PI / 180;
-          points.push(`${cx + r * 0.382 * Math.cos(innerAngle)},${cy + r * 0.382 * Math.sin(innerAngle)}`);
-      }
-      return `<polygon points="${points.join(' ')}" fill="#FFDE00" />`;
-  };
+  const width = 600; 
+  const height = 400;
+  const starYellow = "#FFDE00";
+  const bgRed = "#DE2910";
+  const unit = width / 30;
+
+  const getStarPoints = (cx: number, cy: number, r: number, angleOffset: number = 0) => {
+    let points = "";
+    const outerRadius = r * unit;
+    const innerRadius = outerRadius * 0.382; 
+    let rot = angleOffset; 
+    const step = Math.PI / 5;
+    const px = cx * unit;
+    const py = cy * unit;
+
+    for (let i = 0; i < 5; i++) {
+      let x = px + Math.cos(rot) * outerRadius;
+      let y = py + Math.sin(rot) * outerRadius;
+      points += `${x},${y} `;
+      rot += step;
+      x = px + Math.cos(rot) * innerRadius;
+      y = py + Math.sin(rot) * innerRadius;
+      points += `${x},${y} `;
+      rot += step;
+    }
+    return points;
+  }
+
+  const bigStar = getStarPoints(5, 5, 3, -Math.PI / 2);
+  const centers = [{x: 10, y: 2}, {x: 12, y: 4}, {x: 12, y: 7}, {x: 10, y: 9}];
+  let smallStars = "";
+  centers.forEach(c => {
+      const angle = Math.atan2(5 - c.y, 5 - c.x);
+      smallStars += `<polygon points="${getStarPoints(c.x, c.y, 1, angle)}" fill="${starYellow}" />`;
+  });
 
   const svgContent = `
-    <rect width="100%" height="100%" fill="#DE2910" />
-    
-    <!-- Large Star -->
-    ${drawStar(width * 0.16, height * 0.25, height * 0.09, 0)}
-    
-    <!-- Four Small Stars -->
-    ${drawStar(width * 0.32, height * 0.12, height * 0.03, 18)}
-    ${drawStar(width * 0.38, height * 0.22, height * 0.03, -18)}
-    ${drawStar(width * 0.38, height * 0.37, height * 0.03, 0)}
-    ${drawStar(width * 0.32, height * 0.47, height * 0.03, 18)}
-    
-    <!-- Subtle fabric texture -->
-    <filter id="fabric">
-       <feTurbulence type="fractalNoise" baseFrequency="0.2" numOctaves="3" />
-       <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.1 0" />
-       <feComposite operator="in" in2="SourceGraphic" />
-    </filter>
-    <rect width="100%" height="100%" fill="#000" opacity="0.1" filter="url(#fabric)" style="mix-blend-mode: multiply;" />
+    <rect width="100%" height="100%" fill="${bgRed}" />
+    <polygon points="${bigStar}" fill="${starYellow}" />
+    ${smallStars}
   `;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${svgContent}</svg>`;
+  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+};
+
+/**
+ * Generates a procedural ring texture.
+ */
+export const generateRingTexture = (planetId: string, baseColor: string): string => {
+  const width = 1024;
+  const height = 1024;
+  let svgContent = '';
+
+  if (planetId === 'saturn') {
+    svgContent = `
+      <defs>
+        <radialGradient id="saturnRing" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+          <stop offset="50%" style="stop-color:transparent;stop-opacity:0" />
+          <stop offset="55%" style="stop-color:#5A5040;stop-opacity:0.3" />
+          <stop offset="63%" style="stop-color:#5A5040;stop-opacity:0.4" />
+          <stop offset="63.5%" style="stop-color:#2a2a2a;stop-opacity:0.1" />
+          <stop offset="64%" style="stop-color:#CDBA88;stop-opacity:0.8" />
+          <stop offset="70%" style="stop-color:#EFEBCF;stop-opacity:1" /> 
+          <stop offset="72%" style="stop-color:#D8C48E;stop-opacity:0.9" />
+          <stop offset="75%" style="stop-color:#BFA667;stop-opacity:0.8" />
+          <stop offset="75.5%" style="stop-color:#000000;stop-opacity:0.05" />
+          <stop offset="78%" style="stop-color:#000000;stop-opacity:0.05" />
+          <stop offset="78.5%" style="stop-color:#A89870;stop-opacity:0.8" />
+          <stop offset="85%" style="stop-color:#B0A076;stop-opacity:0.7" />
+          <stop offset="86%" style="stop-color:#000000;stop-opacity:0.1" />
+          <stop offset="86.5%" style="stop-color:#A89870;stop-opacity:0.7" />
+          <stop offset="90%" style="stop-color:#958763;stop-opacity:0.6" />
+          <stop offset="100%" style="stop-color:transparent;stop-opacity:0" />
+        </radialGradient>
+        <filter id="ringNoise">
+          <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/>
+          <feColorMatrix type="saturate" values="0"/>
+          <feComponentTransfer>
+            <feFuncA type="linear" slope="0.3"/>
+          </feComponentTransfer>
+        </filter>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#saturnRing)" />
+      <rect width="100%" height="100%" filter="url(#ringNoise)" opacity="0.4" style="mix-blend-mode: overlay;" />
+      <circle cx="512" cy="512" r="300" stroke="#443322" stroke-width="1" fill="none" opacity="0.2" />
+      <circle cx="512" cy="512" r="350" stroke="#443322" stroke-width="0.5" fill="none" opacity="0.2" />
+      <circle cx="512" cy="512" r="400" stroke="#443322" stroke-width="1" fill="none" opacity="0.2" />
+    `;
+  } else if (planetId === 'uranus') {
+    svgContent = `
+      <defs>
+        <radialGradient id="uranusBaseGlow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+           <stop offset="40%" style="stop-color:transparent;stop-opacity:0" />
+           <stop offset="50%" style="stop-color:#71C9CE;stop-opacity:0" />
+           <stop offset="65%" style="stop-color:#A6E3E9;stop-opacity:0.15" />
+           <stop offset="85%" style="stop-color:#CBF1F5;stop-opacity:0.25" />
+           <stop offset="95%" style="stop-color:#71C9CE;stop-opacity:0" />
+        </radialGradient>
+        <radialGradient id="uranusBands" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+           <stop offset="58%" style="stop-color:#FFFFFF;stop-opacity:0" />
+           <stop offset="59%" style="stop-color:#FFFFFF;stop-opacity:0.7" />
+           <stop offset="60%" style="stop-color:#FFFFFF;stop-opacity:0" />
+           <stop offset="70%" style="stop-color:#FFFFFF;stop-opacity:0" />
+           <stop offset="71%" style="stop-color:#FFFFFF;stop-opacity:0.8" />
+           <stop offset="72%" style="stop-color:#FFFFFF;stop-opacity:0" />
+           <stop offset="84%" style="stop-color:#FFFFFF;stop-opacity:0" />
+           <stop offset="85%" style="stop-color:#E0FFFF;stop-opacity:0.9" /> 
+           <stop offset="86%" style="stop-color:#FFFFFF;stop-opacity:1.0" />
+           <stop offset="87%" style="stop-color:#E0FFFF;stop-opacity:0.9" />
+           <stop offset="88%" style="stop-color:#FFFFFF;stop-opacity:0" />
+        </radialGradient>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#uranusBaseGlow)" />
+      <rect width="100%" height="100%" fill="url(#uranusBands)" />
+      <circle cx="512" cy="512" r="440" stroke="#FFFFFF" stroke-width="4" fill="none" opacity="0.8" />
+      <circle cx="512" cy="512" r="364" stroke="#FFFFFF" stroke-width="2" fill="none" opacity="0.5" />
+    `;
+  } else if (planetId === 'neptune') {
+      svgContent = `
+        <defs>
+          <radialGradient id="neptuneRings" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+             <stop offset="55%" style="stop-color:transparent;stop-opacity:0" />
+             <stop offset="60%" style="stop-color:#A0C4FF;stop-opacity:0.1" />
+             <stop offset="65%" style="stop-color:#A0C4FF;stop-opacity:0.05" />
+             <stop offset="66%" style="stop-color:transparent;stop-opacity:0" />
+             <stop offset="75%" style="stop-color:transparent;stop-opacity:0" />
+             <stop offset="75.5%" style="stop-color:#E0F0FF;stop-opacity:0.4" />
+             <stop offset="76%" style="stop-color:transparent;stop-opacity:0" />
+             <stop offset="88%" style="stop-color:transparent;stop-opacity:0" />
+             <stop offset="88.5%" style="stop-color:#FFFFFF;stop-opacity:0.5" />
+             <stop offset="89%" style="stop-color:#FFFFFF;stop-opacity:0.5" />
+             <stop offset="89.5%" style="stop-color:transparent;stop-opacity:0" />
+          </radialGradient>
+          <filter id="neptuneNoise">
+             <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" />
+          </filter>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#neptuneRings)" />
+        <rect width="100%" height="100%" filter="url(#neptuneNoise)" opacity="0.3" style="mix-blend-mode: multiply;" />
+        <circle cx="512" cy="512" r="455" stroke="#FFFFFF" stroke-width="4" fill="none" opacity="0.7" stroke-dasharray="40 250 60 180 50 1000" stroke-linecap="round" />
+      `;
+  } else if (planetId === 'jupiter') {
+      svgContent = `
+        <defs>
+          <radialGradient id="jupiterRingGrad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+            <stop offset="50%" style="stop-color:transparent;stop-opacity:0" />
+            <stop offset="52%" style="stop-color:#8D7B68;stop-opacity:0.05" />
+            <stop offset="58%" style="stop-color:#8D7B68;stop-opacity:0.1" />
+            <stop offset="60%" style="stop-color:#A4907C;stop-opacity:0.2" /> 
+            <stop offset="61%" style="stop-color:#BCAFA3;stop-opacity:0.25" />
+            <stop offset="62%" style="stop-color:#A4907C;stop-opacity:0.2" />
+            <stop offset="63%" style="stop-color:#8D7B68;stop-opacity:0.05" />
+            <stop offset="70%" style="stop-color:#8D7B68;stop-opacity:0.02" />
+            <stop offset="72%" style="stop-color:transparent;stop-opacity:0" />
+          </radialGradient>
+          <filter id="dustNoise">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" />
+            <feColorMatrix type="saturate" values="0"/>
+          </filter>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#jupiterRingGrad)" />
+        <rect width="100%" height="100%" filter="url(#dustNoise)" opacity="0.3" style="mix-blend-mode: multiply;" />
+        <circle cx="512" cy="512" r="312" stroke="#BCAFA3" stroke-width="1" fill="none" opacity="0.1" />
+      `;
+  } else {
+    svgContent = `
+      <defs>
+        <radialGradient id="ringGrad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+          <stop offset="40%" style="stop-color:${baseColor};stop-opacity:0" />
+          <stop offset="50%" style="stop-color:${baseColor};stop-opacity:0.2" />
+          <stop offset="60%" style="stop-color:${baseColor};stop-opacity:0.9" />
+          <stop offset="65%" style="stop-color:${baseColor};stop-opacity:0.3" />
+          <stop offset="68%" style="stop-color:${baseColor};stop-opacity:0.8" />
+          <stop offset="85%" style="stop-color:${baseColor};stop-opacity:0.8" />
+          <stop offset="100%" style="stop-color:${baseColor};stop-opacity:0" />
+        </radialGradient>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#ringGrad)" />
+      <circle cx="512" cy="512" r="360" stroke="${baseColor}" stroke-width="1" fill="none" opacity="0.3" />
+      <circle cx="512" cy="512" r="400" stroke="${baseColor}" stroke-width="2" fill="none" opacity="0.2" />
+      <circle cx="512" cy="512" r="440" stroke="${baseColor}" stroke-width="1" fill="none" opacity="0.3" />
+    `;
+  }
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${svgContent}</svg>`;
   return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
