@@ -1,16 +1,18 @@
 
-import React, { useRef, useMemo, useState, useLayoutEffect } from 'react';
+import React, { useRef, useMemo, useState, useLayoutEffect, useEffect } from 'react';
 import { useFrame, extend } from '@react-three/fiber';
-import { Mesh, Color, ShaderMaterial, Vector3, AdditiveBlending, TextureLoader, TorusGeometry, DoubleSide, Group } from 'three';
+import { Mesh, Color, ShaderMaterial, Vector3, AdditiveBlending, TextureLoader, TorusGeometry, DoubleSide, Group, Object3D } from 'three';
 import { Billboard, Html, shaderMaterial } from '@react-three/drei';
 import { generateSunGlowTexture } from '../utils/textureGenerator';
 import { SUN_DATA } from '../constants';
 
 interface SunProps {
   onSelect: (id: string) => void;
+  onDoubleClick: (id: string) => void;
   isSelected: boolean;
   isPaused: boolean;
   simulationSpeed: number;
+  planetRefs: React.MutableRefObject<{ [key: string]: Object3D }>;
 }
 
 // --- 1. SUN SURFACE SHADER ---
@@ -358,12 +360,13 @@ const Prominence: React.FC<{
   );
 };
 
-export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simulationSpeed }) => {
+export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isSelected, isPaused, simulationSpeed, planetRefs }) => {
   const rotationGroupRef = useRef<Group>(null); // For rotating visuals
   const materialRef = useRef<ShaderMaterial>(null);
   const glowMeshRef1 = useRef<Mesh>(null);
   const glowMeshRef2 = useRef<Mesh>(null);
   const coronaMeshRef = useRef<Mesh>(null);
+  const mainGroupRef = useRef<Group>(null);
 
   const [hovered, setHovered] = useState(false);
   const clickStartRef = useRef({ x: 0, y: 0 });
@@ -377,6 +380,13 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
      if (glowMeshRef2.current) glowMeshRef2.current.raycast = () => null;
      if (coronaMeshRef.current) coronaMeshRef.current.raycast = () => null;
   }, []);
+  
+  // Register Sun in planetRefs so camera can focus on it
+  useEffect(() => {
+    if (mainGroupRef.current) {
+        planetRefs.current['sun'] = mainGroupRef.current;
+    }
+  }, [planetRefs]);
 
   useFrame((state, delta) => {
     if (rotationGroupRef.current && !isPaused) {
@@ -390,7 +400,7 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
   });
 
   return (
-    <group>
+    <group ref={mainGroupRef}>
       {/* 1. VISUAL GROUP (Rotates, Has No Events) */}
       <group ref={rotationGroupRef}>
           {/* Main Sun Body Visual */}
@@ -427,6 +437,10 @@ export const Sun: React.FC<SunProps> = ({ onSelect, isSelected, isPaused, simula
           const dx = e.clientX - clickStartRef.current.x;
           const dy = e.clientY - clickStartRef.current.y;
           if (Math.sqrt(dx * dx + dy * dy) < 5) onSelect(SUN_DATA.id);
+        }}
+        onDoubleClick={(e) => {
+            e.stopPropagation();
+            onDoubleClick(SUN_DATA.id);
         }}
         onPointerOver={() => { document.body.style.cursor = 'pointer'; setHovered(true); }}
         onPointerOut={() => { document.body.style.cursor = 'auto'; setHovered(false); }}

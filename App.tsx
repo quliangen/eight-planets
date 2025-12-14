@@ -40,6 +40,55 @@ const Skybox: React.FC = () => {
   );
 };
 
+// Camera FlyTo Logic
+const CameraFlyTo = ({ target, planetRefs, controlsRef, setTarget }: { target: { id: string, size: number } | null, planetRefs: any, controlsRef: any, setTarget: any }) => {
+  useFrame((state, delta) => {
+    if (!target) return;
+    const { id, size } = target;
+    const targetObj = planetRefs.current[id];
+    
+    // If we can't find object, abort
+    if (!targetObj) {
+      setTarget(null);
+      return;
+    }
+
+    const targetPos = new Vector3();
+    targetObj.getWorldPosition(targetPos);
+
+    // Current camera state
+    const currentCamPos = state.camera.position.clone();
+
+    // Desired camera state
+    // Direction from planet to camera (preserve current angle mostly)
+    const dir = new Vector3().subVectors(currentCamPos, targetPos).normalize();
+    
+    // Zoom distance: 4x size is decent for overview, max at least 5 units
+    // For Tiangong (0.1) -> 0.4 is too close, clamp to 3 minimum
+    // For Sun (8.0) -> 32
+    const zoomDist = Math.max(size * 4, 6.0); 
+    const desiredCamPos = targetPos.clone().add(dir.multiplyScalar(zoomDist));
+
+    // Smooth step
+    const lerpFactor = 4.0 * delta;
+    
+    // Move controls target to planet center
+    controlsRef.current.target.lerp(targetPos, lerpFactor);
+    
+    // Move camera position
+    state.camera.position.lerp(desiredCamPos, lerpFactor);
+    
+    controlsRef.current.update();
+
+    // Completion check: Close enough to target pos AND look target
+    if (state.camera.position.distanceTo(desiredCamPos) < 0.5 && 
+        controlsRef.current.target.distanceTo(targetPos) < 0.1) {
+       setTarget(null); // Stop forcing animation
+    }
+  });
+  return null;
+}
+
 // Updated Controller with Smoothing to prevent Jitter
 const OrbitController = ({ controlsRef, gestureVelocity }: { controlsRef: any, gestureVelocity: React.MutableRefObject<{dx: number, dy: number, gestureType: 'rotate' | 'zoom'}> }) => {
   // Store smoothed values to prevent camera shaking from noisy hand data
@@ -110,6 +159,9 @@ const App: React.FC = () => {
   
   const [isGestureMode, setIsGestureMode] = useState(false);
   const [isARMode, setIsARMode] = useState(false); // AR Mode State
+
+  // Camera Focus State
+  const [focusTarget, setFocusTarget] = useState<{ id: string, size: number } | null>(null);
   
   const earthPositionRef = useRef<Vector3>(new Vector3(0, 0, 0));
   const planetRefs = useRef<{ [key: string]: Object3D }>({});
@@ -132,6 +184,31 @@ const App: React.FC = () => {
   const handleClose = () => {
     setSelectedPlanetId(null);
     setIsPaused(false); 
+  };
+
+  // Helper to find planet size
+  const getPlanetSize = (id: string): number => {
+      if (id === 'sun') return SUN_DATA.size;
+      if (id === 'moon') return MOON_DATA.size;
+      if (id === 'tiangong') return TIANGONG_DATA.size;
+      
+      const p = PLANETS.find(x => x.id === id);
+      if (p) return p.size;
+      
+      const jm = JUPITER_MOONS.find(x => x.id === id);
+      if (jm) return jm.size;
+      
+      const sm = SATURN_MOONS.find(x => x.id === id);
+      if (sm) return sm.size;
+      
+      return 2; // default
+  };
+
+  const handleDoubleClick = (id: string) => {
+      const size = getPlanetSize(id);
+      setFocusTarget({ id, size });
+      // Also ensure it is selected (paused and UI shown)
+      handleSelect(id);
   };
 
   const togglePluto = () => {
@@ -167,6 +244,8 @@ const App: React.FC = () => {
     if (activating) {
        setIsPaused(false);
        setSimulationSpeed(0.5); 
+       // Reset focus if we start flying
+       setFocusTarget(null);
     } else {
        setSimulationSpeed(1.0);
     }
@@ -251,14 +330,21 @@ const App: React.FC = () => {
             enableDamping={true}
             dampingFactor={0.05}
             enablePan={false}
-            minDistance={20}
-            maxDistance={300}
+            minDistance={2}
+            maxDistance={500}
             maxPolarAngle={Math.PI / 1.8}
             // Slower auto-rotate for better default experience
-            autoRotate={!selectedPlanetId && !isPaused && !isGestureMode && !isStarshipActive}
+            autoRotate={!selectedPlanetId && !isPaused && !isGestureMode && !isStarshipActive && !focusTarget}
             autoRotateSpeed={0.1 * simulationSpeed} 
           />
           
+          <CameraFlyTo 
+             target={focusTarget} 
+             planetRefs={planetRefs} 
+             controlsRef={controlsRef} 
+             setTarget={setFocusTarget} 
+          />
+
           <OrbitController controlsRef={controlsRef} gestureVelocity={gestureVelocity} />
 
           <Environment preset="city" environmentIntensity={0.3} />
@@ -277,9 +363,11 @@ const App: React.FC = () => {
           
           <Sun 
              onSelect={handleSelect}
+             onDoubleClick={handleDoubleClick}
              isSelected={selectedPlanetId === 'sun'}
              isPaused={isPaused}
              simulationSpeed={simulationSpeed}
+             planetRefs={planetRefs}
           />
 
           <AsteroidBelt isPaused={isPaused} simulationSpeed={simulationSpeed} />
@@ -290,6 +378,7 @@ const App: React.FC = () => {
               data={planet} 
               isSelected={selectedPlanetId === planet.id}
               onSelect={handleSelect}
+              onDoubleClick={handleDoubleClick}
               isPaused={isPaused}
               simulationSpeed={simulationSpeed}
               earthPositionRef={earthPositionRef}

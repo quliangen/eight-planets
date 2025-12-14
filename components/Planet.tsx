@@ -11,6 +11,7 @@ interface PlanetProps {
   data: PlanetData;
   isSelected: boolean;
   onSelect: (id: string) => void;
+  onDoubleClick: (id: string) => void;
   isPaused: boolean;
   simulationSpeed: number;
   earthPositionRef: React.MutableRefObject<Vector3>;
@@ -93,7 +94,7 @@ const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) =
 };
 
 // --- 中国空间站 (Tiangong Space Station) ---
-const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: boolean; onSelect: (id: string) => void; isSelected: boolean }> = ({ isPaused, simulationSpeed, showOrbit, onSelect, isSelected }) => {
+const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: boolean; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; isSelected: boolean }> = ({ isPaused, simulationSpeed, showOrbit, onSelect, onDoubleClick, isSelected }) => {
   const stationRef = useRef<Group>(null);
   const solarPanelRef = useRef<Group>(null);
   const materialRef = useRef<MeshStandardMaterial>(null);
@@ -139,6 +140,10 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; sh
                 const dx = e.clientX - clickStartRef.current.x;
                 const dy = e.clientY - clickStartRef.current.y;
                 if (Math.sqrt(dx * dx + dy * dy) < 5) onSelect(TIANGONG_DATA.id);
+             }}
+             onDoubleClick={(e) => {
+                e.stopPropagation();
+                onDoubleClick(TIANGONG_DATA.id);
              }}
              onPointerOver={() => { document.body.style.cursor = 'pointer'; setHovered(true); }}
              onPointerOut={() => { document.body.style.cursor = 'auto'; setHovered(false); }}
@@ -196,7 +201,7 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; sh
   );
 };
 
-const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: boolean; onSelect: (id: string) => void; isSelected: boolean }> = ({ isPaused, simulationSpeed, showOrbit, onSelect, isSelected }) => {
+const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: boolean; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; isSelected: boolean }> = ({ isPaused, simulationSpeed, showOrbit, onSelect, onDoubleClick, isSelected }) => {
   const moonRef = useRef<Group>(null);
   const materialRef = useRef<MeshPhysicalMaterial>(null);
   const [hovered, setHovered] = useState(false);
@@ -250,6 +255,10 @@ const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: bo
                     const dy = e.clientY - clickStartRef.current.y;
                     if (Math.sqrt(dx * dx + dy * dy) < 5) onSelect(MOON_DATA.id);
                 }}
+                onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    onDoubleClick(MOON_DATA.id);
+                }}
                 onPointerOver={() => { document.body.style.cursor = 'pointer'; setHovered(true); }}
                 onPointerOut={() => { document.body.style.cursor = 'auto'; setHovered(false); }}
             >
@@ -279,9 +288,10 @@ const Satellite: React.FC<{
   isPaused: boolean; 
   simulationSpeed: number;
   onSelect: (id: string) => void;
+  onDoubleClick: (id: string) => void;
   isSelected: boolean;
   showOrbit: boolean;
-}> = ({ data, isPaused, simulationSpeed, onSelect, isSelected, showOrbit }) => {
+}> = ({ data, isPaused, simulationSpeed, onSelect, onDoubleClick, isSelected, showOrbit }) => {
   const ref = useRef<Group>(null);
   const inclinationGroupRef = useRef<Group>(null);
   const materialRef = useRef<MeshPhysicalMaterial>(null);
@@ -322,6 +332,10 @@ const Satellite: React.FC<{
             const dy = e.clientY - clickStartRef.current.y;
             if (Math.sqrt(dx * dx + dy * dy) < 5) onSelect(data.id);
           }}
+          onDoubleClick={(e) => {
+             e.stopPropagation();
+             onDoubleClick(data.id);
+          }}
           onPointerOver={() => { document.body.style.cursor = 'pointer'; setHovered(true); }}
           onPointerOut={() => { document.body.style.cursor = 'auto'; setHovered(false); }}
         >
@@ -350,13 +364,13 @@ const Satellite: React.FC<{
   );
 };
 
-const JupiterMoons: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id: string) => void; selectedId: string | null; showOrbit: boolean; }> = (props) => (
+const JupiterMoons: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; selectedId: string | null; showOrbit: boolean; }> = (props) => (
     <group rotation={[0, 0, 0.05]}> 
       {JUPITER_MOONS.map(moon => <Satellite key={moon.id} data={moon} isSelected={props.selectedId === moon.id} {...props} />)}
     </group>
 );
 
-const SaturnMoons: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id: string) => void; selectedId: string | null; showOrbit: boolean; }> = (props) => (
+const SaturnMoons: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; selectedId: string | null; showOrbit: boolean; }> = (props) => (
     <group> 
       {SATURN_MOONS.map(moon => <Satellite key={moon.id} data={moon} isSelected={props.selectedId === moon.id} {...props} />)}
     </group>
@@ -365,7 +379,8 @@ const SaturnMoons: React.FC<{ isPaused: boolean; simulationSpeed: number; onSele
 export const Planet: React.FC<PlanetProps> = ({ 
   data, 
   isSelected, 
-  onSelect, 
+  onSelect,
+  onDoubleClick, 
   isPaused,
   simulationSpeed,
   earthPositionRef,
@@ -447,6 +462,10 @@ export const Planet: React.FC<PlanetProps> = ({
               const dy = e.clientY - clickStartRef.current.y;
               if (Math.sqrt(dx * dx + dy * dy) < 5) onSelect(data.id);
             }}
+            onDoubleClick={(e) => {
+                e.stopPropagation();
+                onDoubleClick(data.id);
+            }}
             onPointerOver={() => { document.body.style.cursor = 'pointer'; setHovered(true); }}
             onPointerOut={() => { document.body.style.cursor = 'auto'; setHovered(false); }}
           >
@@ -486,13 +505,13 @@ export const Planet: React.FC<PlanetProps> = ({
 
         {data.id === 'earth' && (
           <>
-            <Moon isPaused={isPaused} simulationSpeed={simulationSpeed} showOrbit={showOrbit} onSelect={onSelect} isSelected={isSelected} />
-            <TiangongStation isPaused={isPaused} simulationSpeed={simulationSpeed} showOrbit={showOrbit} onSelect={onSelect} isSelected={isSelected} />
+            <Moon isPaused={isPaused} simulationSpeed={simulationSpeed} showOrbit={showOrbit} onSelect={onSelect} onDoubleClick={onDoubleClick} isSelected={isSelected} />
+            <TiangongStation isPaused={isPaused} simulationSpeed={simulationSpeed} showOrbit={showOrbit} onSelect={onSelect} onDoubleClick={onDoubleClick} isSelected={isSelected} />
           </>
         )}
 
-        {data.id === 'jupiter' && <JupiterMoons isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} selectedId={isSelected ? data.id : null} showOrbit={showOrbit} />}
-        {data.id === 'saturn' && <SaturnMoons isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} selectedId={isSelected ? data.id : null} showOrbit={showOrbit} />}
+        {data.id === 'jupiter' && <JupiterMoons isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} selectedId={isSelected ? data.id : null} showOrbit={showOrbit} />}
+        {data.id === 'saturn' && <SaturnMoons isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} selectedId={isSelected ? data.id : null} showOrbit={showOrbit} />}
 
         {data.atmosphereColor && glowTexture && (
            <Billboard>
