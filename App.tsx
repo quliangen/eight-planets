@@ -34,7 +34,7 @@ const Skybox: React.FC = () => {
       <meshBasicMaterial 
         map={starTexture} 
         side={BackSide} 
-        color="#ffffff"
+        color="#888888" // Darken the texture slightly via material color
       />
     </mesh>
   );
@@ -261,19 +261,19 @@ const App: React.FC = () => {
           
           <OrbitController controlsRef={controlsRef} gestureVelocity={gestureVelocity} />
 
-          <Environment preset="city" environmentIntensity={0.3} />
+          <Environment preset="city" environmentIntensity={0.2} />
           <pointLight position={[0, 0, 0]} intensity={2.5} distance={500} decay={1} color="#FFF5E0" />
-          <ambientLight intensity={0.15} color="#404060" />
+          <ambientLight intensity={0.1} color="#202030" />
 
-          {/* 1. Volumetric 3D Stars (Always show, they look nice floating in room) */}
-          <Stars radius={400} depth={50} count={3000} factor={4} saturation={0.5} fade speed={0.5} />
+          {/* 1. Volumetric 3D Stars - Reduced brightness/size significantly to focus on planets */}
+          <Stars radius={400} depth={50} count={1500} factor={2} saturation={0} fade speed={0.3} />
           
           {/* 2. Painted Background (Skybox) - HIDE IN AR MODE */}
           {!isARMode && <Skybox />}
           
-          {/* 3. Magical Dust */}
-          <Sparkles count={400} scale={200} size={6} speed={0.2} opacity={0.4} noise={0.1} color="#88AAFF" />
-          <Sparkles count={150} scale={150} size={3} speed={0.3} opacity={0.6} color="#FFD700" />
+          {/* 3. Magical Dust - Reduced size and opacity */}
+          <Sparkles count={300} scale={200} size={2} speed={0.2} opacity={0.3} noise={0.1} color="#88AAFF" />
+          <Sparkles count={100} scale={150} size={1.5} speed={0.3} opacity={0.4} color="#FFD700" />
           
           <Sun 
              onSelect={handleSelect}
