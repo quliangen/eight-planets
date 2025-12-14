@@ -451,41 +451,58 @@ export const generatePlanetTexture = (data: PlanetData): string => {
         break;
 
     case 'ganymede':
-        // --- GANYMEDE SPECIFIC (Dark old terrain vs Light young grooved terrain) ---
+        // --- GANYMEDE SPECIFIC (NASA Accuracy Update) ---
         const gaDark = colors[0];
         const gaLight = colors[1];
+        const gaBright = colors[2] || '#FFFFFF';
 
         svgContent = `
            <defs>
-              <filter id="ganymedeNoise">
-                 <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" />
+              <!-- Noise for the grooved terrain stripes -->
+              <!-- Use turbulence to create linear distortions -->
+              <filter id="grooves">
+                 <feTurbulence type="turbulence" baseFrequency="0.05 0.005" numOctaves="5" seed="5" result="noise"/>
+                 <feDisplacementMap in="SourceGraphic" in2="noise" scale="20" />
+              </filter>
+              <!-- Noise for cratered background -->
+              <filter id="craterNoise">
+                  <feTurbulence type="fractalNoise" baseFrequency="0.2" numOctaves="2" />
               </filter>
            </defs>
-           <!-- Base Dark Terrain (Old Cratered) -->
+           
+           <!-- 1. Dark Terrain Base (Galileo Regio style) -->
            <rect width="100%" height="100%" fill="${gaDark}" />
            
-           <!-- Light Grooved Terrain (Swaths/Bands of lighter color) -->
-           <g filter="url(#ganymedeNoise)">
-             ${Array.from({length: 10}).map(() => {
-                const cx = Math.random() * width;
-                const cy = Math.random() * height;
-                const rx = Math.random() * 150 + 50;
-                const ry = Math.random() * 80 + 30;
-                const rot = Math.random() * 180;
-                return `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${gaLight}" opacity="0.5" transform="rotate(${rot}, ${cx}, ${cy})" />`;
+           <!-- 2. Light Grooved Terrain (Tectonic Bands) -->
+           <!-- We use rotated rectangles distorted by turbulence to simulate the sulci -->
+           <g filter="url(#grooves)">
+             ${Array.from({length: 12}).map(() => {
+                 const cx = Math.random() * width;
+                 const cy = Math.random() * height;
+                 const w = Math.random() * 400 + 100;
+                 const h = Math.random() * 100 + 50;
+                 const rot = Math.random() * 180;
+                 return `<rect x="${cx - w/2}" y="${cy - h/2}" width="${w}" height="${h}" fill="${gaLight}" opacity="0.75" transform="rotate(${rot} ${cx} ${cy})" />`;
              }).join('')}
            </g>
 
-           <!-- Bright Impact Craters (White spots with rays) -->
-           ${Array.from({length: 25}).map(() => {
+           <!-- 3. Bright Ray Craters -->
+           ${Array.from({length: 15}).map(() => {
               const cx = Math.random() * width;
               const cy = Math.random() * height;
-              const r = Math.random() * 4 + 1;
+              const r = Math.random() * 3 + 1.5;
               return `
-                <circle cx="${cx}" cy="${cy}" r="${r}" fill="#FFFFFF" opacity="0.9" />
-                <circle cx="${cx}" cy="${cy}" r="${r * 4}" fill="#FFFFFF" opacity="0.15" />
+                <g>
+                  <!-- Impact point -->
+                  <circle cx="${cx}" cy="${cy}" r="${r}" fill="${gaBright}" opacity="0.95" />
+                  <!-- Rays -->
+                  <circle cx="${cx}" cy="${cy}" r="${r * 6}" fill="none" stroke="${gaBright}" stroke-width="1" stroke-dasharray="2 6" opacity="0.5" />
+                </g>
               `;
            }).join('')}
+           
+           <!-- Surface Texture Blend -->
+           <rect width="100%" height="100%" fill="#FFFFFF" opacity="0.05" filter="url(#craterNoise)" style="mix-blend-mode: overlay;" />
         `;
         break;
 
@@ -866,7 +883,14 @@ export const generateStarFieldTexture = (): string => {
     let fill = "#FFFFFF"; 
     if (randomVal > 0.85) fill = "#BAE6FD"; 
     if (randomVal < 0.15) fill = "#FEF3C7"; 
-    const opacity = Math.random() * 0.5 + 0.2;
+    
+    let opacity = Math.random() * 0.5 + 0.2;
+    
+    // RULE: "If radius > 0.3, brightness reduced by half"
+    if (r > 0.3) {
+        opacity = opacity * 0.5;
+    }
+
     svgContent += drawSeamlessCircle(x, y, r, fill, opacity);
   }
 
