@@ -111,19 +111,6 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; sh
     if (solarPanelRef.current && !isPaused) {
        solarPanelRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
     }
-
-    // Breathing Light Effect
-    if (materialRef.current) {
-        if (isSelected || hovered) {
-            const t = state.clock.elapsedTime;
-            materialRef.current.emissive.set(TIANGONG_DATA.color);
-            // Metallic breathing: 0.2 to 0.5 range for higher visibility on metal
-            materialRef.current.emissiveIntensity = 0.2 + (Math.sin(t * 3) + 1) * 0.15; 
-        } else {
-            materialRef.current.emissiveIntensity = 0;
-            materialRef.current.emissive.setHex(0x000000);
-        }
-    }
   });
 
   return (
@@ -214,19 +201,6 @@ const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: bo
     if (moonRef.current && !isPaused) {
       moonRef.current.rotation.y += delta * 0.2 * simulationSpeed;
     }
-    
-    // Breathing Light Effect
-    if (materialRef.current) {
-        if (isSelected || hovered) {
-            const t = state.clock.elapsedTime;
-            materialRef.current.emissive.set('#FFFFFF');
-            // Subtle breathing: 0.05 to 0.2
-            materialRef.current.emissiveIntensity = 0.05 + (Math.sin(t * 2.5) + 1) * 0.075; 
-        } else {
-            materialRef.current.emissiveIntensity = 0;
-            materialRef.current.emissive.setHex(0x000000);
-        }
-    }
   });
 
   return (
@@ -240,8 +214,10 @@ const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: bo
                 ref={materialRef}
                 map={texture}
                 color="#ffffff" 
-                roughness={0.8}
-                metalness={0.1}
+                roughness={1.0}
+                metalness={0.0}
+                emissive={MOON_DATA.color}
+                emissiveIntensity={hovered ? 0.1 : 0}
               />
             </mesh>
             
@@ -305,19 +281,6 @@ const Satellite: React.FC<{
     if (ref.current && !isPaused) {
       ref.current.rotation.y += delta * data.speed * simulationSpeed;
     }
-
-    // Breathing Light Effect
-    if (materialRef.current) {
-        if (isSelected || hovered) {
-            const t = state.clock.elapsedTime;
-            materialRef.current.emissive.set(data.color);
-            // Breathing: 0.05 to 0.2
-            materialRef.current.emissiveIntensity = 0.05 + (Math.sin(t * 2.5) + 1) * 0.075; 
-        } else {
-            materialRef.current.emissiveIntensity = 0;
-            materialRef.current.emissive.setHex(0x000000);
-        }
-    }
   });
 
   return (
@@ -344,8 +307,10 @@ const Satellite: React.FC<{
             ref={materialRef}
             map={texture}
             color="#ffffff" 
-            roughness={0.7}
-            metalness={0.1}
+            roughness={1.0}
+            metalness={0.0}
+            emissive={data.color}
+            emissiveIntensity={hovered ? 0.1 : 0}
           />
           
           {hovered && (
@@ -428,19 +393,6 @@ export const Planet: React.FC<PlanetProps> = ({
         orbitGroupRef.current.getWorldPosition(earthPositionRef.current);
       }
     }
-
-    // Breathing Light Effect
-    if (materialRef.current) {
-        if (isSelected || hovered) {
-            const t = state.clock.elapsedTime;
-            materialRef.current.emissive.set(data.color);
-            // Range: 0.05 to 0.2 (averaging around ~0.125, slightly dynamic)
-            materialRef.current.emissiveIntensity = 0.05 + (Math.sin(t * 2.5) + 1) * 0.075; 
-        } else {
-            materialRef.current.emissiveIntensity = 0;
-            materialRef.current.emissive.setHex(0x000000);
-        }
-    }
   });
 
   return (
@@ -474,9 +426,10 @@ export const Planet: React.FC<PlanetProps> = ({
               ref={materialRef}
               map={texture}
               color="#ffffff" 
-              roughness={0.6}
-              metalness={0.2}
-              clearcoat={0.3}
+              roughness={1.0}
+              metalness={0.0}
+              emissive={data.color}
+              emissiveIntensity={hovered ? 0.1 : 0}
             />
             
             {/* New Upward Growing Label */}
