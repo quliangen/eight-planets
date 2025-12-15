@@ -150,67 +150,7 @@ const SunShaderMaterial = shaderMaterial(
   `
 );
 
-// --- 2. PLASMA PROMINENCE SHADER ---
-const ProminenceShaderMaterial = shaderMaterial(
-  {
-    uTime: 0,
-    uColorCore: new Color('#FFDD44'), 
-    uColorEdge: new Color('#FF4500'), 
-  },
-  // Vertex Shader
-  `
-    varying vec2 vUv;
-    varying vec3 vNormal;
-    varying float vNoise;
-    uniform float uTime;
-
-    void main() {
-      vUv = uv;
-      vNormal = normalize(normalMatrix * normal);
-      vec3 newPos = position + normal * (sin(uv.x * 10.0 + uTime * 2.0) * 0.02);
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
-    }
-  `,
-  // Fragment Shader
-  `
-    uniform float uTime;
-    uniform vec3 uColorCore;
-    uniform vec3 uColorEdge;
-    varying vec2 vUv;
-
-    float random (in vec2 st) {
-        return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-    }
-    float noise (in vec2 st) {
-        vec2 i = floor(st);
-        vec2 f = fract(st);
-        float a = random(i);
-        float b = random(i + vec2(1.0, 0.0));
-        float c = random(i + vec2(0.0, 1.0));
-        float d = random(i + vec2(1.0, 1.0));
-        vec2 u = f * f * (3.0 - 2.0 * f);
-        return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
-    }
-
-    void main() {
-      float flowSpeed = 2.0;
-      float noiseVal = noise(vec2(vUv.x * 8.0 - uTime * flowSpeed, vUv.y * 3.0));
-      float strands = smoothstep(0.3, 0.7, noiseVal);
-      vec3 color = mix(uColorEdge, uColorCore, strands);
-      
-      float fade = sin(vUv.x * 3.14159);
-      fade = pow(fade, 0.5); 
-      
-      float alpha = fade * 0.8;
-      float volume = 1.0 - abs(vUv.y - 0.5) * 2.0;
-      alpha *= smoothstep(0.0, 0.2, volume);
-
-      gl_FragColor = vec4(color, alpha);
-    }
-  `
-);
-
-extend({ SunShaderMaterial, ProminenceShaderMaterial });
+extend({ SunShaderMaterial });
 
 // --- Minimalist HUD Tech Label ---
 const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) => {
@@ -255,108 +195,6 @@ const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) =
           </div>
        </div>
     </div>
-  );
-};
-
-// --- New Feature: Prominence Warning Label ---
-const ProminenceLabel = () => {
-    return (
-        <div className="flex flex-col items-start pointer-events-none">
-            <div className="flex items-center gap-2 bg-red-900/80 border border-red-500/50 backdrop-blur-md px-3 py-1.5 rounded-sm animate-fade-in origin-bottom-left transform scale-90 sm:scale-100">
-                <span className="text-lg animate-pulse">🔥</span>
-                <div className="flex flex-col">
-                    <span className="text-white font-bold text-xs sm:text-sm whitespace-nowrap tracking-wide">日珥 (Prominence)</span>
-                    <span className="text-[9px] text-red-200 font-mono leading-none">HIGH ENERGY PLASMA</span>
-                </div>
-            </div>
-            <div className="w-[1px] h-6 bg-red-500/50 ml-3"></div>
-            <div className="w-2 h-2 bg-red-500 rounded-full ml-[10px] shadow-[0_0_10px_#ef4444] animate-ping"></div>
-        </div>
-    );
-};
-
-// --- Prominence Component ---
-const Prominence: React.FC<{ 
-  radius: number; 
-  angle: number; 
-  latitude: number;
-  scale: number;
-  simulationSpeed: number;
-  isPaused: boolean;
-}> = ({ radius, angle, latitude, scale, simulationSpeed, isPaused }) => {
-  const meshRef = useRef<Mesh>(null);
-  const materialRef = useRef<ShaderMaterial>(null);
-  const [hovered, setHovered] = useState(false);
-  
-  // CRITICAL: Ensure prominence visual mesh does NOT block raycasting
-  // But we want to attach a specific "trigger" mesh for the label
-  useLayoutEffect(() => {
-    if (meshRef.current) {
-        meshRef.current.raycast = () => null;
-    }
-  }, []);
-  
-  useFrame((state, delta) => {
-    if (!isPaused) {
-       if (materialRef.current) {
-         materialRef.current.uniforms.uTime.value = state.clock.elapsedTime * simulationSpeed;
-       }
-       if (meshRef.current) {
-          meshRef.current.rotation.x = latitude + Math.sin(state.clock.elapsedTime * 0.5) * 0.05;
-       }
-    }
-  });
-
-  const tubeRadius = radius * 0.015; 
-  const loopRadius = radius * 0.15; 
-  const arcLength = Math.PI; 
-
-  return (
-    <group rotation={[0, angle, 0]}>
-      <group rotation={[latitude, 0, 0]}>
-         {/* The Visual Plasma Loop */}
-         <mesh ref={meshRef} position={[radius * 0.98, 0, 0]} rotation={[0, 0, Math.PI / 2]} raycast={() => null}>
-            <torusGeometry args={[loopRadius, tubeRadius, 16, 64, arcLength]} />
-            {/* @ts-ignore */}
-            <prominenceShaderMaterial
-                ref={materialRef}
-                transparent={true}
-                side={DoubleSide}
-                blending={AdditiveBlending}
-                depthWrite={false} 
-            />
-         </mesh>
-
-         {/* 🎯 Interactive Hotspot at the tip of the prominence */}
-         {/* Positioned at radius + loopHeight to float above the surface */}
-         <mesh 
-            position={[radius * 1.15, 0, 0]} 
-            visible={false} 
-            onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'help'; }}
-            onPointerOut={() => { setHovered(false); document.body.style.cursor = 'auto'; }}
-         >
-             <sphereGeometry args={[radius * 0.1, 8, 8]} />
-             <meshBasicMaterial color="red" wireframe />
-             
-             {/* Reticle / Hint Marker always visible */}
-             <Html center distanceFactor={15} occlude>
-                <div className={`transition-all duration-300 ${hovered ? 'scale-110 opacity-100' : 'scale-100 opacity-60 hover:opacity-100'}`}>
-                    {hovered ? (
-                        <ProminenceLabel />
-                    ) : (
-                        // Resting state: A pulsating target reticle
-                        <div className="relative w-8 h-8 flex items-center justify-center pointer-events-none">
-                             <div className="absolute inset-0 border border-red-500/60 rounded-full animate-ping"></div>
-                             <div className="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_#ef4444]"></div>
-                             {/* Small text hint below */}
-                             <div className="absolute top-8 text-[8px] font-mono text-red-400 whitespace-nowrap bg-black/50 px-1 rounded">?</div>
-                        </div>
-                    )}
-                </div>
-             </Html>
-         </mesh>
-      </group>
-    </group>
   );
 };
 
@@ -416,16 +254,6 @@ export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isSelected, i
                uColorBright={new Color('#FFFFFF')}    
             />
           </mesh>
-
-          {/* Prominences - Now contain their own labels */}
-          <Prominence 
-            radius={SUN_DATA.size} angle={0} latitude={0.2} scale={1.2} 
-            simulationSpeed={simulationSpeed} isPaused={isPaused} 
-          />
-          <Prominence 
-            radius={SUN_DATA.size} angle={2.5} latitude={-0.3} scale={1.5} 
-            simulationSpeed={simulationSpeed} isPaused={isPaused} 
-          />
       </group>
 
       {/* 2. INTERACTION HITBOX (Fixed Hit Area for Sun Selection) */}
