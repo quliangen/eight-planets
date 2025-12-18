@@ -99,7 +99,6 @@ const OrbitController = ({ controlsRef, gestureVelocity }: { controlsRef: any, g
       const { dx, dy, gestureType } = gestureVelocity.current;
       
       // Smoothing factor: Lower = Smoother/Slower, Higher = More responsive/Jittery
-      // 5.0 * delta gives a nice weighted average over ~0.2 seconds
       const smoothFactor = 5.0 * delta;
       
       smoothed.current.dx = MathUtils.lerp(smoothed.current.dx, dx, smoothFactor);
@@ -118,28 +117,23 @@ const OrbitController = ({ controlsRef, gestureVelocity }: { controlsRef: any, g
              // Hand Left/Right (dx) -> Rotate Azimuth
              controlsRef.current.setAzimuthalAngle(controlsRef.current.getAzimuthalAngle() - activeDx * 0.02);
              
-             // Hand Up/Down (dy) -> Rotate Polar Angle
-             // Requirement: "Up movement -> Camera angle moves down"
-             // Hand Up (dy < 0). 'activeDy' is negative.
-             // We want Camera Down -> Increase Polar Angle (towards PI/2).
-             // Subtracting negative activeDy adds to the angle.
-             controlsRef.current.setPolarAngle(controlsRef.current.getPolarAngle() - activeDy * 0.02);
+             // Hand Up Only (dy < 0) -> Rotate Polar Angle (Look Up)
+             if (activeDy < 0) {
+                controlsRef.current.setPolarAngle(controlsRef.current.getPolarAngle() - activeDy * 0.02);
+             }
              
           } else if (gestureType === 'zoom') {
-             // ZOOM MODE
-             const zoomSensitivity = 0.015; // Adjusted sensitivity
-             
-             // Smooth zoom application
+             // ZOOM MODE (Inverted as per user request)
+             const zoomSensitivity = 0.015; 
              const speed = 1.0 + Math.abs(activeDy * zoomSensitivity);
 
              // activeDy corresponds to change in distance between hands (Spread > 0, Close < 0)
-             // Requirement: "Hands spread and lengthen distance -> view zooms in"
              if (activeDy > 0) {
-                 // Spread -> Zoom In (Dolly In)
-                 controlsRef.current.dollyIn(speed);
-             } else {
-                 // Close -> Zoom Out (Dolly Out)
+                 // Hands apart -> Zoom Out (Dolly Out)
                  controlsRef.current.dollyOut(speed);
+             } else {
+                 // Hands together -> Zoom In (Dolly In)
+                 controlsRef.current.dollyIn(speed);
              }
           }
           controlsRef.current.update();
@@ -158,7 +152,7 @@ const App: React.FC = () => {
   const [showOrbits, setShowOrbits] = useState(true);
   
   const [isGestureMode, setIsGestureMode] = useState(false);
-  const [isARMode, setIsARMode] = useState(false); // AR Mode State
+  const [isARMode, setIsARMode] = useState(false); 
 
   // Camera Focus State
   const [focusTarget, setFocusTarget] = useState<{ id: string, size: number } | null>(null);
@@ -201,13 +195,12 @@ const App: React.FC = () => {
       const sm = SATURN_MOONS.find(x => x.id === id);
       if (sm) return sm.size;
       
-      return 2; // default
+      return 2; 
   };
 
   const handleDoubleClick = (id: string) => {
       const size = getPlanetSize(id);
       setFocusTarget({ id, size });
-      // Also ensure it is selected (paused and UI shown)
       handleSelect(id);
   };
 
@@ -233,7 +226,6 @@ const App: React.FC = () => {
     if (nextState) {
       setSimulationSpeed(1.0);
     } else {
-      // If turning off gesture mode, also turn off AR
       setIsARMode(false);
     }
   };
@@ -244,7 +236,6 @@ const App: React.FC = () => {
     if (activating) {
        setIsPaused(false);
        setSimulationSpeed(0.5); 
-       // Reset focus if we start flying
        setFocusTarget(null);
     } else {
        setSimulationSpeed(1.0);
@@ -261,13 +252,10 @@ const App: React.FC = () => {
     if (selectedPlanetId === 'moon') return MOON_DATA;
     if (selectedPlanetId === 'tiangong') return TIANGONG_DATA;
     
-    // Check main planets
     const planet = PLANETS.find(p => p.id === selectedPlanetId);
     if (planet) return planet;
-    // Check Jupiter's moons
     const jMoon = JUPITER_MOONS.find(m => m.id === selectedPlanetId);
     if (jMoon) return jMoon;
-    // Check Saturn's moons
     return SATURN_MOONS.find(m => m.id === selectedPlanetId) || null;
   }, [selectedPlanetId]);
 
@@ -306,15 +294,9 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* 
-         Canvas needs alpha: true for transparency.
-         When AR Mode is ON, we hide the Skybox and opaque layers so the video behind shows through.
-         onPointerMissed handles clicking empty space to deselect/close popups.
-      */}
       <Canvas 
         gl={{ antialias: true, toneMappingExposure: 1.2, alpha: true }}
         onPointerMissed={() => {
-          // If we clicked on empty space (not a mesh), close the info panel
           if (selectedPlanetId) {
             handleClose();
           }
@@ -333,7 +315,6 @@ const App: React.FC = () => {
             minDistance={2}
             maxDistance={500}
             maxPolarAngle={Math.PI / 1.8}
-            // Slower auto-rotate for better default experience
             autoRotate={!selectedPlanetId && !isPaused && !isGestureMode && !isStarshipActive && !focusTarget}
             autoRotateSpeed={0.1 * simulationSpeed} 
           />
@@ -351,13 +332,10 @@ const App: React.FC = () => {
           <pointLight position={[0, 0, 0]} intensity={2.5} distance={500} decay={1} color="#FFF5E0" />
           <ambientLight intensity={0.15} color="#404060" />
 
-          {/* 1. Volumetric 3D Stars (Always show, they look nice floating in room) */}
           <Stars radius={400} depth={50} count={3000} factor={4} saturation={0.5} fade speed={0.5} />
           
-          {/* 2. Painted Background (Skybox) - HIDE IN AR MODE */}
           {!isARMode && <Skybox />}
           
-          {/* 3. Magical Dust */}
           <Sparkles count={400} scale={200} size={6} speed={0.2} opacity={0.4} noise={0.1} color="#88AAFF" />
           <Sparkles count={150} scale={150} size={3} speed={0.3} opacity={0.6} color="#FFD700" />
           

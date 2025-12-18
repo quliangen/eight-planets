@@ -71,11 +71,7 @@ export const GestureController: React.FC<GestureControllerProps> = ({
   }, []);
 
   const startWebcam = async () => {
-    // Video element is now always rendered, so videoRef.current should be available
-    if (!videoRef.current) {
-        console.error("Video element not found");
-        return;
-    }
+    if (!videoRef.current) return;
     
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -88,7 +84,6 @@ export const GestureController: React.FC<GestureControllerProps> = ({
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        // Event listener is handled via onLoadedData in JSX to ensure it fires
       }
       
       setLoading(false);
@@ -104,7 +99,6 @@ export const GestureController: React.FC<GestureControllerProps> = ({
   const predictWebcam = () => {
     if (!landmarkerRef.current || !videoRef.current) return;
     
-    // Check if video is ready
     if (videoRef.current.readyState < 2) {
         requestRef.current = requestAnimationFrame(predictWebcam);
         return;
@@ -114,7 +108,6 @@ export const GestureController: React.FC<GestureControllerProps> = ({
     const result = landmarkerRef.current.detectForVideo(videoRef.current, startTimeMs);
 
     processGestures(result);
-    // Only draw if canvas exists (it's hidden by default now)
     if (canvasRef.current) {
         draw(result);
     }
@@ -134,23 +127,17 @@ export const GestureController: React.FC<GestureControllerProps> = ({
 
     // --- TWO HANDS MODE (ZOOM) ---
     if (hands.length === 2) {
-      // Use palm center (index 0 - wrist or 9 - middle knuckle) for stability
       const h1 = hands[0][9]; 
       const h2 = hands[1][9];
       const dist = Math.hypot(h1.x - h2.x, h1.y - h2.y);
       
       if (prevHandDistanceRef.current !== null) {
-        // Calculate change in distance
         const delta = dist - prevHandDistanceRef.current;
-        
-        // Threshold to ignore micro-jitters
         if (Math.abs(delta) > 0.002) {
-           // Pass delta directly. Positive = Spreading. Negative = Pinching.
-           // Multiplier 300 makes the value useful for camera dolly speed
            onControl(0, delta * 300, 'zoom'); 
-           
-           if (delta > 0) setStatusMessage("🔍 放大 (拉近视角)");
-           else setStatusMessage("🔭 缩小 (拉远视角)");
+           // 反转提示文字以匹配 App.tsx 的反转逻辑
+           if (delta > 0) setStatusMessage("🔭 缩小 (双手远离)");
+           else setStatusMessage("🔍 放大 (双手合拢)");
         } else {
            onControl(0, 0, 'zoom');
            setStatusMessage("✋ 双手保持距离");
@@ -164,19 +151,14 @@ export const GestureController: React.FC<GestureControllerProps> = ({
     if (hands.length === 1) {
       prevHandDistanceRef.current = null;
       const hand = hands[0];
-      const cursor = hand[9]; // Middle finger knuckle (more stable than tip)
+      const cursor = hand[9]; 
       
-      // X coordinates are 0-1. Mirroring is handled by CSS scale-x, but for logic:
-      // MediaPipe coords: 0 is Left, 1 is Right (relative to camera feed)
-      // If we mirror the video visually, we need to match that logic.
-      // Let's assume standard: Move hand Right -> Rotate Right.
-      
-      const x = 1.0 - cursor.x; // Mirroring logic (0 becomes 1)
-      const y = cursor.y; // 0 is Top, 1 is Bottom
+      const x = 1.0 - cursor.x; 
+      const y = cursor.y; 
       
       let dx = 0;
       let dy = 0;
-      const DEADZONE = 0.15; // Slightly tighter deadzone
+      const DEADZONE = 0.15; 
       const CENTER = 0.5;
       
       // Horizontal Control
@@ -184,19 +166,18 @@ export const GestureController: React.FC<GestureControllerProps> = ({
          dx = (x - CENTER) * 2.0; 
       }
       
-      // Vertical Control
-      if (Math.abs(y - CENTER) > DEADZONE) {
-         dy = (y - CENTER) * 2.0;
+      // Vertical Control - ONLY UPWARD (y < CENTER)
+      if (y < CENTER - DEADZONE) {
+         dy = (y - CENTER) * 2.0; 
       }
       
       if (dx !== 0 || dy !== 0) {
         onControl(dx, dy, 'rotate');
         
-        // Dynamic Status Message
         if (Math.abs(dx) > Math.abs(dy)) {
             setStatusMessage(dx > 0 ? "👉 向右旋转" : "👈 向左旋转");
-        } else {
-            setStatusMessage(dy > 0 ? "👇 向上看 (相机上移)" : "👆 向下看 (相机下移)");
+        } else if (dy < 0) {
+            setStatusMessage("👆 向上看 (手势向上)");
         }
       } else {
         onControl(0, 0, 'rotate');
@@ -213,23 +194,19 @@ export const GestureController: React.FC<GestureControllerProps> = ({
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw Video Feed manually if in Mini Mode (since video element is hidden)
     if (!isARMode && videoRef.current) {
         ctx.save();
-        ctx.scale(-1, 1); // Mirror draw
+        ctx.scale(-1, 1);
         ctx.drawImage(videoRef.current, -canvas.width, 0, canvas.width, canvas.height);
         ctx.restore();
         
-        // Draw dark overlay for better UI contrast
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Guide Box (Center Safe Zone)
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.lineWidth = 2;
         ctx.setLineDash([5, 5]);
-        // Draw deadzone box relative to center
-        const deadzoneSize = 0.3; // 30% of screen
+        const deadzoneSize = 0.3; 
         const x = canvas.width * (0.5 - deadzoneSize/2);
         const y = canvas.height * (0.5 - deadzoneSize/2);
         const w = canvas.width * deadzoneSize;
@@ -238,7 +215,6 @@ export const GestureController: React.FC<GestureControllerProps> = ({
         ctx.setLineDash([]);
     }
 
-    // Draw Hands
     if (result.landmarks) {
       for (const landmarks of result.landmarks) {
         const connections = HandLandmarker.HAND_CONNECTIONS;
@@ -260,24 +236,12 @@ export const GestureController: React.FC<GestureControllerProps> = ({
            ctx.arc((1 - lm.x) * canvas.width, lm.y * canvas.height, 4, 0, 2 * Math.PI);
            ctx.fill();
         }
-        
-        // Draw Palm Center for debug visualization
-        const palmCenter = landmarks[9];
-        ctx.fillStyle = "#ffff00";
-        ctx.beginPath();
-        ctx.arc((1 - palmCenter.x) * canvas.width, palmCenter.y * canvas.height, 8, 0, 2 * Math.PI);
-        ctx.fill();
       }
     }
   };
 
   return (
     <>
-      {/* 
-         ALWAYS RENDERED VIDEO 
-         Used for processing and AR background. 
-         Hidden when not in AR mode, but still active for canvas drawing.
-      */}
       <video 
         ref={videoRef} 
         className={`fixed inset-0 w-full h-full object-cover -scale-x-100 transition-opacity duration-300
@@ -287,17 +251,14 @@ export const GestureController: React.FC<GestureControllerProps> = ({
         playsInline 
         muted
         onLoadedData={() => {
-            // Start the loop once data is loaded
             predictWebcam();
         }}
       />
 
-      {/* AR Mode Overlay Background - Darken the video feed with Blue Tint 0.4 */}
       {isARMode && (
-         <div className="fixed inset-0 w-full h-full bg-blue-950/40 z-[-9] pointer-events-none transition-colors duration-500" />
+         <div className="fixed inset-0 w-full h-full bg-black/60 backdrop-blur-md z-[-9] pointer-events-none transition-all duration-500" />
       )}
 
-      {/* Helper Canvas for drawing feedback (Used in both modes potentially, but mainly mini mode) */}
       <canvas 
         ref={canvasRef}
         width={320}
@@ -309,13 +270,11 @@ export const GestureController: React.FC<GestureControllerProps> = ({
 
       <div className="absolute bottom-4 right-4 z-50 flex flex-col items-end gap-3 pointer-events-auto animate-fade-in">
         
-        {/* Status Bubble */}
         <div className="bg-slate-900/80 backdrop-blur border border-cyan-500/30 text-cyan-300 px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2">
            <span className={`w-2 h-2 rounded-full ${loading ? 'bg-yellow-400' : 'bg-green-400'} animate-pulse`}></span>
            {statusMessage}
         </div>
 
-        {/* Error Message Display */}
         {permissionError && (
            <div className="bg-red-500/80 text-white px-4 py-2 rounded-lg text-sm max-w-[200px]">
               请允许浏览器访问摄像头以使用手势功能。
