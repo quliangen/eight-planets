@@ -1,7 +1,7 @@
 
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Mesh, Color, DoubleSide, Vector3, TextureLoader, AdditiveBlending, Object3D, Group, PlaneGeometry, Texture, MeshStandardMaterial, MeshPhysicalMaterial } from 'three';
+import { Mesh, Color, DoubleSide, Vector3, TextureLoader, AdditiveBlending, Object3D, Group, PlaneGeometry, Texture, MeshStandardMaterial, MeshPhysicalMaterial, RingGeometry } from 'three';
 import { Html, Billboard } from '@react-three/drei';
 import { PlanetData } from '../types';
 import { generatePlanetTexture, generateRingTexture, generateGenericGlowTexture, generateChinaFlagTexture } from '../utils/textureGenerator';
@@ -20,7 +20,6 @@ interface PlanetProps {
   showOrbit: boolean;
 }
 
-// --- Animated Waving Flag Component ---
 const AnimatedFlag = ({ texture }: { texture: Texture }) => {
   const meshRef = useRef<Mesh>(null);
   const geometry = useMemo(() => new PlaneGeometry(1.5, 1.0, 10, 8), []);
@@ -47,7 +46,6 @@ const AnimatedFlag = ({ texture }: { texture: Texture }) => {
   );
 };
 
-// --- Minimalist HUD Tech Label ---
 const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) => {
   const match = name.match(/^(.+?)\s*\((.+?)\)$/);
   const cnName = match ? match[1] : name;
@@ -56,8 +54,6 @@ const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) =
 
   return (
     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none select-none w-max">
-       
-       {/* Floating Label Container */}
        <div 
          className="mb-1 px-5 py-2 flex flex-row items-baseline gap-3 
                     bg-gradient-to-t from-black/80 to-transparent backdrop-blur-sm rounded-sm border-b-2 
@@ -77,12 +73,8 @@ const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) =
           )}
        </div>
 
-       {/* Animated Connection Line & Reticle */}
        <div className="flex flex-col items-center relative">
-          {/* Vertical Line */}
           <div className="w-[1px] h-10 bg-gradient-to-b from-white/40 to-transparent"></div>
-          
-          {/* Target Reticle */}
           <div className="absolute bottom-0 w-6 h-6 flex items-center justify-center translate-y-1/2">
              <div className="absolute w-full h-full border border-white/20 rounded-full animate-[spin_4s_linear_infinite]"></div>
              <div className="absolute w-[70%] h-[70%] border-l border-r border-white/50 rounded-full animate-[spin_3s_linear_infinite_reverse]"></div>
@@ -93,8 +85,7 @@ const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) =
   );
 };
 
-// --- 中国空间站 (Tiangong Space Station - T-Shape Configuration) ---
-const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: boolean; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; isSelected: boolean }> = ({ isPaused, simulationSpeed, showOrbit, onSelect, onDoubleClick, isSelected }) => {
+const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; isSelected: boolean; planetRefs: React.MutableRefObject<{ [key: string]: Object3D }> }> = ({ isPaused, simulationSpeed, onSelect, onDoubleClick, isSelected, planetRefs }) => {
   const stationRef = useRef<Group>(null);
   const solarWingsRef = useRef<Group>(null);
   const [hovered, setHovered] = useState(false);
@@ -103,17 +94,20 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; sh
   const flagUrl = useMemo(() => generateChinaFlagTexture(), []);
   const flagTexture = useMemo(() => new TextureLoader().load(flagUrl), [flagUrl]);
 
-  // Colors
-  const moduleColor = "#f0f2f5"; // White/Silver hull
-  const dockColor = "#334155";   // Darker docking rings for contrast
+  const moduleColor = "#f0f2f5"; 
+  const dockColor = "#334155";   
+
+  useEffect(() => {
+    if (stationRef.current) {
+      planetRefs.current[TIANGONG_DATA.id] = stationRef.current;
+    }
+  }, [planetRefs]);
 
   useFrame((state, delta) => {
     if (stationRef.current && !isPaused) {
-      // Orbit rotation around Earth
       stationRef.current.rotation.y += delta * 0.8 * simulationSpeed;
     }
     if (solarWingsRef.current && !isPaused) {
-       // Solar panels rotate to track sun (simplified)
        solarWingsRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.2) * 0.15;
     }
   });
@@ -126,29 +120,11 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; sh
      color: moduleColor
   };
 
-  // 🟦 Blue Glass Material for Solar Wings
-  const solarGlassMaterial = (
-     <meshPhysicalMaterial 
-        color="#3b82f6"       // Electric Blue
-        emissive="#1d4ed8"    // Deep Blue Glow
-        emissiveIntensity={0.8}
-        metalness={1.0}       // Mirror-like
-        roughness={0.1}       // Very smooth glass
-        transparent={true}
-        opacity={0.9}         // Slight translucency
-        clearcoat={1.0}
-     />
-  );
-
   return (
     <group rotation={[Math.PI / 6, 0, Math.PI / 4]}>
       <group ref={stationRef}>
-        {/* Scale up slightly for visibility */}
         <group position={[2.2, 0, 0]} scale={[0.15, 0.15, 0.15]}>
-           
-           {/* Hitbox */}
            <mesh 
-             visible={false} 
              scale={[15, 15, 15]}
              onPointerDown={(e) => { e.stopPropagation(); clickStartRef.current = { x: e.clientX, y: e.clientY }; }}
              onClick={(e) => {
@@ -165,38 +141,27 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; sh
              onPointerOut={() => { document.body.style.cursor = 'auto'; setHovered(false); }}
            >
               <sphereGeometry args={[1, 16, 16]} />
-              <meshBasicMaterial color="red" />
+              <meshBasicMaterial transparent opacity={0} />
            </mesh>
 
-           {/* --- T-Shape Structure --- */}
-           {/* Orientation: Z is forward (flight direction), Y is Earth-Zenith. */}
            <group rotation={[0, Math.PI / 2, 0]}>
-             
-             {/* 1. Node Module (The Intersection Hub) */}
              <mesh position={[0, 0, 0]}>
                 <sphereGeometry args={[0.3, 32, 32]} />
                 <meshPhysicalMaterial {...commonMaterialProps} color={dockColor} />
              </mesh>
-
-             {/* 2. Tianhe Core Module (Extending Backwards) */}
              <group position={[0, 0, -0.8]}>
-                {/* Small Diameter Section (Living) */}
                 <mesh position={[0, 0, 0.4]} rotation={[Math.PI / 2, 0, 0]}>
                    <cylinderGeometry args={[0.22, 0.22, 0.8, 32]} />
                    <meshPhysicalMaterial {...commonMaterialProps} />
                 </mesh>
-                {/* Cone Transition */}
                 <mesh position={[0, 0, -0.1]} rotation={[Math.PI / 2, 0, 0]}>
                    <cylinderGeometry args={[0.22, 0.35, 0.2, 32]} />
                    <meshPhysicalMaterial {...commonMaterialProps} />
                 </mesh>
-                {/* Large Diameter Section (Resource) */}
                 <mesh position={[0, 0, -0.7]} rotation={[Math.PI / 2, 0, 0]}>
                    <cylinderGeometry args={[0.35, 0.35, 1.0, 32]} />
                    <meshPhysicalMaterial {...commonMaterialProps} />
                 </mesh>
-                
-                {/* 🇨🇳 Flag on Core Module */}
                 <group position={[0, 0.5, 0.2]} rotation={[0, Math.PI/2, 0]} scale={[0.8, 0.8, 0.8]}>
                    <mesh position={[0, 0.9, 0]}>
                       <cylinderGeometry args={[0.02, 0.02, 1.8]} />
@@ -204,358 +169,95 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; sh
                    </mesh>
                    <AnimatedFlag texture={flagTexture} />
                 </group>
-                
-                {/* Tianzhou Cargo Ship (Docked at rear) */}
-                <mesh position={[0, 0, -1.4]} rotation={[Math.PI / 2, 0, 0]}>
-                   <cylinderGeometry args={[0.3, 0.2, 0.5, 16]} />
-                   <meshPhysicalMaterial {...commonMaterialProps} color="#94a3b8" />
-                </mesh>
              </group>
-
-             {/* 3. Wentian Lab Module (Left Wing of T) */}
-             <group position={[-1.1, 0, 0]}>
-                 <mesh rotation={[0, 0, Math.PI / 2]}>
-                    <cylinderGeometry args={[0.25, 0.25, 1.8, 32]} />
-                    <meshPhysicalMaterial {...commonMaterialProps} />
-                 </mesh>
-                 {/* Solar Wing Truss */}
-                 <mesh position={[-1.0, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                    <boxGeometry args={[0.2, 0.1, 0.1]} />
-                    <meshPhysicalMaterial color={dockColor} roughness={0.8} />
-                 </mesh>
-             </group>
-
-             {/* 4. Mengtian Lab Module (Right Wing of T) */}
-             <group position={[1.1, 0, 0]}>
-                 <mesh rotation={[0, 0, Math.PI / 2]}>
-                    <cylinderGeometry args={[0.25, 0.25, 1.8, 32]} />
-                    <meshPhysicalMaterial {...commonMaterialProps} />
-                 </mesh>
-                 {/* Solar Wing Truss */}
-                 <mesh position={[1.0, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                    <boxGeometry args={[0.2, 0.1, 0.1]} />
-                    <meshPhysicalMaterial color={dockColor} roughness={0.8} />
-                 </mesh>
-             </group>
-
-             {/* 5. Shenzhou Manned Ship (Docked at Front Node - Forward) */}
-             <group position={[0, 0, 0.6]} rotation={[Math.PI/2, 0, 0]}>
-                 {/* Docking Ring (Connection) */}
-                 <mesh position={[0, -0.65, 0]}>
-                     <cylinderGeometry args={[0.15, 0.15, 0.1, 16]} />
-                     <meshStandardMaterial color="#2d3748" />
-                 </mesh>
-                 <mesh position={[0, -0.3, 0]}>
-                    <cylinderGeometry args={[0.22, 0.22, 0.6, 16]} /> {/* Orbital Module */}
-                    <meshPhysicalMaterial {...commonMaterialProps} color="#cbd5e1" />
-                 </mesh>
-                 <mesh position={[0, 0.3, 0]}>
-                    <cylinderGeometry args={[0.25, 0.25, 0.6, 16]} /> {/* Re-entry Module */}
-                    <meshPhysicalMaterial {...commonMaterialProps} color="#cbd5e1" />
-                 </mesh>
-             </group>
-
-             {/* 6. Shenzhou Radial (Bottom/Nadir Dock) */}
-             {/* Adjusted position to ensure it looks 'Linked' physically */}
-             <group position={[0, -0.4, 0]} rotation={[0, 0, Math.PI]}>
-                 {/* Docking Ring (Visual Glue) - Sits between Node and Ship */}
-                 <mesh position={[0, -0.05, 0]}>
-                     <cylinderGeometry args={[0.18, 0.15, 0.15, 16]} />
-                     <meshPhysicalMaterial color="#334155" metalness={0.8} roughness={0.5} />
-                 </mesh>
-                 
-                 {/* Connection Neck */}
-                 <mesh position={[0, 0.2, 0]}>
-                     <cylinderGeometry args={[0.15, 0.15, 0.4, 16]} />
-                     <meshPhysicalMaterial {...commonMaterialProps} color={dockColor} />
-                 </mesh>
-                 {/* Orbital Module */}
-                 <mesh position={[0, 0.6, 0]}>
-                    <cylinderGeometry args={[0.22, 0.22, 0.5, 16]} /> 
-                    <meshPhysicalMaterial {...commonMaterialProps} color="#cbd5e1" />
-                 </mesh>
-                 {/* Re-entry Module */}
-                 <mesh position={[0, 1.1, 0]}>
-                    <cylinderGeometry args={[0.25, 0.25, 0.6, 16]} /> 
-                    <meshPhysicalMaterial {...commonMaterialProps} color="#cbd5e1" />
-                 </mesh>
-             </group>
-
-             {/* 7. Massive Solar Wings (Attached to Lab Ends) */}
-             <group ref={solarWingsRef}>
-               {/* Wentian Wings (Left) */}
-               <group position={[-2.2, 0, 0]}>
-                  {/* Two long panels */}
-                  <mesh position={[0, 1.5, 0]}>
-                      <boxGeometry args={[0.05, 2.8, 0.8]} />
-                      {solarGlassMaterial}
-                  </mesh>
-                  <mesh position={[0, -1.5, 0]}>
-                      <boxGeometry args={[0.05, 2.8, 0.8]} />
-                      {solarGlassMaterial}
-                  </mesh>
-                  {/* Connector */}
-                  <mesh rotation={[Math.PI/2, 0, 0]}>
-                      <cylinderGeometry args={[0.05, 0.05, 6, 8]} />
-                      <meshStandardMaterial color={dockColor} />
-                  </mesh>
-               </group>
-
-               {/* Mengtian Wings (Right) */}
-               <group position={[2.2, 0, 0]}>
-                  {/* Two long panels */}
-                  <mesh position={[0, 1.5, 0]}>
-                      <boxGeometry args={[0.05, 2.8, 0.8]} />
-                      {solarGlassMaterial}
-                  </mesh>
-                  <mesh position={[0, -1.5, 0]}>
-                      <boxGeometry args={[0.05, 2.8, 0.8]} />
-                      {solarGlassMaterial}
-                  </mesh>
-                  {/* Connector */}
-                  <mesh rotation={[Math.PI/2, 0, 0]}>
-                      <cylinderGeometry args={[0.05, 0.05, 6, 8]} />
-                      <meshStandardMaterial color={dockColor} />
-                  </mesh>
-               </group>
-             </group>
-
            </group>
 
-           {hovered && (
-              <Html position={[0, 6, 0]} zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
-                 <TechLabel name={TIANGONG_DATA.name} color={TIANGONG_DATA.color} />
-              </Html>
-           )}
+           <group ref={solarWingsRef} rotation={[0, 0, 0]}>
+              <mesh position={[1.8, 0, 0]}>
+                <boxGeometry args={[2.5, 0.05, 0.8]} />
+                <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
+              </mesh>
+              <mesh position={[-1.8, 0, 0]}>
+                <boxGeometry args={[2.5, 0.05, 0.8]} />
+                <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
+              </mesh>
+           </group>
         </group>
         
-        <mesh rotation={[Math.PI / 2, 0, 0]} visible={showOrbit}>
-           <ringGeometry args={[2.18, 2.22, 64]} />
-           <meshBasicMaterial color="#38bdf8" opacity={0.3} transparent side={DoubleSide} />
-        </mesh>
+        {hovered && (
+          <Html position={[2.2, 1.0, 0]} style={{ pointerEvents: 'none' }}>
+            <TechLabel name={TIANGONG_DATA.name} color={TIANGONG_DATA.color} />
+          </Html>
+        )}
       </group>
     </group>
   );
 };
-
-const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; showOrbit: boolean; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; isSelected: boolean }> = ({ isPaused, simulationSpeed, showOrbit, onSelect, onDoubleClick, isSelected }) => {
-  const moonRef = useRef<Group>(null);
-  const materialRef = useRef<MeshPhysicalMaterial>(null);
-  const [hovered, setHovered] = useState(false);
-  const clickStartRef = useRef({ x: 0, y: 0 });
-  
-  const textureUrl = useMemo(() => generatePlanetTexture(MOON_DATA), []);
-  const texture = useMemo(() => new TextureLoader().load(textureUrl), [textureUrl]);
-
-  useFrame((state, delta) => {
-    if (moonRef.current && !isPaused) {
-      moonRef.current.rotation.y += delta * 0.2 * simulationSpeed;
-    }
-  });
-
-  return (
-    <group rotation={[0, 0, Math.PI / 8]}>
-      <group ref={moonRef}>
-        <group position={[3.5, 0, 0]}>
-            {/* Visual Mesh */}
-            <mesh>
-              <sphereGeometry args={[0.45, 32, 32]} />
-              <meshPhysicalMaterial 
-                ref={materialRef}
-                map={texture}
-                color="#ffffff" 
-                roughness={1.0}
-                metalness={0.0}
-                emissive={MOON_DATA.color}
-                emissiveIntensity={hovered ? 0.1 : 0}
-              />
-            </mesh>
-            
-            <mesh
-                visible={false}
-                scale={[1.5, 1.5, 1.5]}
-                onPointerDown={(e) => { e.stopPropagation(); clickStartRef.current = { x: e.clientX, y: e.clientY }; }}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    const dx = e.clientX - clickStartRef.current.x;
-                    const dy = e.clientY - clickStartRef.current.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < 5) onSelect(MOON_DATA.id);
-                }}
-                onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    onDoubleClick(MOON_DATA.id);
-                }}
-                onPointerOver={() => { document.body.style.cursor = 'pointer'; setHovered(true); }}
-                onPointerOut={() => { document.body.style.cursor = 'auto'; setHovered(false); }}
-            >
-                <sphereGeometry args={[0.45, 16, 16]} />
-                <meshBasicMaterial color="red" />
-            </mesh>
-
-            {hovered && (
-                <Html position={[0, 1.2, 0]} zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
-                    <TechLabel name={MOON_DATA.name} color={MOON_DATA.color} />
-                </Html>
-            )}
-        </group>
-        
-        <mesh rotation={[Math.PI / 2, 0, 0]} visible={showOrbit}>
-           <ringGeometry args={[3.45, 3.55, 64]} />
-           <meshBasicMaterial color="#ffffff" opacity={0.15} transparent side={DoubleSide} />
-        </mesh>
-      </group>
-    </group>
-  );
-};
-
-// Generic Satellite Component
-const Satellite: React.FC<{ 
-  data: PlanetData;
-  isPaused: boolean; 
-  simulationSpeed: number;
-  onSelect: (id: string) => void;
-  onDoubleClick: (id: string) => void;
-  isSelected: boolean;
-  showOrbit: boolean;
-}> = ({ data, isPaused, simulationSpeed, onSelect, onDoubleClick, isSelected, showOrbit }) => {
-  const ref = useRef<Group>(null);
-  const inclinationGroupRef = useRef<Group>(null);
-  const materialRef = useRef<MeshPhysicalMaterial>(null);
-  const [hovered, setHovered] = useState(false);
-  const clickStartRef = useRef({ x: 0, y: 0 });
-  
-  const textureUrl = useMemo(() => generatePlanetTexture(data), [data]);
-  const texture = useMemo(() => new TextureLoader().load(textureUrl), [textureUrl]);
-
-  useFrame((state, delta) => {
-    if (ref.current && !isPaused) {
-      ref.current.rotation.y += delta * data.speed * simulationSpeed;
-    }
-  });
-
-  return (
-    <group ref={inclinationGroupRef} rotation={[0, 0, data.orbitInclination || 0]}>
-      <group ref={ref}>
-        <mesh 
-          position={[data.distance, 0, 0]}
-          onPointerDown={(e) => { e.stopPropagation(); clickStartRef.current = { x: e.clientX, y: e.clientY }; }}
-          onClick={(e) => {
-            e.stopPropagation();
-            const dx = e.clientX - clickStartRef.current.x;
-            const dy = e.clientY - clickStartRef.current.y;
-            if (Math.sqrt(dx * dx + dy * dy) < 5) onSelect(data.id);
-          }}
-          onDoubleClick={(e) => {
-             e.stopPropagation();
-             onDoubleClick(data.id);
-          }}
-          onPointerOver={() => { document.body.style.cursor = 'pointer'; setHovered(true); }}
-          onPointerOut={() => { document.body.style.cursor = 'auto'; setHovered(false); }}
-        >
-          <sphereGeometry args={[data.size, 32, 32]} />
-          <meshPhysicalMaterial 
-            ref={materialRef}
-            map={texture}
-            color="#ffffff" 
-            roughness={1.0}
-            metalness={0.0}
-            emissive={data.color}
-            emissiveIntensity={hovered ? 0.1 : 0}
-          />
-          
-          {hovered && (
-            <Html position={[0, data.size * 1.5, 0]} zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
-               <TechLabel name={data.name} color={data.color} />
-            </Html>
-          )}
-        </mesh>
-        
-        <mesh rotation={[Math.PI / 2, 0, 0]} visible={showOrbit}>
-           <ringGeometry args={[data.distance - 0.03, data.distance + 0.03, 64]} />
-           <meshBasicMaterial color="#ffffff" opacity={0.1} transparent side={DoubleSide} />
-        </mesh>
-      </group>
-    </group>
-  );
-};
-
-const JupiterMoons: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; selectedId: string | null; showOrbit: boolean; }> = (props) => (
-    <group rotation={[0, 0, 0.05]}> 
-      {JUPITER_MOONS.map(moon => <Satellite key={moon.id} data={moon} isSelected={props.selectedId === moon.id} {...props} />)}
-    </group>
-);
-
-const SaturnMoons: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; selectedId: string | null; showOrbit: boolean; }> = (props) => (
-    <group> 
-      {SATURN_MOONS.map(moon => <Satellite key={moon.id} data={moon} isSelected={props.selectedId === moon.id} {...props} />)}
-    </group>
-);
 
 export const Planet: React.FC<PlanetProps> = ({ 
   data, 
   isSelected, 
-  onSelect,
+  onSelect, 
   onDoubleClick, 
-  isPaused,
-  simulationSpeed,
-  earthPositionRef,
-  planetRefs,
-  isStarshipActive,
-  showOrbit
+  isPaused, 
+  simulationSpeed, 
+  earthPositionRef, 
+  planetRefs, 
+  isStarshipActive, 
+  showOrbit 
 }) => {
   const meshRef = useRef<Mesh>(null);
+  const groupRef = useRef<Group>(null);
   const orbitGroupRef = useRef<Group>(null);
-  const inclinationGroupRef = useRef<Group>(null); 
-  const materialRef = useRef<MeshPhysicalMaterial>(null);
   const [hovered, setHovered] = useState(false);
   const clickStartRef = useRef({ x: 0, y: 0 });
-  
-  useEffect(() => {
-    if (orbitGroupRef.current) {
-      planetRefs.current[data.id] = orbitGroupRef.current;
-    }
-  }, [data.id, planetRefs]);
-
-  const orbitAngleRef = useRef(Math.random() * Math.PI * 2);
 
   const textureUrl = useMemo(() => generatePlanetTexture(data), [data]);
   const texture = useMemo(() => new TextureLoader().load(textureUrl), [textureUrl]);
+  
+  const ringUrl = useMemo(() => data.hasRings ? generateRingTexture(data.id, data.ringColor || '#ffffff') : null, [data]);
+  const ringTexture = useMemo(() => ringUrl ? new TextureLoader().load(ringUrl) : null, [ringUrl]);
 
-  const ringTextureUrl = useMemo(() => data.hasRings && data.ringColor ? generateRingTexture(data.id, data.ringColor) : null, [data]);
-  const ringTexture = useMemo(() => ringTextureUrl ? new TextureLoader().load(ringTextureUrl) : null, [ringTextureUrl]);
+  const glowUrl = useMemo(() => generateGenericGlowTexture(), []);
+  const glowTexture = useMemo(() => new TextureLoader().load(glowUrl), [glowUrl]);
 
-  const glowTextureUrl = useMemo(() => data.atmosphereColor ? generateGenericGlowTexture() : null, [data.atmosphereColor]);
-  const glowTexture = useMemo(() => glowTextureUrl ? new TextureLoader().load(glowTextureUrl) : null, [glowTextureUrl]);
+  useEffect(() => {
+    if (meshRef.current) {
+      planetRefs.current[data.id] = meshRef.current;
+    }
+  }, [data.id, planetRefs]);
 
   useFrame((state, delta) => {
-    if (!orbitGroupRef.current || !meshRef.current) return;
+    if (!groupRef.current || isPaused) return;
 
-    if (!isPaused) {
-      orbitAngleRef.current += delta * data.speed * 0.1 * simulationSpeed;
-      
-      const x = Math.cos(orbitAngleRef.current) * data.distance;
-      const z = -Math.sin(orbitAngleRef.current) * data.distance;
-      
-      orbitGroupRef.current.position.set(x, 0, z);
-      meshRef.current.rotation.y += data.rotationSpeed * simulationSpeed;
-      
-      if (data.id === 'earth') {
-        orbitGroupRef.current.getWorldPosition(earthPositionRef.current);
-      }
+    const orbitSpeed = data.speed * simulationSpeed;
+    const rotationSpeed = data.rotationSpeed * simulationSpeed;
+
+    if (orbitGroupRef.current) {
+      orbitGroupRef.current.rotation.y += delta * orbitSpeed;
+    }
+
+    if (meshRef.current) {
+      meshRef.current.rotation.y += delta * rotationSpeed;
+    }
+
+    if (data.id === 'earth' && meshRef.current) {
+      meshRef.current.getWorldPosition(earthPositionRef.current);
     }
   });
 
   return (
-    <group ref={inclinationGroupRef} rotation={[0, 0, data.orbitInclination || 0]}>
-      
-      <mesh rotation={[-Math.PI / 2, 0, 0]} visible={!isStarshipActive && showOrbit}>
-        <ringGeometry args={[data.distance - 0.05, data.distance + 0.05, 128]} />
-        <meshBasicMaterial color="#ffffff" opacity={0.35} transparent side={DoubleSide} />
-      </mesh>
+    <group ref={groupRef}>
+      {showOrbit && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[data.distance - 0.05, data.distance + 0.05, 128]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.1} side={DoubleSide} />
+        </mesh>
+      )}
 
       <group ref={orbitGroupRef}>
-        <group rotation={[0, 0, data.axisTilt || 0]}>
-          <mesh
+        <group position={[data.distance, 0, 0]}>
+          <mesh 
             ref={meshRef}
             onPointerDown={(e) => { e.stopPropagation(); clickStartRef.current = { x: e.clientX, y: e.clientY }; }}
             onClick={(e) => {
@@ -565,74 +267,124 @@ export const Planet: React.FC<PlanetProps> = ({
               if (Math.sqrt(dx * dx + dy * dy) < 5) onSelect(data.id);
             }}
             onDoubleClick={(e) => {
-                e.stopPropagation();
-                onDoubleClick(data.id);
+              e.stopPropagation();
+              onDoubleClick(data.id);
             }}
             onPointerOver={() => { document.body.style.cursor = 'pointer'; setHovered(true); }}
             onPointerOut={() => { document.body.style.cursor = 'auto'; setHovered(false); }}
+            rotation={[data.axisTilt || 0, 0, 0]}
           >
             <sphereGeometry args={[data.size, 64, 64]} />
-            <meshPhysicalMaterial 
-              ref={materialRef}
-              map={texture}
-              color="#ffffff" 
-              roughness={1.0}
-              metalness={0.0}
-              emissive={data.color}
-              emissiveIntensity={hovered ? 0.1 : 0}
-            />
-            
-            {/* New Upward Growing Label */}
-            {hovered && (
-              <Html position={[0, data.size * 1.1, 0]} zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
-                 <TechLabel name={data.name} color={data.color} />
-              </Html>
-            )}
+            <meshStandardMaterial map={texture} roughness={0.8} metalness={0.2} />
           </mesh>
 
-          {data.hasRings && ringTexture && (
-            <mesh rotation={[-Math.PI / 2, 0, 0]}>
-              <ringGeometry args={[data.size * 1.4, data.size * 2.3, 128]} />
-              <meshStandardMaterial 
-                map={ringTexture}
-                color="#ffffff" 
-                opacity={0.9} 
-                transparent 
-                side={DoubleSide} 
-                roughness={0.4}
-                metalness={0.2}
-              />
-            </mesh>
-          )}
-        </group>
-
-        {data.id === 'earth' && (
-          <>
-            <Moon isPaused={isPaused} simulationSpeed={simulationSpeed} showOrbit={showOrbit} onSelect={onSelect} onDoubleClick={onDoubleClick} isSelected={isSelected} />
-            <TiangongStation isPaused={isPaused} simulationSpeed={simulationSpeed} showOrbit={showOrbit} onSelect={onSelect} onDoubleClick={onDoubleClick} isSelected={isSelected} />
-          </>
-        )}
-
-        {data.id === 'jupiter' && <JupiterMoons isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} selectedId={isSelected ? data.id : null} showOrbit={showOrbit} />}
-        {data.id === 'saturn' && <SaturnMoons isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} selectedId={isSelected ? data.id : null} showOrbit={showOrbit} />}
-
-        {data.atmosphereColor && glowTexture && (
-           <Billboard>
-              <mesh scale={[data.size * 2.8, data.size * 2.8, 1]} raycast={() => null}>
-                <planeGeometry args={[1, 1]} />
+          {data.atmosphereColor && (
+            <Billboard>
+              <mesh raycast={() => null}>
+                <planeGeometry args={[data.size * 2.5, data.size * 2.5]} />
                 <meshBasicMaterial 
                   map={glowTexture} 
                   transparent 
-                  opacity={0.25}
+                  opacity={0.3} 
+                  blending={AdditiveBlending} 
+                  color={data.atmosphereColor} 
                   depthWrite={false}
-                  blending={AdditiveBlending}
-                  color={new Color(data.atmosphereColor)}
                 />
               </mesh>
-           </Billboard>
-        )}
+            </Billboard>
+          )}
 
+          {data.hasRings && ringTexture && (
+            <mesh rotation={[-Math.PI / 2, 0, 0]}>
+              <ringGeometry args={[data.size * 1.4, data.size * 2.8, 128]} />
+              <meshStandardMaterial map={ringTexture} transparent opacity={0.8} side={DoubleSide} />
+            </mesh>
+          )}
+
+          {hovered && (
+            <Html position={[0, data.size * 1.5, 0]} style={{ pointerEvents: 'none' }}>
+              <TechLabel name={data.name} color={data.color} />
+            </Html>
+          )}
+
+          {data.id === 'earth' && (
+            <>
+               <Moon isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} planetRefs={planetRefs} />
+               <TiangongStation isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} isSelected={isSelected} planetRefs={planetRefs} />
+            </>
+          )}
+
+          {data.id === 'jupiter' && JUPITER_MOONS.map(moon => (
+             <SystemMoon key={moon.id} data={moon} isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} planetRefs={planetRefs} parentRadius={data.size} />
+          ))}
+
+          {data.id === 'saturn' && SATURN_MOONS.map(moon => (
+             <SystemMoon key={moon.id} data={moon} isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} planetRefs={planetRefs} parentRadius={data.size} />
+          ))}
+        </group>
       </group>
+    </group>
+  );
+};
+
+const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; planetRefs: React.MutableRefObject<{ [key: string]: Object3D }> }> = ({ isPaused, simulationSpeed, onSelect, onDoubleClick, planetRefs }) => {
+  const meshRef = useRef<Mesh>(null);
+  const groupRef = useRef<Group>(null);
+  const textureUrl = useMemo(() => generatePlanetTexture(MOON_DATA), []);
+  const texture = useMemo(() => new TextureLoader().load(textureUrl), [textureUrl]);
+
+  useEffect(() => {
+    if (meshRef.current) planetRefs.current[MOON_DATA.id] = meshRef.current;
+  }, [planetRefs]);
+
+  useFrame((state, delta) => {
+    if (groupRef.current && !isPaused) {
+      groupRef.current.rotation.y += delta * 0.5 * simulationSpeed;
+    }
+  });
+
+  return (
+    <group ref={groupRef}>
+      <mesh 
+        ref={meshRef} 
+        position={[3.5, 0, 0]} 
+        onClick={(e) => { e.stopPropagation(); onSelect(MOON_DATA.id); }}
+        onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick(MOON_DATA.id); }}
+      >
+        <sphereGeometry args={[MOON_DATA.size, 32, 32]} />
+        <meshStandardMaterial map={texture} />
+      </mesh>
+    </group>
+  );
+};
+
+const SystemMoon: React.FC<{ data: PlanetData; isPaused: boolean; simulationSpeed: number; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; planetRefs: React.MutableRefObject<{ [key: string]: Object3D }>; parentRadius: number }> = ({ data, isPaused, simulationSpeed, onSelect, onDoubleClick, planetRefs, parentRadius }) => {
+  const meshRef = useRef<Mesh>(null);
+  const groupRef = useRef<Group>(null);
+  const textureUrl = useMemo(() => generatePlanetTexture(data), [data]);
+  const texture = useMemo(() => new TextureLoader().load(textureUrl), [textureUrl]);
+
+  useEffect(() => {
+    if (meshRef.current) planetRefs.current[data.id] = meshRef.current;
+  }, [data.id, planetRefs]);
+
+  useFrame((state, delta) => {
+    if (groupRef.current && !isPaused) {
+      groupRef.current.rotation.y += delta * data.speed * simulationSpeed;
+    }
+  });
+
+  return (
+    <group ref={groupRef}>
+      <mesh 
+        ref={meshRef} 
+        position={[parentRadius + data.distance * 0.8, 0, 0]} 
+        onClick={(e) => { e.stopPropagation(); onSelect(data.id); }}
+        onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick(data.id); }}
+      >
+        <sphereGeometry args={[data.size, 32, 32]} />
+        <meshStandardMaterial map={texture} />
+      </mesh>
     </group>
   );
 };

@@ -15,7 +15,6 @@ interface SunProps {
   planetRefs: React.MutableRefObject<{ [key: string]: Object3D }>;
 }
 
-// --- 1. SUN SURFACE SHADER ---
 const SunShaderMaterial = shaderMaterial(
   { 
     uTime: 0, 
@@ -25,7 +24,6 @@ const SunShaderMaterial = shaderMaterial(
     uColorPenumbra: new Color('#8B0000'),  
     uColorBright: new Color('#FFFFFF')     
   },
-  // Vertex Shader
   `
     varying vec2 vUv;
     varying vec3 vNormal;
@@ -41,7 +39,6 @@ const SunShaderMaterial = shaderMaterial(
       gl_Position = projectionMatrix * mvPosition;
     }
   `,
-  // Fragment Shader
   `
     uniform float uTime;
     uniform vec3 uColorPrimary;
@@ -55,7 +52,6 @@ const SunShaderMaterial = shaderMaterial(
     varying vec3 vPosition;
     varying vec3 vViewPosition;
 
-    // Ashima 3D Noise
     vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
     vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
     vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
@@ -109,7 +105,6 @@ const SunShaderMaterial = shaderMaterial(
     }
 
     void main() {
-      // Noise
       float noiseScaleA = 6.0;
       float timeScaleA = 0.1;
       float n1 = snoise(vPosition * noiseScaleA + vec3(uTime * timeScaleA));
@@ -119,7 +114,6 @@ const SunShaderMaterial = shaderMaterial(
       float combinedNoise = n1 * 0.4 + n2 * 0.6; 
       float t = combinedNoise * 0.5 + 0.5;
 
-      // Sunspots
       float umbraThreshold = 0.035;     
       float penumbraThreshold = 0.08; 
       float maskUmbra = smoothstep(umbraThreshold - 0.03, umbraThreshold + 0.02, t); 
@@ -137,7 +131,6 @@ const SunShaderMaterial = shaderMaterial(
       vec3 spotRegionColor = mix(detailedPenumbra, activeColor, maskPenumbra);
       vec3 finalBaseColor = mix(uColorSunspot, spotRegionColor, maskUmbra);
 
-      // Limb Darkening
       vec3 viewDir = normalize(vViewPosition);
       float fresnel = dot(vNormal, viewDir); 
       float darkening = pow(fresnel, 0.45); 
@@ -152,7 +145,6 @@ const SunShaderMaterial = shaderMaterial(
 
 extend({ SunShaderMaterial });
 
-// --- Minimalist HUD Tech Label ---
 const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) => {
   const match = name.match(/^(.+?)\s*\((.+?)\)$/);
   const cnName = match ? match[1] : name;
@@ -161,8 +153,6 @@ const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) =
 
   return (
     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none select-none w-max">
-       
-       {/* Floating Label Container */}
        <div 
          className="mb-1 px-5 py-2 flex flex-row items-baseline gap-3 
                     bg-gradient-to-t from-black/80 to-transparent backdrop-blur-sm rounded-sm border-b-2 
@@ -182,12 +172,8 @@ const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) =
           )}
        </div>
 
-       {/* Animated Connection Line & Reticle */}
        <div className="flex flex-col items-center relative">
-          {/* Vertical Line */}
           <div className="w-[1px] h-10 bg-gradient-to-b from-white/40 to-transparent"></div>
-          
-          {/* Target Reticle */}
           <div className="absolute bottom-0 w-6 h-6 flex items-center justify-center translate-y-1/2">
              <div className="absolute w-full h-full border border-white/20 rounded-full animate-[spin_4s_linear_infinite]"></div>
              <div className="absolute w-[70%] h-[70%] border-l border-r border-white/50 rounded-full animate-[spin_3s_linear_infinite_reverse]"></div>
@@ -199,7 +185,7 @@ const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) =
 };
 
 export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isSelected, isPaused, simulationSpeed, planetRefs }) => {
-  const rotationGroupRef = useRef<Group>(null); // For rotating visuals
+  const rotationGroupRef = useRef<Group>(null);
   const materialRef = useRef<ShaderMaterial>(null);
   const glowMeshRef1 = useRef<Mesh>(null);
   const glowMeshRef2 = useRef<Mesh>(null);
@@ -212,14 +198,12 @@ export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isSelected, i
   const glowUrl = useMemo(() => generateSunGlowTexture(), []);
   const glowTexture = useMemo(() => new TextureLoader().load(glowUrl), [glowUrl]);
 
-  // Force disable raycast on Glow Meshes
   useLayoutEffect(() => {
      if (glowMeshRef1.current) glowMeshRef1.current.raycast = () => null;
      if (glowMeshRef2.current) glowMeshRef2.current.raycast = () => null;
      if (coronaMeshRef.current) coronaMeshRef.current.raycast = () => null;
   }, []);
   
-  // Register Sun in planetRefs so camera can focus on it
   useEffect(() => {
     if (mainGroupRef.current) {
         planetRefs.current['sun'] = mainGroupRef.current;
@@ -228,7 +212,6 @@ export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isSelected, i
 
   useFrame((state, delta) => {
     if (rotationGroupRef.current && !isPaused) {
-      // Rotate visuals
       rotationGroupRef.current.rotation.y += delta * 0.002 * simulationSpeed;
     }
     
@@ -239,9 +222,7 @@ export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isSelected, i
 
   return (
     <group ref={mainGroupRef}>
-      {/* 1. VISUAL GROUP (Rotates, Has No Events) */}
       <group ref={rotationGroupRef}>
-          {/* Main Sun Body Visual */}
           <mesh raycast={() => null}>
             <sphereGeometry args={[SUN_DATA.size, 128, 128]} /> 
             {/* @ts-ignore */}
@@ -256,9 +237,7 @@ export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isSelected, i
           </mesh>
       </group>
 
-      {/* 2. INTERACTION HITBOX (Fixed Hit Area for Sun Selection) */}
       <mesh 
-        visible={false} // Invisible hitbox
         onPointerDown={(e) => { e.stopPropagation(); clickStartRef.current = { x: e.clientX, y: e.clientY }; }}
         onClick={(e) => {
           e.stopPropagation();
@@ -273,26 +252,21 @@ export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isSelected, i
         onPointerOver={() => { document.body.style.cursor = 'pointer'; setHovered(true); }}
         onPointerOut={() => { document.body.style.cursor = 'auto'; setHovered(false); }}
       >
-         {/* Slightly larger than visual sun to make it easier to click, but smaller than glow */}
-         <sphereGeometry args={[SUN_DATA.size * 1.01, 32, 32]} />
-         <meshBasicMaterial color="red" />
+         <sphereGeometry args={[SUN_DATA.size * 1.05, 32, 32]} />
+         <meshBasicMaterial transparent opacity={0} />
       </mesh>
       
-      {/* 3. GLOW LAYERS (Non-Interactive Siblings) */}
       <Billboard>
-         {/* Inner Bright Glow */}
          <mesh ref={glowMeshRef1} position={[0, 0, -0.1]} raycast={() => null}>
             <planeGeometry args={[SUN_DATA.size * 2.8, SUN_DATA.size * 2.8]} />
             <meshBasicMaterial map={glowTexture} transparent opacity={0.6} depthWrite={false} blending={AdditiveBlending} color="#FFD700" />
          </mesh>
          
-         {/* Mid Orange Glow */}
          <mesh ref={glowMeshRef2} position={[0, 0, -0.2]} raycast={() => null}>
             <planeGeometry args={[SUN_DATA.size * 5.5, SUN_DATA.size * 5.5]} />
             <meshBasicMaterial map={glowTexture} transparent opacity={0.4} depthWrite={false} blending={AdditiveBlending} color="#FF4500" />
          </mesh>
 
-         {/* Outer Corona / Solar Wind Haze (New Layer) */}
          <mesh ref={coronaMeshRef} position={[0, 0, -0.3]} raycast={() => null}>
              <planeGeometry args={[SUN_DATA.size * 9.0, SUN_DATA.size * 9.0]} />
              <meshBasicMaterial 
@@ -301,12 +275,11 @@ export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isSelected, i
                 opacity={0.15} 
                 depthWrite={false} 
                 blending={AdditiveBlending} 
-                color="#FFFFFF" // White-hot outer corona
+                color="#FFFFFF" 
              />
          </mesh>
       </Billboard>
 
-      {/* Tech Style Hover Label (Main Sun Label) */}
       {hovered && (
         <Html position={[0, SUN_DATA.size * 1.1, 0]} zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
            <TechLabel name={SUN_DATA.name} color="#FFD700" />

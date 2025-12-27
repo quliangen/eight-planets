@@ -24,7 +24,7 @@ const Skybox: React.FC = () => {
 
   useFrame((state, delta) => {
     if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.0001; // Slower background rotation
+      meshRef.current.rotation.y += delta * 0.0001; 
     }
   });
 
@@ -40,14 +40,12 @@ const Skybox: React.FC = () => {
   );
 };
 
-// Camera FlyTo Logic
 const CameraFlyTo = ({ target, planetRefs, controlsRef, setTarget }: { target: { id: string, size: number } | null, planetRefs: any, controlsRef: any, setTarget: any }) => {
   useFrame((state, delta) => {
     if (!target) return;
     const { id, size } = target;
     const targetObj = planetRefs.current[id];
     
-    // If we can't find object, abort
     if (!targetObj) {
       setTarget(null);
       return;
@@ -56,83 +54,54 @@ const CameraFlyTo = ({ target, planetRefs, controlsRef, setTarget }: { target: {
     const targetPos = new Vector3();
     targetObj.getWorldPosition(targetPos);
 
-    // Current camera state
     const currentCamPos = state.camera.position.clone();
-
-    // Desired camera state
-    // Direction from planet to camera (preserve current angle mostly)
     const dir = new Vector3().subVectors(currentCamPos, targetPos).normalize();
     
-    // Zoom distance: 4x size is decent for overview, max at least 5 units
-    // For Tiangong (0.1) -> 0.4 is too close, clamp to 3 minimum
-    // For Sun (8.0) -> 32
-    const zoomDist = Math.max(size * 4, 6.0); 
+    // 默认距离优化：太阳作为背景中心时，距离设为 140 (接近初始视角)，行星聚焦时则保持较近距离
+    const zoomDist = id === 'sun' ? 140 : Math.max(size * 4, 6.0); 
     const desiredCamPos = targetPos.clone().add(dir.multiplyScalar(zoomDist));
 
-    // Smooth step
     const lerpFactor = 4.0 * delta;
     
-    // Move controls target to planet center
     controlsRef.current.target.lerp(targetPos, lerpFactor);
-    
-    // Move camera position
     state.camera.position.lerp(desiredCamPos, lerpFactor);
-    
     controlsRef.current.update();
 
-    // Completion check: Close enough to target pos AND look target
-    if (state.camera.position.distanceTo(desiredCamPos) < 0.5 && 
+    if (state.camera.position.distanceTo(desiredCamPos) < 0.2 && 
         controlsRef.current.target.distanceTo(targetPos) < 0.1) {
-       setTarget(null); // Stop forcing animation
+       setTarget(null); 
     }
   });
   return null;
 }
 
-// Updated Controller with Smoothing to prevent Jitter
 const OrbitController = ({ controlsRef, gestureVelocity }: { controlsRef: any, gestureVelocity: React.MutableRefObject<{dx: number, dy: number, gestureType: 'rotate' | 'zoom'}> }) => {
-  // Store smoothed values to prevent camera shaking from noisy hand data
   const smoothed = useRef({ dx: 0, dy: 0 });
 
   useFrame((state, delta) => {
     if (controlsRef.current && controlsRef.current.enabled) {
       const { dx, dy, gestureType } = gestureVelocity.current;
-      
-      // Smoothing factor: Lower = Smoother/Slower, Higher = More responsive/Jittery
       const smoothFactor = 5.0 * delta;
       
       smoothed.current.dx = MathUtils.lerp(smoothed.current.dx, dx, smoothFactor);
       smoothed.current.dy = MathUtils.lerp(smoothed.current.dy, dy, smoothFactor);
 
-      // Use a small deadzone to stop movement completely when hands are steady
       const threshold = 0.001; 
       const activeDx = Math.abs(smoothed.current.dx) > threshold ? smoothed.current.dx : 0;
       const activeDy = Math.abs(smoothed.current.dy) > threshold ? smoothed.current.dy : 0;
 
-      const isActive = activeDx !== 0 || activeDy !== 0;
-
-      if (isActive) {
+      if (activeDx !== 0 || activeDy !== 0) {
           if (gestureType === 'rotate') {
-             // ROTATE MODE
-             // Hand Left/Right (dx) -> Rotate Azimuth
              controlsRef.current.setAzimuthalAngle(controlsRef.current.getAzimuthalAngle() - activeDx * 0.02);
-             
-             // Hand Up Only (dy < 0) -> Rotate Polar Angle (Look Up)
              if (activeDy < 0) {
                 controlsRef.current.setPolarAngle(controlsRef.current.getPolarAngle() - activeDy * 0.02);
              }
-             
           } else if (gestureType === 'zoom') {
-             // ZOOM MODE (Inverted as per user request)
              const zoomSensitivity = 0.015; 
              const speed = 1.0 + Math.abs(activeDy * zoomSensitivity);
-
-             // activeDy corresponds to change in distance between hands (Spread > 0, Close < 0)
              if (activeDy > 0) {
-                 // Hands apart -> Zoom Out (Dolly Out)
                  controlsRef.current.dollyOut(speed);
              } else {
-                 // Hands together -> Zoom In (Dolly In)
                  controlsRef.current.dollyIn(speed);
              }
           }
@@ -154,7 +123,6 @@ const App: React.FC = () => {
   const [isGestureMode, setIsGestureMode] = useState(false);
   const [isARMode, setIsARMode] = useState(false); 
 
-  // Camera Focus State
   const [focusTarget, setFocusTarget] = useState<{ id: string, size: number } | null>(null);
   
   const earthPositionRef = useRef<Vector3>(new Vector3(0, 0, 0));
@@ -163,7 +131,6 @@ const App: React.FC = () => {
   
   const gestureVelocity = useRef<{dx: number, dy: number, gestureType: 'rotate' | 'zoom'}>({ dx: 0, dy: 0, gestureType: 'rotate' });
 
-  // Safety Effect: Ensure body background is black on mount, and transparent on AR
   useEffect(() => {
     document.body.style.backgroundColor = isARMode ? 'transparent' : '#000';
     const root = document.getElementById('root');
@@ -178,9 +145,10 @@ const App: React.FC = () => {
   const handleClose = () => {
     setSelectedPlanetId(null);
     setIsPaused(false); 
+    // 飞回太阳，距离采用 CameraFlyTo 中定义的 140 默认距离
+    setFocusTarget({ id: SUN_DATA.id, size: SUN_DATA.size });
   };
 
-  // Helper to find planet size
   const getPlanetSize = (id: string): number => {
       if (id === 'sun') return SUN_DATA.size;
       if (id === 'moon') return MOON_DATA.size;
@@ -195,7 +163,7 @@ const App: React.FC = () => {
       const sm = SATURN_MOONS.find(x => x.id === id);
       if (sm) return sm.size;
       
-      return 2; 
+      return 1; 
   };
 
   const handleDoubleClick = (id: string) => {
