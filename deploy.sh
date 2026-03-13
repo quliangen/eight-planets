@@ -4,7 +4,7 @@
 set -e
 
 # 构建
-pnpm run build
+npm run build
 
 # 进入待发布的目录
 cd dist
@@ -18,6 +18,6 @@ git add -A
 git commit -m 'deploy'
 
 # 部署到 https://quliangen.github.io/eight-planets/
-git push -f git@github.com:quliangen/eight-planets.git main:gh-pages
+git push -f git@github.com:qudongdong/eight-planets.git main:gh-pages
 
 cd -
