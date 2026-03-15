@@ -29,19 +29,18 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
   
   // Movement calculation refs
   const currentSpeedRef = useRef(0);
-  const velocityRef = useRef(new Vector3());
   const orbitAngleRef = useRef(0);
   const orbitRadiusRef = useRef(15);
   const totalOrbitTraveledRef = useRef(0);
   const camDistRef = useRef(16); 
   
   // Leaving State Refs
+  const exitVectorRef = useRef(new Vector3());
   const leavingTimeRef = useRef(0);
-  const lookTargetRef = useRef(new Vector3());
   
   // Smooth rotation
-  const MAX_SPEED = 35; // Slightly faster for long trips
-  const ORBIT_SPEED = 10; // Slower speed for orbiting
+  const MAX_SPEED = 28; // Slightly faster for long trips
+  const ORBIT_SPEED = 8; // Slower speed for orbiting
   
   // Helper to generate mission route
   const generateMission = () => {
@@ -99,7 +98,6 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
              startPos.x += 10.0; 
              groupRef.current.position.copy(startPos);
              groupRef.current.lookAt(new Vector3(0, 0, 0)); 
-             velocityRef.current.set(0, 0, 0);
              initializedRef.current = true;
              stateRef.current = 'PLANNING';
         }
@@ -113,14 +111,11 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
     if (stateRef.current === 'PLANNING') {
        missionQueueRef.current = generateMission();
        stateRef.current = 'LEAVING'; // Start by "Leaving" spawn point to go to first target
-       // Setup initial velocity away from spawn
-       const forward = new Vector3(0, 0, 1).applyQuaternion(groupRef.current.quaternion).normalize();
-       velocityRef.current.copy(forward).multiplyScalar(10);
        leavingTimeRef.current = 0;
        return;
     }
 
-    // LEAVING: Fly straight along the tangent (or initial vector)
+    // LEAVING: Fly straight along the current forward vector
     // Also acts as the "Transition" state between planets
     if (stateRef.current === 'LEAVING') {
        leavingTimeRef.current += delta;
@@ -128,19 +123,9 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
        // Accelerate to cruise
        currentSpeedRef.current += (MAX_SPEED - currentSpeedRef.current) * 1.5 * delta;
        
-       // Move along velocity vector
-       const forward = velocityRef.current.clone().normalize();
-       velocityRef.current.copy(forward).multiplyScalar(currentSpeedRef.current);
-       groupRef.current.position.add(velocityRef.current.clone().multiplyScalar(delta));
-       
-       // Rotate Ship
-       if (velocityRef.current.lengthSq() > 0.001) {
-          const lookPos = groupRef.current.position.clone().add(velocityRef.current);
-          const dummyObj = new Object3D();
-          dummyObj.position.copy(groupRef.current.position);
-          dummyObj.lookAt(lookPos);
-          groupRef.current.quaternion.slerp(dummyObj.quaternion, 6 * delta);
-       }
+       // Move strictly forward
+       const forward = new Vector3(0, 0, 1).applyQuaternion(groupRef.current.quaternion).normalize();
+       groupRef.current.position.add(forward.multiplyScalar(currentSpeedRef.current * delta));
        
        // Banking reset
        if (shipModelRef.current) {
@@ -195,36 +180,26 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
     // TRAVELING: Fly towards the orbit entry point
     if (stateRef.current === 'TRAVELING' && targetObj) {
       const targetRadius = getSafeOrbitRadius(tId!);
-      const distToPlanet = currentPos.distanceTo(targetPos);
       
-      let entryPoint = targetPos.clone();
-      if (distToPlanet > targetRadius) {
-          const dirToPlanet = new Vector3().subVectors(targetPos, currentPos).normalize();
-          // Calculate tangent angle
-          const alpha = Math.asin(Math.min(1, targetRadius / distToPlanet));
-          // Rotate left to enter counter-clockwise orbit
-          const tangentDir = dirToPlanet.clone().applyAxisAngle(new Vector3(0, 1, 0), alpha);
-          const tangentDist = Math.cos(alpha) * distToPlanet;
-          entryPoint = currentPos.clone().add(tangentDir.multiplyScalar(tangentDist));
-          entryPoint.y = targetPos.y; // Keep it flat
-      } else {
-          // Fallback if too close
-          const flatDir = new Vector3(currentPos.x - targetPos.x, 0, currentPos.z - targetPos.z).normalize();
-          entryPoint = targetPos.clone().add(flatDir.multiplyScalar(targetRadius));
-      }
+      const dirToPlanet = new Vector3().subVectors(targetPos, currentPos).normalize();
+      
+      // Entry point logic: Aim for equator at target radius
+      const flatDir = new Vector3(dirToPlanet.x, 0, dirToPlanet.z).normalize();
+      const entryPoint = new Vector3(
+          targetPos.x - flatDir.x * targetRadius,
+          targetPos.y, 
+          targetPos.z - flatDir.z * targetRadius
+      );
       
       const distToEntry = currentPos.distanceTo(entryPoint);
 
       // Decelerate
       let targetSpeed = MAX_SPEED;
-      if (distToEntry < 40) {
-          const t = distToEntry / 40.0;
-          targetSpeed = MathUtils.lerp(ORBIT_SPEED, MAX_SPEED, t);
-      }
+      if (distToEntry < 40) targetSpeed = ORBIT_SPEED;
       
-      currentSpeedRef.current += (targetSpeed - currentSpeedRef.current) * 2.0 * delta;
+      currentSpeedRef.current += (targetSpeed - currentSpeedRef.current) * 1.5 * delta;
 
-      if (distToEntry < 8) {
+      if (distToEntry < 2) {
          // Arrived
          stateRef.current = 'ORBITING';
          orbitRadiusRef.current = targetRadius;
@@ -233,42 +208,33 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
          orbitAngleRef.current = Math.atan2(relativePos.z, relativePos.x);
          totalOrbitTraveledRef.current = 0;
       } else {
-         // Steering
-         const desiredVelocity = new Vector3().subVectors(entryPoint, currentPos).normalize().multiplyScalar(currentSpeedRef.current);
-         const steering = new Vector3().subVectors(desiredVelocity, velocityRef.current);
+         // Smooth Steering Logic
+         const dirToEntry = new Vector3().subVectors(entryPoint, currentPos).normalize();
          
-         // Limit steering force for smooth turns
-         let maxForce = 25.0; 
-         if (distToEntry < 20) maxForce = 50.0; // Turn sharper when close to avoid missing
-         if (steering.length() > maxForce) {
-             steering.normalize().multiplyScalar(maxForce);
-         }
+         const dummyObj = new Object3D();
+         dummyObj.position.copy(currentPos);
+         dummyObj.lookAt(currentPos.clone().add(dirToEntry));
          
-         velocityRef.current.add(steering.multiplyScalar(delta));
+         // Dynamic turn speed based on distance to prevent missing the target
+         let turnSpeed = 1.5;
+         if (distToEntry < 60) turnSpeed = 2.5;
+         if (distToEntry < 30) turnSpeed = 4.0;
+         if (distToEntry < 10) turnSpeed = 8.0;
+
+         groupRef.current.quaternion.slerp(dummyObj.quaternion, turnSpeed * delta);
+
+         // Move strictly forward along the ship's current orientation
+         const forward = new Vector3(0, 0, 1).applyQuaternion(groupRef.current.quaternion).normalize();
+         groupRef.current.position.add(forward.multiplyScalar(currentSpeedRef.current * delta));
          
-         // Enforce speed limit
-         if (velocityRef.current.length() > currentSpeedRef.current) {
-             velocityRef.current.normalize().multiplyScalar(currentSpeedRef.current);
-         }
-         
-         groupRef.current.position.add(velocityRef.current.clone().multiplyScalar(delta));
-         
-         // Rotate Ship
-         if (velocityRef.current.lengthSq() > 0.001) {
-            const lookPos = currentPos.clone().add(velocityRef.current);
-            const dummyObj = new Object3D();
-            dummyObj.position.copy(currentPos);
-            dummyObj.lookAt(lookPos);
-            groupRef.current.quaternion.slerp(dummyObj.quaternion, 6 * delta);
-         }
-         
-         // Bank based on turning
+         // Banking effect based on turn
+         const right = new Vector3(1, 0, 0).applyQuaternion(groupRef.current.quaternion).normalize();
+         const turnAmount = right.dot(dirToEntry); // -1 to 1 depending on how much we need to turn right/left
+
          if (shipModelRef.current) {
-            const forward = new Vector3(0, 0, 1).applyQuaternion(groupRef.current.quaternion).normalize();
-            const right = new Vector3(-1, 0, 0).applyQuaternion(groupRef.current.quaternion).normalize();
-            const turnDot = velocityRef.current.clone().normalize().dot(right);
-            const targetBank = turnDot * Math.PI / 2.5; 
-            shipModelRef.current.rotation.z = MathUtils.lerp(shipModelRef.current.rotation.z, targetBank, delta * 4);
+            // Bank into the turn (max ~60 degrees)
+            const targetBank = turnAmount * Math.PI / 3; 
+            shipModelRef.current.rotation.z = MathUtils.lerp(shipModelRef.current.rotation.z, targetBank, delta * 3);
          }
       }
     }
@@ -288,9 +254,6 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
        const nextY = targetPos.y; 
 
        const nextPos = new Vector3(nextX, nextY, nextZ);
-       
-       // Update velocity for smooth transition out of orbit
-       velocityRef.current.subVectors(nextPos, groupRef.current.position).divideScalar(delta);
        
        groupRef.current.position.copy(nextPos);
        
@@ -337,13 +300,8 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
     
     state.camera.position.lerp(desiredCamPos, 0.08);
     
-    const desiredLookTarget = groupRef.current.position.clone().add(shipForward.multiplyScalar(10));
-    if (lookTargetRef.current.lengthSq() === 0) {
-        lookTargetRef.current.copy(desiredLookTarget);
-    } else {
-        lookTargetRef.current.lerp(desiredLookTarget, 0.1);
-    }
-    state.camera.lookAt(lookTargetRef.current);
+    const lookTarget = groupRef.current.position.clone().add(shipForward.multiplyScalar(10));
+    state.camera.lookAt(lookTarget);
   });
 
   const tId = currentTargetIdRef.current;
@@ -355,58 +313,38 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, onMissionComplet
       <group ref={groupRef} scale={[1.8, 1.8, 1.8]}>
         
         {/* Speedometer & Mission HUD */}
-        <Html position={[2.5, 1.5, 0]} center transform sprite zIndexRange={[100, 0]}>
-             <div className="flex flex-col items-start pointer-events-none select-none gap-3 relative">
-                {/* Decorative HUD Elements */}
-                <div className="absolute -left-4 -top-4 w-8 h-8 border-t-2 border-l-2 border-cyan-500/50 rounded-tl-lg"></div>
-                <div className="absolute -right-4 -bottom-4 w-8 h-8 border-b-2 border-r-2 border-cyan-500/50 rounded-br-lg"></div>
+        <Html position={[2, 1, 0]} center transform sprite zIndexRange={[100, 0]}>
+             <div className="flex flex-col items-start pointer-events-none select-none gap-2">
                 
                 {/* Velocity */}
-                <div className="flex flex-col items-start relative overflow-hidden rounded-sm border border-cyan-500/30 bg-black/40 backdrop-blur-md p-3 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-                    <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(6,182,212,0.05)_50%)] bg-[length:100%_4px] pointer-events-none"></div>
-                    
-                    <div className="flex items-center gap-2 mb-1">
-                       <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_8px_#22d3ee]"></div>
-                       <span className="text-[10px] text-cyan-300 font-mono tracking-[0.2em] uppercase">Velocity</span>
+                <div className="flex flex-col items-start">
+                    <div className="bg-cyan-900/40 border-l-2 border-cyan-400 backdrop-blur-sm px-3 py-1 mb-1 transform skew-x-[-10deg]">
+                       <span className="text-[10px] text-cyan-200 font-mono tracking-widest uppercase">Velocity</span>
+                       <div className="text-xl font-bold text-white font-mono leading-none flex items-baseline gap-1">
+                          {currentSpeedDisplay.toLocaleString()} 
+                          <span className="text-[10px] text-cyan-400">KM/H</span>
+                       </div>
                     </div>
-                    
-                    <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-cyan-200 font-mono leading-none flex items-baseline gap-1 drop-shadow-md">
-                       {currentSpeedDisplay.toLocaleString()} 
-                       <span className="text-xs text-cyan-400 font-bold tracking-widest">KM/S</span>
-                    </div>
-                    
-                    {/* Speed Bar */}
-                    <div className="flex gap-1 mt-2 w-full">
-                       {[...Array(10)].map((_, i) => (
-                          <div key={i} className={`h-1.5 flex-1 rounded-sm transition-colors duration-300 ${currentSpeedRef.current > i * 3.5 ? (i > 7 ? 'bg-red-500 shadow-[0_0_5px_#ef4444]' : i > 4 ? 'bg-yellow-400 shadow-[0_0_5px_#facc15]' : 'bg-cyan-400 shadow-[0_0_5px_#22d3ee]') : 'bg-gray-800'}`}></div>
-                       ))}
+                    <div className="flex gap-0.5 mt-0.5">
+                       <div className={`h-1 w-2 rounded-sm ${currentSpeedRef.current > 5 ? 'bg-green-500' : 'bg-gray-700'}`}></div>
+                       <div className={`h-1 w-2 rounded-sm ${currentSpeedRef.current > 10 ? 'bg-green-400' : 'bg-gray-700'}`}></div>
+                       <div className={`h-1 w-2 rounded-sm ${currentSpeedRef.current > 15 ? 'bg-yellow-400' : 'bg-gray-700'}`}></div>
+                       <div className={`h-1 w-2 rounded-sm ${currentSpeedRef.current > 20 ? 'bg-red-500' : 'bg-gray-700'}`}></div>
                     </div>
                 </div>
 
                 {/* Mission Status */}
                 {missionProgress.total > 0 && (
-                   <div className="flex flex-col items-start border border-blue-500/30 bg-black/40 backdrop-blur-md p-2.5 rounded-sm shadow-[0_0_15px_rgba(59,130,246,0.2)] min-w-[160px]">
-                      <div className="flex justify-between w-full items-center mb-1">
-                         <span className="text-[9px] text-blue-300 font-mono tracking-[0.2em] uppercase">Target</span>
-                         <span className="text-[9px] text-blue-400 font-mono bg-blue-900/50 px-1.5 py-0.5 rounded">
-                           {missionProgress.current} / {missionProgress.total}
-                         </span>
-                      </div>
-                      <div className="text-lg font-bold text-white tracking-wider flex items-center gap-2">
-                         <svg className="w-4 h-4 text-blue-400 animate-spin-slow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="10" strokeDasharray="16 16" />
-                            <circle cx="12" cy="12" r="4" />
-                         </svg>
+                   <div className="bg-blue-900/40 border-l-2 border-blue-400 backdrop-blur-sm px-3 py-1 transform skew-x-[-10deg]">
+                      <span className="text-[10px] text-blue-200 font-mono tracking-widest uppercase">Mission Log</span>
+                      <div className="text-sm font-bold text-white leading-tight mt-0.5">
                          {tName.split(' ')[0]} 
+                         <span className="text-[10px] ml-1 text-blue-300 opacity-80">
+                           ({missionProgress.current}/{missionProgress.total})
+                         </span>
                       </div>
                    </div>
                 )}
-                
-                {/* State Indicator */}
-                <div className="flex items-center gap-2 px-2 py-1 bg-black/40 border border-white/10 rounded-sm">
-                   <div className={`w-1.5 h-1.5 rounded-full ${stateRef.current === 'ORBITING' ? 'bg-green-400 shadow-[0_0_8px_#4ade80]' : stateRef.current === 'TRAVELING' ? 'bg-blue-400 shadow-[0_0_8px_#60a5fa]' : 'bg-yellow-400 shadow-[0_0_8px_#facc15]'}`}></div>
-                   <span className="text-[9px] text-gray-300 font-mono tracking-widest uppercase">{stateRef.current}</span>
-                </div>
              </div>
         </Html>
 
