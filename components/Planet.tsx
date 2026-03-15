@@ -88,6 +88,8 @@ const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) =
 const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; isSelected: boolean; planetRefs: React.MutableRefObject<{ [key: string]: Object3D }> }> = ({ isPaused, simulationSpeed, onSelect, onDoubleClick, isSelected, planetRefs }) => {
   const stationRef = useRef<Group>(null);
   const solarWingsRef = useRef<Group>(null);
+  const wentianSolarRef = useRef<Group>(null);
+  const mengtianSolarRef = useRef<Group>(null);
   const [hovered, setHovered] = useState(false);
   const clickStartRef = useRef({ x: 0, y: 0 });
 
@@ -107,8 +109,11 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; on
     if (stationRef.current && !isPaused) {
       stationRef.current.rotation.y += delta * 0.8 * simulationSpeed;
     }
-    if (solarWingsRef.current && !isPaused) {
-       solarWingsRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.2) * 0.15;
+    if (!isPaused) {
+       const angle = Math.sin(state.clock.elapsedTime * 0.2) * 0.15;
+       if (solarWingsRef.current) solarWingsRef.current.rotation.x = angle;
+       if (wentianSolarRef.current) wentianSolarRef.current.rotation.x = angle;
+       if (mengtianSolarRef.current) mengtianSolarRef.current.rotation.x = angle;
     }
   });
 
@@ -125,7 +130,7 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; on
       <group ref={stationRef}>
         <group position={[2.2, 0, 0]} scale={[0.15, 0.15, 0.15]}>
            <mesh 
-             scale={[15, 15, 15]}
+             scale={[25, 25, 25]}
              onPointerDown={(e) => { e.stopPropagation(); clickStartRef.current = { x: e.clientX, y: e.clientY }; }}
              onClick={(e) => {
                 e.stopPropagation();
@@ -145,10 +150,45 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; on
            </mesh>
 
            <group rotation={[0, Math.PI / 2, 0]}>
+             {/* Node Cabin */}
              <mesh position={[0, 0, 0]}>
                 <sphereGeometry args={[0.3, 32, 32]} />
                 <meshPhysicalMaterial {...commonMaterialProps} color={dockColor} />
              </mesh>
+
+             {/* Shenzhou (Forward) */}
+             <group position={[0, 0, 0.6]}>
+                <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                   <cylinderGeometry args={[0.15, 0.15, 0.4, 32]} />
+                   <meshPhysicalMaterial {...commonMaterialProps} />
+                </mesh>
+                <mesh position={[0, 0, 0.3]} rotation={[Math.PI / 2, 0, 0]}>
+                   <cylinderGeometry args={[0.15, 0.2, 0.2, 32]} />
+                   <meshPhysicalMaterial {...commonMaterialProps} />
+                </mesh>
+                <mesh position={[0, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]}>
+                   <cylinderGeometry args={[0.2, 0.2, 0.3, 32]} />
+                   <meshPhysicalMaterial {...commonMaterialProps} />
+                </mesh>
+             </group>
+
+             {/* Shenzhou (Radial / Bottom) */}
+             <group position={[0, -0.6, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                   <cylinderGeometry args={[0.15, 0.15, 0.4, 32]} />
+                   <meshPhysicalMaterial {...commonMaterialProps} />
+                </mesh>
+                <mesh position={[0, 0, 0.3]} rotation={[Math.PI / 2, 0, 0]}>
+                   <cylinderGeometry args={[0.15, 0.2, 0.2, 32]} />
+                   <meshPhysicalMaterial {...commonMaterialProps} />
+                </mesh>
+                <mesh position={[0, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]}>
+                   <cylinderGeometry args={[0.2, 0.2, 0.3, 32]} />
+                   <meshPhysicalMaterial {...commonMaterialProps} />
+                </mesh>
+             </group>
+
+             {/* Tianhe Core Module */}
              <group position={[0, 0, -0.8]}>
                 <mesh position={[0, 0, 0.4]} rotation={[Math.PI / 2, 0, 0]}>
                    <cylinderGeometry args={[0.22, 0.22, 0.8, 32]} />
@@ -162,6 +202,32 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; on
                    <cylinderGeometry args={[0.35, 0.35, 1.0, 32]} />
                    <meshPhysicalMaterial {...commonMaterialProps} />
                 </mesh>
+                
+                {/* Tianhe Solar Panels */}
+                <group ref={solarWingsRef} position={[0, 0, -0.7]}>
+                  <mesh position={[0.9, 0, 0]}>
+                    <boxGeometry args={[1.2, 0.05, 0.4]} />
+                    <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
+                  </mesh>
+                  <mesh position={[-0.9, 0, 0]}>
+                    <boxGeometry args={[1.2, 0.05, 0.4]} />
+                    <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
+                  </mesh>
+                </group>
+
+                {/* Tianzhou Cargo (Rear) */}
+                <group position={[0, 0, -1.6]}>
+                   <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                      <cylinderGeometry args={[0.35, 0.35, 0.8, 32]} />
+                      <meshPhysicalMaterial {...commonMaterialProps} />
+                   </mesh>
+                   <mesh position={[0, 0, -0.5]} rotation={[Math.PI / 2, 0, 0]}>
+                      <cylinderGeometry args={[0.35, 0.2, 0.2, 32]} />
+                      <meshPhysicalMaterial {...commonMaterialProps} />
+                   </mesh>
+                </group>
+
+                {/* Flag */}
                 <group position={[0, 0.5, 0.2]} rotation={[0, Math.PI/2, 0]} scale={[0.8, 0.8, 0.8]}>
                    <mesh position={[0, 0.9, 0]}>
                       <cylinderGeometry args={[0.02, 0.02, 1.8]} />
@@ -170,17 +236,52 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; on
                    <AnimatedFlag texture={flagTexture} />
                 </group>
              </group>
-           </group>
 
-           <group ref={solarWingsRef} rotation={[0, 0, 0]}>
-              <mesh position={[1.8, 0, 0]}>
-                <boxGeometry args={[2.5, 0.05, 0.8]} />
-                <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
-              </mesh>
-              <mesh position={[-1.8, 0, 0]}>
-                <boxGeometry args={[2.5, 0.05, 0.8]} />
-                <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
-              </mesh>
+             {/* Wentian Lab Module (+X) */}
+             <group position={[1.0, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
+                <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                   <cylinderGeometry args={[0.35, 0.35, 1.6, 32]} />
+                   <meshPhysicalMaterial {...commonMaterialProps} />
+                </mesh>
+                <mesh position={[0, 0, -0.9]} rotation={[Math.PI / 2, 0, 0]}>
+                   <cylinderGeometry args={[0.35, 0.25, 0.2, 32]} />
+                   <meshPhysicalMaterial {...commonMaterialProps} />
+                </mesh>
+                {/* Wentian Solar Panels */}
+                <group ref={wentianSolarRef} position={[0, 0, -1.0]}>
+                  <mesh position={[0, 1.6, 0]} rotation={[0, 0, Math.PI / 2]}>
+                    <boxGeometry args={[3.0, 0.05, 0.6]} />
+                    <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
+                  </mesh>
+                  <mesh position={[0, -1.6, 0]} rotation={[0, 0, Math.PI / 2]}>
+                    <boxGeometry args={[3.0, 0.05, 0.6]} />
+                    <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
+                  </mesh>
+                </group>
+             </group>
+
+             {/* Mengtian Lab Module (-X) */}
+             <group position={[-1.0, 0, 0]} rotation={[0, -Math.PI / 2, 0]}>
+                <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                   <cylinderGeometry args={[0.35, 0.35, 1.6, 32]} />
+                   <meshPhysicalMaterial {...commonMaterialProps} />
+                </mesh>
+                <mesh position={[0, 0, -0.9]} rotation={[Math.PI / 2, 0, 0]}>
+                   <cylinderGeometry args={[0.35, 0.25, 0.2, 32]} />
+                   <meshPhysicalMaterial {...commonMaterialProps} />
+                </mesh>
+                {/* Mengtian Solar Panels */}
+                <group ref={mengtianSolarRef} position={[0, 0, -1.0]}>
+                  <mesh position={[0, 1.6, 0]} rotation={[0, 0, Math.PI / 2]}>
+                    <boxGeometry args={[3.0, 0.05, 0.6]} />
+                    <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
+                  </mesh>
+                  <mesh position={[0, -1.6, 0]} rotation={[0, 0, Math.PI / 2]}>
+                    <boxGeometry args={[3.0, 0.05, 0.6]} />
+                    <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
+                  </mesh>
+                </group>
+             </group>
            </group>
         </group>
         
