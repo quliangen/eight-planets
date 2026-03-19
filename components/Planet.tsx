@@ -322,6 +322,24 @@ export const Planet: React.FC<PlanetProps> = ({
   const glowUrl = useMemo(() => generateGenericGlowTexture(), []);
   const glowTexture = useMemo(() => new TextureLoader().load(glowUrl), [glowUrl]);
 
+  // 基于行星ID生成固定的初始角度 (0-2π)，确保刷新后位置一致
+  const initialOrbitAngle = useMemo(() => {
+    // 使用行星ID的字符编码生成伪随机数
+    let hash = 0;
+    for (let i = 0; i < data.id.length; i++) {
+      hash = data.id.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    // 将哈希值转换为 0-2π 的角度
+    return ((Math.abs(hash) % 1000) / 1000) * Math.PI * 2;
+  }, [data.id]);
+
+  useEffect(() => {
+    // 设置初始轨道角度
+    if (orbitGroupRef.current) {
+      orbitGroupRef.current.rotation.y = initialOrbitAngle;
+    }
+  }, [initialOrbitAngle]);
+
   useEffect(() => {
     if (meshRef.current) {
       planetRefs.current[data.id] = meshRef.current;
