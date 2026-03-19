@@ -34,13 +34,15 @@ export const GestureController: React.FC<GestureControllerProps> = ({
     let isMounted = true;
     const init = async () => {
       try {
+        // 使用本地 WASM 文件替代 CDN
         const vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
+          "/mediapipe/wasm"
         );
         if (!isMounted) return;
         landmarkerRef.current = await HandLandmarker.createFromOptions(vision, {
           baseOptions: {
-            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
+            // 使用本地模型文件替代 Google Cloud
+            modelAssetPath: "/mediapipe/models/hand_landmarker.task",
             delegate: "GPU"
           },
           runningMode: "VIDEO",

@@ -314,10 +314,10 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                     </div>
                   </div>
 
-                  <h1 className="text-3xl sm:text-5xl tracking-wider flex items-center gap-3 relative z-20" 
-                      style={{ 
-                        fontFamily: '"ZCOOL KuaiLe", cursive, sans-serif',
-                        textShadow: '0 4px 0 rgba(0,0,0,0.3), 0 0 15px rgba(255,255,255,0.2)' 
+                  <h1 className="text-3xl sm:text-5xl tracking-wider flex items-center gap-3 relative z-20"
+                      style={{
+                        fontFamily: '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
+                        textShadow: '0 4px 0 rgba(0,0,0,0.3), 0 0 15px rgba(255,255,255,0.2)'
                       }}>
                     <span className="bg-gradient-to-br from-yellow-300 via-orange-400 to-red-400 bg-clip-text text-transparent filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">漫游</span>
                     <span className="bg-gradient-to-br from-cyan-300 via-blue-500 to-purple-500 bg-clip-text text-transparent filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">太阳系</span>
@@ -419,7 +419,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                    </div>
                    <div>
                      <div className="text-cyan-400 text-[10px] font-mono tracking-widest uppercase mb-1">New Discovery</div>
-                     <h2 className="text-3xl text-white tracking-wide drop-shadow-lg" style={{ fontFamily: '"ZCOOL KuaiLe", cursive, sans-serif' }}>
+                     <h2 className="text-3xl text-white tracking-wide drop-shadow-lg" style={{ fontFamily: '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif' }}>
                        {selectedPlanet.name.split(' ')[0]}
                      </h2>
                      <div className="flex gap-2 mt-1">
