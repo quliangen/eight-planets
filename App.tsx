@@ -225,8 +225,8 @@ const App: React.FC = () => {
           <Environment preset="city" environmentIntensity={0.3} />
           <pointLight position={[0, 0, 0]} intensity={2.5} distance={500} />
           <ambientLight intensity={0.15} />
-          <Stars radius={400} />
           {!isARMode && <Skybox />}
+          <Stars radius={400} />
           <Sparkles count={400} scale={200} size={6} />
           <Sun onSelect={handleSelect} onDoubleClick={handleDoubleClick} isSelected={selectedPlanetId === 'sun'} isPaused={isPaused} simulationSpeed={simulationSpeed} planetRefs={planetRefs} />
           <AsteroidBelt isPaused={isPaused} simulationSpeed={simulationSpeed} />
