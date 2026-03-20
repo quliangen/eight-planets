@@ -222,7 +222,7 @@ const App: React.FC = () => {
           <CameraFlyTo target={focusTarget} planetRefs={planetRefs} controlsRef={controlsRef} setTarget={setFocusTarget} isStarshipActive={isStarshipActive} />
           <GestureHandler action={pendingAction} setAction={setPendingAction} onDoubleClick={handleDoubleClick} onClose={handleClose} />
           <OrbitController controlsRef={controlsRef} gestureVelocity={gestureVelocity} />
-          <Environment preset="city" environmentIntensity={0.3} />
+          <Environment files="/hdri/potsdamer_platz_1k.hdr" environmentIntensity={0.3} />
           <pointLight position={[0, 0, 0]} intensity={2.5} distance={500} />
           <ambientLight intensity={0.15} />
           {!isARMode && <Skybox />}
