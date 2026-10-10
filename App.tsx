@@ -233,7 +233,18 @@ const App: React.FC = () => {
           {(showPluto ? PLANETS : PLANETS.filter(p => p.id !== 'pluto')).map((planet) => (
             <Planet key={planet.id} data={planet} isSelected={selectedPlanetId === planet.id} onSelect={handleSelect} onDoubleClick={handleDoubleClick} isPaused={isPaused} simulationSpeed={simulationSpeed} earthPositionRef={earthPositionRef} planetRefs={planetRefs} isStarshipActive={isStarshipActive} showOrbit={showOrbits} />
           ))}
-          {isStarshipActive && <Starship planetRefs={planetRefs} onMissionComplete={() => setIsStarshipActive(false)} />}
+          {isStarshipActive && (
+            <Starship
+              planetRefs={planetRefs}
+              simulationSpeed={simulationSpeed}
+              isPaused={isPaused}
+              onMissionComplete={() => {
+                setIsStarshipActive(false);
+                // Fly the camera back to the solar-system overview after the tour
+                setFocusTarget({ id: SUN_DATA.id, size: SUN_DATA.size });
+              }}
+            />
+          )}
         </Suspense>
       </Canvas>
     </div>
