@@ -2,6 +2,14 @@
 import { PlanetData } from '../types';
 
 /**
+ * Wraps SVG content into a Base64 encoded data URI.
+ */
+const svgToDataUri = (width: number, height: number, content: string): string => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${content}</svg>`;
+  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+};
+
+/**
  * Generates a Base64 encoded SVG Data URI for a planet's texture.
  * This allows us to use crisp SVG vector graphics as textures on 3D spheres.
  */
@@ -906,11 +914,10 @@ export const generateStarFieldTexture = (): string => {
 };
 
 /**
- * Generates a procedural China flag texture.
+ * Builds the SVG content of the China flag (600x400 design units),
+ * reusable inside other textures.
  */
-export const generateChinaFlagTexture = (): string => {
-  const width = 600; 
-  const height = 400;
+const chinaFlagContent = (width: number, height: number): string => {
   const starYellow = "#FFDE00";
   const bgRed = "#DE2910";
   const unit = width / 30;
@@ -945,14 +952,101 @@ export const generateChinaFlagTexture = (): string => {
       smallStars += `<polygon points="${getStarPoints(c.x, c.y, 1, angle)}" fill="${starYellow}" />`;
   });
 
-  const svgContent = `
+  return `
     <rect width="100%" height="100%" fill="${bgRed}" />
     <polygon points="${bigStar}" fill="${starYellow}" />
     ${smallStars}
   `;
+};
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${svgContent}</svg>`;
-  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+/**
+ * Generates a procedural China flag texture.
+ */
+export const generateChinaFlagTexture = (): string => svgToDataUri(600, 400, chinaFlagContent(600, 400));
+
+/**
+ * Starship hull texture: black TPS heat-shield tiles on one half,
+ * brushed stainless steel with markings (flag + name) on the other.
+ * Wraps around a cylinder: u -> x, v -> y.
+ */
+export const generateStarshipHullTexture = (): string => {
+  const width = 1024;
+  const height = 512;
+  const half = width / 2;
+  const tile = 36;
+
+  // --- TPS heat-shield tiles (dark half) ---
+  let tiles = `<rect x="0" y="0" width="${half}" height="${height}" fill="#161B22" />`;
+  for (let y = 0; y < height; y += tile) {
+    for (let x = 0; x < half; x += tile) {
+      const r = Math.random();
+      if (r > 0.6) {
+        tiles += `<rect x="${x}" y="${y}" width="${tile}" height="${tile}" fill="${r > 0.85 ? '#2A3340' : '#0D1117'}" opacity="0.5" />`;
+      }
+    }
+  }
+  // Tile seams
+  let seams = '';
+  for (let x = 0; x <= half; x += tile) seams += `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="#39424E" stroke-width="1" opacity="0.55" />`;
+  for (let y = 0; y <= height; y += tile) seams += `<line x1="0" y1="${y}" x2="${half}" y2="${y}" stroke="#39424E" stroke-width="1" opacity="0.55" />`;
+
+  // --- Brushed stainless steel (light half) ---
+  let steel = `<rect x="${half}" y="0" width="${half}" height="${height}" fill="#D7DEE7" />`;
+  for (let i = 0; i < 130; i++) {
+    const x = half + Math.random() * half;
+    const light = Math.random() > 0.5;
+    steel += `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="${light ? '#FFFFFF' : '#9AA8BA'}" stroke-width="${Math.random() * 2 + 0.5}" opacity="${Math.random() * 0.07 + 0.02}" />`;
+  }
+
+  // --- Full-width panel rings (with a highlight edge on the steel side) ---
+  let panels = '';
+  [64, 168, 296, 424, 478].forEach(y => {
+    panels += `<line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="#0A0D12" stroke-width="2.5" opacity="0.45" />`;
+    panels += `<line x1="${half}" y1="${y + 2}" x2="${width}" y2="${y + 2}" stroke="#FFFFFF" stroke-width="1" opacity="0.25" />`;
+  });
+
+  // Weld seam between the two halves
+  const weld = `<rect x="${half - 2}" y="0" width="4" height="${height}" fill="#3B4654" opacity="0.8" />`;
+
+  // --- Markings on the steel side: China flag + ship name ---
+  const markings = `
+    <g transform="translate(${half + 160}, 120) scale(0.32)">
+      ${chinaFlagContent(600, 400)}
+    </g>
+    <text x="${half + 256}" y="290" font-family="sans-serif" font-size="34" font-weight="bold"
+          fill="#5B6B80" text-anchor="middle" letter-spacing="6">小豆子号</text>
+  `;
+
+  return svgToDataUri(width, height, tiles + seams + steel + panels + weld + markings);
+};
+
+/**
+ * Grid fin texture: a titanium lattice panel with transparent cells
+ * (use with alphaTest so the holes actually read as holes).
+ */
+export const generateGridFinTexture = (): string => {
+  const width = 256;
+  const height = 192;
+  const bar = '#232B38';
+  const edge = '#3A4657';
+
+  let content = '';
+  // Outer frame
+  content += `<rect x="6" y="6" width="${width - 12}" height="${height - 12}" fill="none" stroke="${bar}" stroke-width="12" />`;
+  content += `<rect x="6" y="6" width="${width - 12}" height="${height - 12}" fill="none" stroke="${edge}" stroke-width="2" opacity="0.7" />`;
+  // Vertical bars
+  for (let i = 1; i < 5; i++) {
+    const x = (width / 5) * i;
+    content += `<line x1="${x}" y1="6" x2="${x}" y2="${height - 6}" stroke="${bar}" stroke-width="9" />`;
+    content += `<line x1="${x - 4}" y1="6" x2="${x - 4}" y2="${height - 6}" stroke="#5A6B84" stroke-width="1.5" opacity="0.6" />`;
+  }
+  // Horizontal bars
+  for (let i = 1; i < 4; i++) {
+    const y = (height / 4) * i;
+    content += `<line x1="6" y1="${y}" x2="${width - 6}" y2="${y}" stroke="${bar}" stroke-width="9" />`;
+  }
+
+  return svgToDataUri(width, height, content);
 };
 
 /**

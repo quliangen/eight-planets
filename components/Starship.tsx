@@ -1,10 +1,11 @@
 
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, Group, Object3D, MathUtils, DoubleSide } from 'three';
+import { Vector2, Vector3, Group, Object3D, MathUtils, DoubleSide, LatheGeometry, Sprite, TextureLoader, SRGBColorSpace, AdditiveBlending } from 'three';
 import { Html, Text } from '@react-three/drei';
 import { PLANETS, SUN_DATA } from '../constants';
 import { EngineFlame } from './EngineFlame';
+import { generateStarshipHullTexture, generateGenericGlowTexture } from '../utils/textureGenerator';
 
 interface StarshipProps {
   planetRefs: React.MutableRefObject<{ [key: string]: Object3D }>;
@@ -58,6 +59,7 @@ const _bestObstPos = new Vector3();
 const _obsOutward = new Vector3();
 const _obsTangent = new Vector3();
 const _relOrbit = new Vector3();
+const _circlePursuit = new Vector3();
 const _dummy = new Object3D();
 
 const TWO_PI = Math.PI * 2;
@@ -69,9 +71,33 @@ const ENGINE_POSITIONS: Array<[number, number, number]> = [
   [-0.09, 0, -0.156],
 ];
 
+// Ogive nose profile (radius, height) — a smooth Starship-like taper, lathed around Y.
+// Starts at the hull radius (0.35) and ends at a point, total height 0.76.
+const NOSE_PROFILE: Array<[number, number]> = [
+  [0.35, 0], [0.348, 0.08], [0.34, 0.18], [0.325, 0.28], [0.30, 0.38],
+  [0.265, 0.48], [0.22, 0.57], [0.165, 0.65], [0.10, 0.71], [0.04, 0.75], [0, 0.76],
+];
+
 export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed, isPaused, onMissionComplete }) => {
   const groupRef = useRef<Group>(null);
   const shipModelRef = useRef<Group>(null);
+  const aftFlapLRef = useRef<Group>(null);
+  const aftFlapRRef = useRef<Group>(null);
+  const navRedRef = useRef<Sprite>(null);
+  const navGreenRef = useRef<Sprite>(null);
+  const strobeRef = useRef<Sprite>(null);
+
+  // Procedural textures & nose geometry (built once)
+  const hullTexture = useMemo(() => {
+    const t = new TextureLoader().load(generateStarshipHullTexture());
+    t.colorSpace = SRGBColorSpace;
+    return t;
+  }, []);
+  const glowTexture = useMemo(() => new TextureLoader().load(generateGenericGlowTexture()), []);
+  const noseGeometry = useMemo(
+    () => new LatheGeometry(NOSE_PROFILE.map(([r, y]) => new Vector2(r, y)), 32),
+    []
+  );
 
   // HUD state (throttled — the refs below hold the live values)
   const [currentSpeedDisplay, setCurrentSpeedDisplay] = useState(0);
@@ -96,6 +122,8 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
   const camLookRef = useRef(new Vector3());
   const leavingTimeRef = useRef(0);
   const speedHudTimerRef = useRef(0);
+  const smoothHeadingRef = useRef(new Vector3(0, 0, 1)); // Low-pass filtered steering target
+  const hazardSmoothRef = useRef(0);                     // Smoothed "dodging something" factor
 
   // Effective orbital angular rate of a planet (frozen while paused)
   const getAngularRate = (id: string) => {
@@ -213,6 +241,7 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
         // Seed the camera look-target so the first frames are stable
         _forward.set(0, 0, 1).applyQuaternion(groupRef.current.quaternion);
         camLookRef.current.copy(groupRef.current.position).addScaledVector(_forward, 10);
+        smoothHeadingRef.current.copy(_forward);
       }
       stateRef.current = 'LEAVING';
       leavingTimeRef.current = 0;
@@ -240,6 +269,9 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
           const nextId = missionQueueRef.current.shift()!;
           currentTargetIdRef.current = nextId;
           announceTarget(nextId);
+          // Seed the heading filter with the current nose direction
+          _forward.set(0, 0, 1).applyQuaternion(groupRef.current.quaternion);
+          smoothHeadingRef.current.copy(_forward);
           stateRef.current = 'TRAVELING';
         } else {
           stateRef.current = 'COMPLETED';
@@ -310,7 +342,7 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
       let brakeSpeed = orbitLinearSpeed + Math.sqrt(2 * APPROACH_DECEL * Math.max(distToEntry - 1.5, 0));
       if (distToEntry < 3) brakeSpeed = orbitLinearSpeed;
       const targetSpeed = Math.min(MAX_SPEED, brakeSpeed);
-      currentSpeedRef.current += (targetSpeed - currentSpeedRef.current) * 2.5 * dt;
+      currentSpeedRef.current += (targetSpeed - currentSpeedRef.current) * (1 - Math.exp(-2.5 * dt));
 
       // Capture only when radius, heading, altitude AND speed all line up —
       // otherwise keep flying a parking circle until they do (no insertion jolt)
@@ -327,20 +359,25 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
         totalOrbitTraveledRef.current = 0;
       } else {
         // --- Smooth steering ---
+        // Far field: pursue the moving entry point
         _dirToEntry.subVectors(_entryPoint, _pos).normalize();
 
-        // Curve onto the orbit tangent as we close in, so capture is a smooth arc
-        const blend = 1 - MathUtils.clamp((radialDist - targetRadius) / (targetRadius * 2), 0, 1);
-        _heading.copy(_dirToEntry).lerp(_tangent, blend);
-
-        // Radial correction: always drift back toward the orbit radius, so the ship
-        // can never get stuck circling forever inside (or outside) the ring
-        const radialErr = targetRadius - radialDist;
+        // Near field: circle-pursuit law — fly the orbit tangent, nudged in/out by
+        // the signed radius error. Always well-defined (the old dirToEntry/tangent
+        // lerp could collapse to a near-zero vector and flip the heading randomly),
+        // and it settles onto the ring instead of hunting around the entry point.
         _outward.copy(_relPos).divideScalar(radialDist);
-        _heading.addScaledVector(_outward, MathUtils.clamp(radialErr * 0.15, -0.6, 0.6));
+        const radialErr = targetRadius - radialDist;
+        _circlePursuit.copy(_tangent)
+          .addScaledVector(_outward, MathUtils.clamp(radialErr * 0.25, -0.75, 0.75))
+          .normalize();
 
-        // Vertical correction: always settle into the planet's plane
-        _heading.y += MathUtils.clamp((_targetPos.y - _pos.y) * 0.15, -0.5, 0.5);
+        // Blend far -> near purely on distance (smoothstep, no hard switch)
+        const nearW = MathUtils.smoothstep(1 - (radialDist - targetRadius) / (targetRadius * 2.5), 0, 1);
+        _heading.copy(_dirToEntry).lerp(_circlePursuit, nearW);
+
+        // Vertical correction: settle into the planet's plane
+        _heading.y += MathUtils.clamp((_targetPos.y - _pos.y) * 0.1, -0.35, 0.35);
         _heading.normalize();
 
         // Hazard steering: anything that bends the heading also sharpens the turn rate
@@ -408,7 +445,9 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
           _obsOutward.y = 0;
           if (_obsOutward.lengthSq() < 1e-8) _obsOutward.set(1, 0, 0); else _obsOutward.normalize();
           _obsTangent.set(-_obsOutward.z, 0, _obsOutward.x);
-          if (_obsTangent.dot(_heading) < 0) _obsTangent.negate(); // Around the side we're already turning toward
+          // Around the side we're already turning toward (use the FILTERED heading
+          // so this decision can't flip back and forth frame to frame)
+          if (_obsTangent.dot(smoothHeadingRef.current) < 0) _obsTangent.negate();
           _horiz.set(_heading.x, 0, _heading.z);
           if (_horiz.lengthSq() > 1e-8) {
             _horiz.normalize().lerp(_obsTangent, Math.min(planetDodge * 0.95, 1)).normalize();
@@ -417,26 +456,31 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
           hazard = true;
         }
 
+        // Low-pass filter the heading target — this is what kills the visible
+        // twitches when obstacles engage/disengage or the entry point drifts
+        if (smoothHeadingRef.current.dot(_heading) < -0.9) {
+          smoothHeadingRef.current.copy(_heading); // ~180° flip: snap instead of lerping through zero
+        } else {
+          smoothHeadingRef.current.lerp(_heading, 1 - Math.exp(-(hazard ? 10 : 7) * dt)).normalize();
+        }
+        hazardSmoothRef.current += ((hazard ? 1 : 0) - hazardSmoothRef.current) * (1 - Math.exp(-(hazard ? 8 : 2) * dt));
+
         _dummy.position.copy(_pos);
-        _lookAt.copy(_pos).add(_heading);
+        _lookAt.copy(_pos).add(smoothHeadingRef.current);
         _dummy.lookAt(_lookAt);
 
-        // Turn sharper as we close in so the entry can't be missed
-        let turnSpeed = 2.0;
-        if (distToEntry < 60) turnSpeed = 3.0;
-        if (distToEntry < 30) turnSpeed = 5.0;
-        if (distToEntry < 10) turnSpeed = 8.0;
-        if (hazard) turnSpeed = Math.max(turnSpeed, 6);
-
+        // Turn rate eases in continuously with proximity (no hard steps),
+        // plus up to +3 while dodging something
+        const turnSpeed = 2.0 + 5.0 * MathUtils.smoothstep(1 - distToEntry / 60, 0, 1) + hazardSmoothRef.current * 3.0;
         groupRef.current.quaternion.slerp(_dummy.quaternion, 1 - Math.exp(-turnSpeed * dt));
 
         // Move strictly forward along the ship's current orientation
         _forward.set(0, 0, 1).applyQuaternion(groupRef.current.quaternion);
         groupRef.current.position.addScaledVector(_forward, currentSpeedRef.current * dt);
 
-        // Bank into the turn (max ~60 degrees)
+        // Bank into the turn (max ~60 degrees), measured against the filtered heading
         _right.set(1, 0, 0).applyQuaternion(groupRef.current.quaternion);
-        const turnAmount = _right.dot(_heading);
+        const turnAmount = _right.dot(smoothHeadingRef.current);
         if (shipModelRef.current) {
           const targetBank = turnAmount * Math.PI / 3;
           shipModelRef.current.rotation.z = MathUtils.lerp(shipModelRef.current.rotation.z, targetBank, 1 - Math.exp(-3 * dt));
@@ -447,7 +491,7 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
     // ORBITING: Circle the planet for sightseeing
     if (stateRef.current === 'ORBITING') {
       const orbitLinearSpeed = Math.min(ORBIT_SPEED, ORBIT_ANGULAR_SPEED * orbitRadiusRef.current);
-      currentSpeedRef.current += (orbitLinearSpeed - currentSpeedRef.current) * 2.0 * dt;
+      currentSpeedRef.current += (orbitLinearSpeed - currentSpeedRef.current) * (1 - Math.exp(-2.0 * dt));
 
       const angularSpeed = currentSpeedRef.current / orbitRadiusRef.current;
       const angleDelta = angularSpeed * dt;
@@ -484,8 +528,9 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
         groupRef.current.position.copy(_circlePos);
       }
 
-      // Look along the orbit tangent
-      const futureAngle = orbitAngleRef.current + 0.1;
+      // Look along the orbit tangent — the lookahead scales with the radius so the
+      // target point never sits right on top of the ship (that caused heading wobble)
+      const futureAngle = orbitAngleRef.current + MathUtils.clamp(2.5 / orbitRadiusRef.current, 0.12, 0.45);
       _lookAt.set(
         _targetPos.x + Math.cos(futureAngle) * orbitRadiusRef.current,
         _targetPos.y,
@@ -494,6 +539,11 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
       _dummy.position.copy(groupRef.current.position);
       _dummy.lookAt(_lookAt);
       groupRef.current.quaternion.slerp(_dummy.quaternion, 1 - Math.exp(-6 * dt));
+
+      // Keep the heading filter glued to the current nose direction while orbiting,
+      // so the steering picks up seamlessly on departure (no snap when switching state)
+      _forward.set(0, 0, 1).applyQuaternion(groupRef.current.quaternion);
+      smoothHeadingRef.current.copy(_forward);
 
       // Bank into the orbit
       if (shipModelRef.current) {
@@ -544,6 +594,21 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
     if (Math.abs(displayVal - currentSpeedDisplay) > 100 && speedHudTimerRef.current > 0.15) {
       speedHudTimerRef.current = 0;
       setCurrentSpeedDisplay(displayVal);
+    }
+
+    // --- Dynamic details: nav lights blink, aft flaps articulate with the bank ---
+    const navT = state.clock.elapsedTime;
+    if (navRedRef.current) navRedRef.current.material.opacity = 0.55 + 0.35 * Math.sin(navT * 2.0);
+    if (navGreenRef.current) navGreenRef.current.material.opacity = 0.55 + 0.35 * Math.sin(navT * 2.0 + Math.PI);
+    if (strobeRef.current) {
+      // Double-flash strobe pattern every 1.4s
+      const ph = navT % 1.4;
+      strobeRef.current.material.opacity = (ph < 0.06 || (ph > 0.18 && ph < 0.24)) ? 1 : 0.04;
+    }
+    if (shipModelRef.current) {
+      const bank = shipModelRef.current.rotation.z;
+      if (aftFlapLRef.current) aftFlapLRef.current.rotation.z = 0.12 + bank * 0.45;
+      if (aftFlapRRef.current) aftFlapRRef.current.rotation.z = -0.12 + bank * 0.45;
     }
 
     // --- CAMERA (third person, frame-rate independent smoothing) ---
@@ -610,15 +675,16 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
             {/* Rotate entire ship mesh 90deg X so Y-up geometry faces Z-forward movement */}
             <group rotation={[Math.PI / 2, 0, 0]}>
 
-                {/* 1. Main Hull */}
+                {/* 1. Main Hull — half TPS heat-shield tiles, half brushed steel with markings */}
                 <mesh position={[0, 0, 0]}>
                   <cylinderGeometry args={[0.35, 0.35, 1.6, 32]} />
                   <meshPhysicalMaterial
-                    color="#e2e8f0"
-                    metalness={0.9}
-                    roughness={0.2}
-                    clearcoat={1.0}
-                    clearcoatRoughness={0.1}
+                    map={hullTexture}
+                    color="#ffffff"
+                    metalness={0.85}
+                    roughness={0.42}
+                    clearcoat={0.5}
+                    clearcoatRoughness={0.3}
                   />
                 </mesh>
 
@@ -654,38 +720,29 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
                      </Text>
                 </group>
 
-                {/* 2. Nose Cone */}
-                <mesh position={[0, 1.15, 0]}>
-                  <coneGeometry args={[0.35, 0.7, 32]} />
+                {/* 2. Nose — smooth ogive (lathe), shares the hull texture */}
+                <mesh position={[0, 0.8, 0]} geometry={noseGeometry}>
                   <meshPhysicalMaterial
-                    color="#e2e8f0"
-                    metalness={0.9}
-                    roughness={0.2}
-                    clearcoat={1.0}
+                    map={hullTexture}
+                    color="#ffffff"
+                    metalness={0.85}
+                    roughness={0.42}
+                    clearcoat={0.5}
+                    clearcoatRoughness={0.3}
                   />
                 </mesh>
 
-                {/* 3. Forward Flaps */}
-                <group position={[0, 1.0, 0]}>
-                   <mesh position={[-0.32, 0, 0]} rotation={[0, 0, 0.2]}>
-                      <boxGeometry args={[0.2, 0.3, 0.05]} />
-                      <meshStandardMaterial color="#1a1a1a" roughness={0.4} />
-                   </mesh>
-                   <mesh position={[0.32, 0, 0]} rotation={[0, 0, -0.2]}>
-                      <boxGeometry args={[0.2, 0.3, 0.05]} />
-                      <meshStandardMaterial color="#1a1a1a" roughness={0.4} />
+                {/* 4. Aft flaps — articulated, pivot around their root with the bank angle */}
+                <group ref={aftFlapLRef} position={[-0.33, -0.55, 0]}>
+                   <mesh position={[-0.14, 0, 0]}>
+                      <boxGeometry args={[0.28, 0.55, 0.06]} />
+                      <meshStandardMaterial color="#1f2937" metalness={0.7} roughness={0.45} />
                    </mesh>
                 </group>
-
-                {/* 4. Aft Flaps */}
-                <group position={[0, -0.6, 0]}>
-                   <mesh position={[-0.45, 0, 0]} rotation={[0, 0, 0.1]}>
-                      <boxGeometry args={[0.3, 0.6, 0.08]} />
-                      <meshStandardMaterial color="#1a1a1a" roughness={0.4} />
-                   </mesh>
-                   <mesh position={[0.45, 0, 0]} rotation={[0, 0, -0.1]}>
-                      <boxGeometry args={[0.3, 0.6, 0.08]} />
-                      <meshStandardMaterial color="#1a1a1a" roughness={0.4} />
+                <group ref={aftFlapRRef} position={[0.33, -0.55, 0]}>
+                   <mesh position={[0.14, 0, 0]}>
+                      <boxGeometry args={[0.28, 0.55, 0.06]} />
+                      <meshStandardMaterial color="#1f2937" metalness={0.7} roughness={0.45} />
                    </mesh>
                 </group>
 
@@ -716,6 +773,17 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
                 {ENGINE_POSITIONS.map((pos, i) => (
                    <EngineFlame key={i} speedRef={currentSpeedRef} maxSpeed={MAX_SPEED} position={[pos[0], -1.09, pos[2]]} scale={1.25} />
                 ))}
+
+                {/* 7. Navigation lights — red port / green starboard at the flaps, white strobe on the nose tip */}
+                <sprite ref={navRedRef} position={[-0.5, -0.55, 0]} scale={[0.16, 0.16, 1]}>
+                   <spriteMaterial map={glowTexture} color="#ff3030" transparent opacity={0.8} depthWrite={false} blending={AdditiveBlending} />
+                </sprite>
+                <sprite ref={navGreenRef} position={[0.5, -0.55, 0]} scale={[0.16, 0.16, 1]}>
+                   <spriteMaterial map={glowTexture} color="#30ff60" transparent opacity={0.8} depthWrite={false} blending={AdditiveBlending} />
+                </sprite>
+                <sprite ref={strobeRef} position={[0, 1.6, 0]} scale={[0.2, 0.2, 1]}>
+                   <spriteMaterial map={glowTexture} color="#ffffff" transparent opacity={0.8} depthWrite={false} blending={AdditiveBlending} />
+                </sprite>
             </group>
         </group>
       </group>

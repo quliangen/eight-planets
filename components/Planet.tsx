@@ -129,8 +129,11 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; on
     <group rotation={[Math.PI / 6, 0, Math.PI / 4]}>
       <group ref={stationRef}>
         <group position={[2.2, 0, 0]} scale={[0.15, 0.15, 0.15]}>
-           <mesh 
-             scale={[25, 25, 25]}
+           {/* Invisible click target. Radius = scale x group scale (0.15) = 0.9 world units:
+               generous for the tiny station, but MUST stay well under 1.2 or it engulfs
+               Earth (radius 1.0, center 2.2 away) and steals every click aimed at it. */}
+           <mesh
+             scale={[6, 6, 6]}
              onPointerDown={(e) => { e.stopPropagation(); clickStartRef.current = { x: e.clientX, y: e.clientY }; }}
              onClick={(e) => {
                 e.stopPropagation();
