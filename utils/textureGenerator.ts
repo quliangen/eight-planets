@@ -265,7 +265,7 @@ export const generatePlanetTexture = (data: PlanetData): string => {
           <rect width="100%" height="100%" fill="${deepBlue}" />
           <rect width="100%" height="100%" fill="url(#neptuneGrad)" opacity="0.8" />
           <g filter="url(#neptuneWinds)" opacity="0.4">
-             ${Array.from({length: 12}).map((_, i) => {
+             ${Array.from({length: 12}).map(() => {
                  const y = Math.random() * height;
                  const h = Math.random() * 20 + 5;
                  const isDark = Math.random() > 0.5;
@@ -336,7 +336,7 @@ export const generatePlanetTexture = (data: PlanetData): string => {
           <g filter="url(#jupiterGas)" opacity="0.7">
              <rect y="${height * 0.28}" width="100%" height="${height * 0.08}" fill="${beltDarker}" opacity="0.6" />
              <rect y="${height * 0.53}" width="100%" height="${height * 0.10}" fill="${beltDarker}" opacity="0.6" />
-             ${Array.from({length: 15}).map((_, i) => {
+             ${Array.from({length: 15}).map(() => {
                  const y = Math.random() * height;
                  const h = Math.random() * 5 + 1;
                  const op = Math.random() * 0.3;
@@ -376,8 +376,7 @@ export const generatePlanetTexture = (data: PlanetData): string => {
         // --- IO SPECIFIC (Volcanic, Yellow/Orange "Pizza") ---
         const ioYellow = colors[0];
         const ioOrange = colors[1];
-        const ioWhite = colors[2]; 
-        
+
         svgContent = `
            <defs>
              <filter id="ioNoise">
@@ -917,7 +916,7 @@ export const generateStarFieldTexture = (): string => {
  * Builds the SVG content of the China flag (600x400 design units),
  * reusable inside other textures.
  */
-const chinaFlagContent = (width: number, height: number): string => {
+const chinaFlagContent = (width: number): string => {
   const starYellow = "#FFDE00";
   const bgRed = "#DE2910";
   const unit = width / 30;
@@ -962,7 +961,7 @@ const chinaFlagContent = (width: number, height: number): string => {
 /**
  * Generates a procedural China flag texture.
  */
-export const generateChinaFlagTexture = (): string => svgToDataUri(600, 400, chinaFlagContent(600, 400));
+export const generateChinaFlagTexture = (): string => svgToDataUri(600, 400, chinaFlagContent(600));
 
 /**
  * Starship hull texture: black TPS heat-shield tiles on one half,
@@ -1011,7 +1010,7 @@ export const generateStarshipHullTexture = (): string => {
   // --- Markings on the steel side: China flag + ship name ---
   const markings = `
     <g transform="translate(${half + 160}, 120) scale(0.32)">
-      ${chinaFlagContent(600, 400)}
+      ${chinaFlagContent(600)}
     </g>
     <text x="${half + 256}" y="290" font-family="sans-serif" font-size="34" font-weight="bold"
           fill="#5B6B80" text-anchor="middle" letter-spacing="6">小豆子号</text>
@@ -1021,32 +1020,25 @@ export const generateStarshipHullTexture = (): string => {
 };
 
 /**
- * Grid fin texture: a titanium lattice panel with transparent cells
- * (use with alphaTest so the holes actually read as holes).
+ * 星舰船名贴图（128x512，竖排"小豆子号"，白字青色辉光）。
+ * 替代 drei/troika 的 <Text>：troika 运行时从 unpkg CDN 拉取 Roboto 字体，
+ * 既没有中文字形（会渲染成豆腐块），也破坏离线部署。
  */
-export const generateGridFinTexture = (): string => {
-  const width = 256;
-  const height = 192;
-  const bar = '#232B38';
-  const edge = '#3A4657';
-
-  let content = '';
-  // Outer frame
-  content += `<rect x="6" y="6" width="${width - 12}" height="${height - 12}" fill="none" stroke="${bar}" stroke-width="12" />`;
-  content += `<rect x="6" y="6" width="${width - 12}" height="${height - 12}" fill="none" stroke="${edge}" stroke-width="2" opacity="0.7" />`;
-  // Vertical bars
-  for (let i = 1; i < 5; i++) {
-    const x = (width / 5) * i;
-    content += `<line x1="${x}" y1="6" x2="${x}" y2="${height - 6}" stroke="${bar}" stroke-width="9" />`;
-    content += `<line x1="${x - 4}" y1="6" x2="${x - 4}" y2="${height - 6}" stroke="#5A6B84" stroke-width="1.5" opacity="0.6" />`;
-  }
-  // Horizontal bars
-  for (let i = 1; i < 4; i++) {
-    const y = (height / 4) * i;
-    content += `<line x1="6" y1="${y}" x2="${width - 6}" y2="${y}" stroke="${bar}" stroke-width="9" />`;
-  }
-
-  return svgToDataUri(width, height, content);
+export const generateShipNameTexture = (): string => {
+  const chars = ['小', '豆', '子', '号'];
+  const glyph = (y: number, extra: string) => chars
+    .map((c, i) => `<text x="64" y="${y + i * 118}" text-anchor="middle" font-family="sans-serif" font-size="92" font-weight="bold" ${extra}>${c}</text>`)
+    .join('');
+  const content = `
+    <defs>
+      <filter id="nameGlow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="6" />
+      </filter>
+    </defs>
+    ${glyph(96, 'fill="#00FFFF" opacity="0.85" filter="url(#nameGlow)"')}
+    ${glyph(96, 'fill="#FFFFFF" stroke="#00FFFF" stroke-width="2" paint-order="stroke"')}
+  `;
+  return svgToDataUri(128, 512, content);
 };
 
 /**

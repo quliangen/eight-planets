@@ -1,12 +1,13 @@
 
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Mesh, DoubleSide, Vector3, TextureLoader, AdditiveBlending, Object3D, Group, PlaneGeometry, Texture } from 'three';
+import { Mesh, DoubleSide, TextureLoader, AdditiveBlending, Object3D, Group, PlaneGeometry, Texture } from 'three';
 import { Html, Billboard } from '@react-three/drei';
 import { PlanetData } from '../types';
 import { generatePlanetTexture, generateRingTexture, generateChinaFlagTexture } from '../utils/textureGenerator';
 import { getSharedGlowTexture } from '../utils/textures';
 import { JUPITER_MOONS, SATURN_MOONS, MOON_DATA, TIANGONG_DATA } from '../constants';
+import TechLabel from './TechLabel';
 
 interface PlanetProps {
   data: PlanetData;
@@ -14,15 +15,16 @@ interface PlanetProps {
   onDoubleClick: (id: string) => void;
   isPaused: boolean;
   simulationSpeed: number;
-  earthPositionRef: React.MutableRefObject<Vector3>;
   planetRefs: React.MutableRefObject<{ [key: string]: Object3D }>;
-  isStarshipActive: boolean;
   showOrbit: boolean;
 }
 
 const AnimatedFlag = ({ texture }: { texture: Texture }) => {
   const meshRef = useRef<Mesh>(null);
   const geometry = useMemo(() => new PlaneGeometry(1.5, 1.0, 10, 8), []);
+
+  // 手动 new 的几何体不会被 r3f 自动释放
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   useFrame((state) => {
     if (!meshRef.current) return;
@@ -43,45 +45,6 @@ const AnimatedFlag = ({ texture }: { texture: Texture }) => {
     <mesh ref={meshRef} geometry={geometry} position={[-0.75, 1.1, 0]} scale={[-1, 1, 1]}>
       <meshBasicMaterial map={texture} side={DoubleSide} transparent opacity={0.95} />
     </mesh>
-  );
-};
-
-const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) => {
-  const match = name.match(/^(.+?)\s*\((.+?)\)$/);
-  const cnName = match ? match[1] : name;
-  const enNameRaw = match ? match[2] : '';
-  const enName = enNameRaw.replace(/\s+/g, '');
-
-  return (
-    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none select-none w-max">
-       <div 
-         className="mb-1 px-5 py-2 flex flex-row items-baseline gap-3 
-                    bg-gradient-to-t from-black/80 to-transparent backdrop-blur-sm rounded-sm border-b-2 
-                    transform transition-all duration-300 animate-fade-in-up"
-         style={{ 
-            borderColor: color,
-            textShadow: `0 0 10px ${color}80`
-         }}
-       >
-          <span className="text-white font-bold text-2xl tracking-widest drop-shadow-md font-sans">
-            {cnName}
-          </span>
-          {enName && (
-             <span className="text-xs font-mono font-medium tracking-[0.15em] text-cyan-200/80 uppercase">
-                {enName}
-             </span>
-          )}
-       </div>
-
-       <div className="flex flex-col items-center relative">
-          <div className="w-[1px] h-10 bg-gradient-to-b from-white/40 to-transparent"></div>
-          <div className="absolute bottom-0 w-6 h-6 flex items-center justify-center translate-y-1/2">
-             <div className="absolute w-full h-full border border-white/20 rounded-full animate-[spin_4s_linear_infinite]"></div>
-             <div className="absolute w-[70%] h-[70%] border-l border-r border-white/50 rounded-full animate-[spin_3s_linear_infinite_reverse]"></div>
-             <div className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_white]"></div>
-          </div>
-       </div>
-    </div>
   );
 };
 
@@ -309,9 +272,7 @@ export const Planet: React.FC<PlanetProps> = ({
   onDoubleClick,
   isPaused,
   simulationSpeed,
-  earthPositionRef,
   planetRefs,
-  isStarshipActive,
   showOrbit
 }) => {
   const meshRef = useRef<Mesh>(null);
@@ -359,7 +320,7 @@ export const Planet: React.FC<PlanetProps> = ({
     return () => { delete planetRefs.current[data.id]; };
   }, [data.id, planetRefs]);
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     if (!groupRef.current || isPaused) return;
 
     const orbitSpeed = data.speed * simulationSpeed;
@@ -371,10 +332,6 @@ export const Planet: React.FC<PlanetProps> = ({
 
     if (meshRef.current) {
       meshRef.current.rotation.y += delta * rotationSpeed;
-    }
-
-    if (data.id === 'earth' && meshRef.current) {
-      meshRef.current.getWorldPosition(earthPositionRef.current);
     }
   });
 
@@ -480,7 +437,7 @@ const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id
     return () => { delete planetRefs.current[MOON_DATA.id]; };
   }, [planetRefs]);
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     if (groupRef.current && !isPaused) {
       groupRef.current.rotation.y += delta * 0.5 * simulationSpeed;
     }
@@ -524,7 +481,7 @@ const SystemMoon: React.FC<{ data: PlanetData; isPaused: boolean; simulationSpee
     return () => { delete planetRefs.current[data.id]; };
   }, [data.id, planetRefs]);
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     if (groupRef.current && !isPaused) {
       groupRef.current.rotation.y += delta * data.speed * simulationSpeed;
     }

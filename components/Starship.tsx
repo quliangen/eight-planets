@@ -2,10 +2,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector2, Vector3, Quaternion, Group, Object3D, MathUtils, DoubleSide, LatheGeometry, Sprite, TextureLoader, SRGBColorSpace, AdditiveBlending } from 'three';
-import { Html, Text } from '@react-three/drei';
+import { Html } from '@react-three/drei';
 import { PLANETS, SUN_DATA } from '../constants';
 import { EngineFlame } from './EngineFlame';
-import { generateStarshipHullTexture } from '../utils/textureGenerator';
+import { generateStarshipHullTexture, generateShipNameTexture } from '../utils/textureGenerator';
 import { getSharedGlowTexture } from '../utils/textures';
 
 interface StarshipProps {
@@ -98,6 +98,12 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
     t.colorSpace = SRGBColorSpace;
     return t;
   }, []);
+  // 竖排船名"小豆子号"贴图（SVG 程序化生成，替代 troika 文本：无 CDN 字体依赖、支持中文）
+  const nameTexture = useMemo(() => {
+    const t = new TextureLoader().load(generateShipNameTexture());
+    t.colorSpace = SRGBColorSpace;
+    return t;
+  }, []);
   // 共享辉光贴图（模块级单例，不要 dispose）
   const glowTexture = getSharedGlowTexture();
   const noseGeometry = useMemo(
@@ -109,9 +115,10 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
   useEffect(() => {
     return () => {
       hullTexture.dispose();
+      nameTexture.dispose();
       noseGeometry.dispose();
     };
-  }, [hullTexture, noseGeometry]);
+  }, [hullTexture, nameTexture, noseGeometry]);
 
   // HUD state (throttled — the refs below hold the live values)
   const [currentSpeedDisplay, setCurrentSpeedDisplay] = useState(0);
@@ -707,37 +714,17 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
                   />
                 </mesh>
 
-                {/* NAME LABEL 1 (Top) - Vertical Layout */}
-                <group position={[0, 0, 0.36]}>
-                     <Text
-                        color="white" // White Glowing Text
-                        fontSize={0.28} // Larger size
-                        anchorX="center"
-                        anchorY="middle"
-                        rotation={[0, 0, 0]}
-                        lineHeight={1}
-                        outlineWidth={0.02} // Glowing Outline
-                        outlineColor="#00FFFF" // Cyan Glow
-                     >
-                       {'小\n豆\n子\n号'}
-                     </Text>
-                </group>
+                {/* NAME LABEL 1 (Top) - 竖排船名贴图，白字青色辉光 */}
+                <mesh position={[0, 0, 0.36]}>
+                  <planeGeometry args={[0.28, 1.12]} />
+                  <meshBasicMaterial map={nameTexture} transparent depthWrite={false} toneMapped={false} />
+                </mesh>
 
-                {/* NAME LABEL 2 (Bottom) - Vertical Layout - Rotated to face downwards/outwards */}
-                <group position={[0, 0, -0.36]} rotation={[0, Math.PI, 0]}>
-                     <Text
-                        color="white" // White Glowing Text
-                        fontSize={0.28} // Larger size
-                        anchorX="center"
-                        anchorY="middle"
-                        rotation={[0, 0, 0]}
-                        lineHeight={1}
-                        outlineWidth={0.02} // Glowing Outline
-                        outlineColor="#00FFFF" // Cyan Glow
-                     >
-                       {'小\n豆\n子\n号'}
-                     </Text>
-                </group>
+                {/* NAME LABEL 2 (Bottom) - 朝向外侧 */}
+                <mesh position={[0, 0, -0.36]} rotation={[0, Math.PI, 0]}>
+                  <planeGeometry args={[0.28, 1.12]} />
+                  <meshBasicMaterial map={nameTexture} transparent depthWrite={false} toneMapped={false} />
+                </mesh>
 
                 {/* 2. Nose — smooth ogive (lathe), shares the hull texture */}
                 <mesh position={[0, 0.8, 0]} geometry={noseGeometry}>

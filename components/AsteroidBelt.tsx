@@ -77,7 +77,7 @@ export const AsteroidBelt: React.FC<{ isPaused: boolean; simulationSpeed: number
   }, [particles, dummy]);
 
   // Rotate the entire belt group slowly to simulate orbit
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     if (groupRef.current && !isPaused) {
       // Asteroid belt moves slower than inner planets
       groupRef.current.rotation.y += delta * 0.01 * simulationSpeed;

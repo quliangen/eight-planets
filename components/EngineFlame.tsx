@@ -187,7 +187,7 @@ export const EngineFlame: React.FC<EngineFlameProps> = ({ speedRef, maxSpeed, po
     };
   }, [outerGeometry, innerGeometry, outerMaterial, innerMaterial]);
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     const dt = Math.min(delta, 1 / 30);
     timeRef.current += dt;
 

@@ -5,6 +5,7 @@ import { Mesh, Color, ShaderMaterial, AdditiveBlending, TextureLoader, Group, Ob
 import { Billboard, Html, shaderMaterial } from '@react-three/drei';
 import { generateSunGlowTexture } from '../utils/textureGenerator';
 import { SUN_DATA } from '../constants';
+import TechLabel from './TechLabel';
 
 interface SunProps {
   onSelect: (id: string) => void;
@@ -144,44 +145,12 @@ const SunShaderMaterial = shaderMaterial(
 
 extend({ SunShaderMaterial });
 
-const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) => {
-  const match = name.match(/^(.+?)\s*\((.+?)\)$/);
-  const cnName = match ? match[1] : name;
-  const enNameRaw = match ? match[2] : '';
-  const enName = enNameRaw.replace(/\s+/g, '');
-
-  return (
-    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none select-none w-max">
-       <div 
-         className="mb-1 px-5 py-2 flex flex-row items-baseline gap-3 
-                    bg-gradient-to-t from-black/80 to-transparent backdrop-blur-sm rounded-sm border-b-2 
-                    transform transition-all duration-300 animate-fade-in-up"
-         style={{ 
-            borderColor: color,
-            textShadow: `0 0 10px ${color}80`
-         }}
-       >
-          <span className="text-white font-bold text-2xl tracking-widest drop-shadow-md font-sans">
-            {cnName}
-          </span>
-          {enName && (
-             <span className="text-xs font-mono font-medium tracking-[0.15em] text-cyan-200/80 uppercase">
-                {enName}
-             </span>
-          )}
-       </div>
-
-       <div className="flex flex-col items-center relative">
-          <div className="w-[1px] h-10 bg-gradient-to-b from-white/40 to-transparent"></div>
-          <div className="absolute bottom-0 w-6 h-6 flex items-center justify-center translate-y-1/2">
-             <div className="absolute w-full h-full border border-white/20 rounded-full animate-[spin_4s_linear_infinite]"></div>
-             <div className="absolute w-[70%] h-[70%] border-l border-r border-white/50 rounded-full animate-[spin_3s_linear_infinite_reverse]"></div>
-             <div className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_white]"></div>
-          </div>
-       </div>
-    </div>
-  );
-};
+// JSX 传参必须引用稳定对象：每次 render new Color 会产生无意义的 uniform 更新
+const SUN_COLOR_PRIMARY = new Color('#FFD700');
+const SUN_COLOR_SECONDARY = new Color('#FF4500');
+const SUN_COLOR_SUNSPOT = new Color('#000000');
+const SUN_COLOR_PENUMBRA = new Color('#8B0000');
+const SUN_COLOR_BRIGHT = new Color('#FFFFFF');
 
 export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isPaused, simulationSpeed, planetRefs }) => {
   const rotationGroupRef = useRef<Group>(null);
@@ -225,15 +194,16 @@ export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isPaused, sim
     <group ref={mainGroupRef}>
       <group ref={rotationGroupRef}>
           <mesh raycast={() => null}>
-            <sphereGeometry args={[SUN_DATA.size, 128, 128]} /> 
+            {/* 表面细节全在 fragment shader，顶点无位移，64 段已足够平滑（原 128 浪费 4 倍顶点） */}
+            <sphereGeometry args={[SUN_DATA.size, 64, 64]} />
             {/* @ts-ignore */}
-            <sunShaderMaterial 
+            <sunShaderMaterial
                ref={materialRef}
-               uColorPrimary={new Color('#FFD700')}   
-               uColorSecondary={new Color('#FF4500')} 
-               uColorSunspot={new Color('#000000')}   
-               uColorPenumbra={new Color('#8B0000')}  
-               uColorBright={new Color('#FFFFFF')}    
+               uColorPrimary={SUN_COLOR_PRIMARY}
+               uColorSecondary={SUN_COLOR_SECONDARY}
+               uColorSunspot={SUN_COLOR_SUNSPOT}
+               uColorPenumbra={SUN_COLOR_PENUMBRA}
+               uColorBright={SUN_COLOR_BRIGHT}
             />
           </mesh>
       </group>

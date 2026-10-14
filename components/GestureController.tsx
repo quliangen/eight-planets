@@ -1,6 +1,9 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { FilesetResolver, HandLandmarker, HandLandmarkerResult } from '@mediapipe/tasks-vision';
+// 类型静态导入即可；运行时代码走动态 import，MediaPipe 不进首屏 bundle
+import type { HandLandmarker, HandLandmarkerResult } from '@mediapipe/tasks-vision';
+
+type MediaPipeModule = typeof import('@mediapipe/tasks-vision');
 
 interface GestureControllerProps {
   onControl: (dx: number, dy: number, gestureType: 'rotate' | 'zoom') => void;
@@ -22,6 +25,7 @@ export const GestureController: React.FC<GestureControllerProps> = ({
   const [loading, setLoading] = useState(true);
   const [permissionError, setPermissionError] = useState(false);
   const landmarkerRef = useRef<HandLandmarker | null>(null);
+  const mpRef = useRef<MediaPipeModule | null>(null);
   const requestRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -37,7 +41,11 @@ export const GestureController: React.FC<GestureControllerProps> = ({
       try {
         // 使用本地 WASM 文件替代 CDN；BASE_URL 保证子目录部署（如 GitHub Pages）也能解析
         const base = import.meta.env.BASE_URL;
-        const vision = await FilesetResolver.forVisionTasks(
+        // 动态加载 MediaPipe 主库（用户开启手势模式时才下载，不拖慢首屏）
+        const mp = await import('@mediapipe/tasks-vision');
+        if (!isMounted) return;
+        mpRef.current = mp;
+        const vision = await mp.FilesetResolver.forVisionTasks(
           `${base}mediapipe/wasm`
         );
         if (!isMounted) return;
@@ -51,11 +59,11 @@ export const GestureController: React.FC<GestureControllerProps> = ({
           numHands: 2
         });
         try {
-          landmarkerRef.current = await HandLandmarker.createFromOptions(vision, makeOptions('GPU'));
+          landmarkerRef.current = await mp.HandLandmarker.createFromOptions(vision, makeOptions('GPU'));
         } catch (gpuError) {
           // 部分设备/浏览器 GPU 代理不可用，降级到 CPU 保证功能可用
           console.warn("GPU delegate unavailable, falling back to CPU:", gpuError);
-          landmarkerRef.current = await HandLandmarker.createFromOptions(vision, makeOptions('CPU'));
+          landmarkerRef.current = await mp.HandLandmarker.createFromOptions(vision, makeOptions('CPU'));
         }
         if (isMounted) startWebcam();
       } catch (error) {
@@ -98,15 +106,22 @@ export const GestureController: React.FC<GestureControllerProps> = ({
     }
   };
 
+  // 摄像头流通常 30fps 而 rAF 60fps：同一帧画面会被重复推理，跳过未更新的帧可省一半 CPU
+  const lastVideoTimeRef = useRef(-1);
+
   const predictWebcam = () => {
     if (!landmarkerRef.current || !videoRef.current) return;
-    if (videoRef.current.readyState < 2) {
+    const video = videoRef.current;
+    if (video.readyState < 2) {
         requestRef.current = requestAnimationFrame(predictWebcam);
         return;
     }
-    const result = landmarkerRef.current.detectForVideo(videoRef.current, performance.now());
-    processGestures(result);
-    if (canvasRef.current) draw(result);
+    if (video.currentTime !== lastVideoTimeRef.current) {
+      lastVideoTimeRef.current = video.currentTime;
+      const result = landmarkerRef.current.detectForVideo(video, performance.now());
+      processGestures(result);
+      if (canvasRef.current) draw(result);
+    }
     requestRef.current = requestAnimationFrame(predictWebcam);
   };
 
@@ -196,7 +211,7 @@ export const GestureController: React.FC<GestureControllerProps> = ({
 
     if (result.landmarks) {
       for (const landmarks of result.landmarks) {
-        const connections = HandLandmarker.HAND_CONNECTIONS;
+        const connections = mpRef.current?.HandLandmarker.HAND_CONNECTIONS ?? [];
         ctx.strokeStyle = isPinchingRef.current ? "#ff3e3e" : "#00ffff";
         ctx.lineWidth = 3;
         for (const conn of connections) {

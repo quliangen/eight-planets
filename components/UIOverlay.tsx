@@ -5,8 +5,6 @@ import { PlanetData } from '../types';
 interface UIOverlayProps {
   selectedPlanet: PlanetData | null;
   onClose: () => void;
-  isPaused: boolean;
-  togglePause: () => void;
   simulationSpeed: number;
   setSimulationSpeed: (speed: number) => void;
   isStarshipActive: boolean;
@@ -19,11 +17,9 @@ interface UIOverlayProps {
   toggleOrbits: () => void;
 }
 
-export const UIOverlay: React.FC<UIOverlayProps> = ({ 
-  selectedPlanet, 
+export const UIOverlay: React.FC<UIOverlayProps> = ({
+  selectedPlanet,
   onClose,
-  isPaused,
-  togglePause,
   simulationSpeed,
   setSimulationSpeed,
   isStarshipActive,

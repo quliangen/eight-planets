@@ -1,5 +1,5 @@
 
-import React, { useState, Suspense, useRef, useMemo, useEffect } from 'react';
+import React, { useState, Suspense, lazy, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Sparkles, PerspectiveCamera, Environment, Stars } from '@react-three/drei';
 import { Vector3, TextureLoader, BackSide, Mesh, Object3D, RepeatWrapping, ClampToEdgeWrapping, MathUtils, Raycaster, Vector2 } from 'three';
@@ -9,8 +9,10 @@ import { Sun } from './components/Sun';
 import { Starship } from './components/Starship';
 import { AsteroidBelt } from './components/AsteroidBelt';
 import { UIOverlay } from './components/UIOverlay';
-import { GestureController } from './components/GestureController';
 import { generateStarFieldTexture } from './utils/textureGenerator';
+
+// 手势控制（含 MediaPipe 模型加载）体积大且默认关闭，按需分包懒加载
+const GestureController = lazy(() => import('./components/GestureController').then(m => ({ default: m.GestureController })));
 
 const Skybox: React.FC = () => {
   const meshRef = useRef<Mesh>(null);
@@ -25,7 +27,7 @@ const Skybox: React.FC = () => {
   // AR 模式切换会卸载天空盒，释放贴图避免泄漏
   useEffect(() => () => starTexture.dispose(), [starTexture]);
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     if (meshRef.current) {
       meshRef.current.rotation.y += delta * 0.0001;
     }
@@ -44,35 +46,37 @@ const Skybox: React.FC = () => {
   );
 };
 
+// CameraFlyTo 每帧复用的临时向量，避免飞行期间 60fps 反复 new 触发 GC 抖动
+const _flyTargetPos = new Vector3();
+const _flyDir = new Vector3();
+const _flyDesiredPos = new Vector3();
+
 const CameraFlyTo = ({ target, planetRefs, controlsRef, setTarget, isStarshipActive }: { target: { id: string, size: number } | null, planetRefs: any, controlsRef: any, setTarget: any, isStarshipActive: boolean }) => {
   useFrame((state, delta) => {
     if (!target || isStarshipActive) return;
     const { id, size } = target;
     const targetObj = planetRefs.current[id];
-    
+
     if (!targetObj) {
       setTarget(null);
       return;
     }
 
-    const targetPos = new Vector3();
-    targetObj.getWorldPosition(targetPos);
+    targetObj.getWorldPosition(_flyTargetPos);
+    _flyDir.subVectors(state.camera.position, _flyTargetPos).normalize();
 
-    const currentCamPos = state.camera.position.clone();
-    const dir = new Vector3().subVectors(currentCamPos, targetPos).normalize();
-    
-    const zoomDist = id === 'sun' ? 140 : Math.max(size * 4, 6.0); 
-    const desiredCamPos = targetPos.clone().add(dir.multiplyScalar(zoomDist));
+    const zoomDist = id === 'sun' ? 140 : Math.max(size * 4, 6.0);
+    _flyDesiredPos.copy(_flyTargetPos).addScaledVector(_flyDir, zoomDist);
 
     const lerpFactor = 4.0 * delta;
-    
-    controlsRef.current.target.lerp(targetPos, lerpFactor);
-    state.camera.position.lerp(desiredCamPos, lerpFactor);
+
+    controlsRef.current.target.lerp(_flyTargetPos, lerpFactor);
+    state.camera.position.lerp(_flyDesiredPos, lerpFactor);
     controlsRef.current.update();
 
-    if (state.camera.position.distanceTo(desiredCamPos) < 0.2 && 
-        controlsRef.current.target.distanceTo(targetPos) < 0.1) {
-       setTarget(null); 
+    if (state.camera.position.distanceTo(_flyDesiredPos) < 0.2 &&
+        controlsRef.current.target.distanceTo(_flyTargetPos) < 0.1) {
+       setTarget(null);
     }
   });
   return null;
@@ -93,9 +97,11 @@ const GestureHandler = ({ action, setAction, onDoubleClick, onClose }: { action:
       // 手势坐标是 0 到 1，需要转换成 -1 到 1 的 NDC 坐标
       const mouse = new Vector2(action.x * 2 - 1, -(action.y * 2 - 1));
       raycaster.setFromCamera(mouse, camera);
-      
-      const intersects = raycaster.intersectObjects(scene.children, true);
-      
+
+      // 只对已注册的天体求交：全场景射线会命中天空盒/星空 Points/750 颗小行星，又慢又可能误选
+      const planetRefs = (scene as any).__planetRefs || {};
+      const intersects = raycaster.intersectObjects(Object.values(planetRefs), true);
+
       if (intersects.length > 0) {
         let targetId: string | null = null;
         // 查找击中物体或其父级是否在 planetRefs 中
@@ -104,7 +110,6 @@ const GestureHandler = ({ action, setAction, onDoubleClick, onClose }: { action:
            while (obj) {
               if (obj.userData?.id) { targetId = obj.userData.id; break; }
               // 兼容性逻辑：通过 scene.__planetRefs 映射反向查找
-              const planetRefs = (scene as any).__planetRefs || {};
               const foundId = Object.keys(planetRefs).find(id => planetRefs[id] === obj);
               if (foundId) { targetId = foundId; break; }
               obj = obj.parent;
@@ -126,7 +131,7 @@ const GestureHandler = ({ action, setAction, onDoubleClick, onClose }: { action:
 const OrbitController = ({ controlsRef, gestureVelocity }: { controlsRef: any, gestureVelocity: React.MutableRefObject<{dx: number, dy: number, gestureType: 'rotate' | 'zoom'}> }) => {
   const smoothed = useRef({ dx: 0, dy: 0 });
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     if (controlsRef.current && controlsRef.current.enabled) {
       const { dx, dy, gestureType } = gestureVelocity.current;
       const smoothFactor = 5.0 * delta;
@@ -164,7 +169,6 @@ const App: React.FC = () => {
   const [focusTarget, setFocusTarget] = useState<{ id: string, size: number } | null>(null);
   const [pendingAction, setPendingAction] = useState<{ x: number, y: number, type: 'pinch' | 'peace' } | null>(null);
 
-  const earthPositionRef = useRef<Vector3>(new Vector3(0, 0, 0));
   const planetRefs = useRef<{ [key: string]: Object3D }>({});
   const controlsRef = useRef<any>(null);
   const gestureVelocity = useRef<{dx: number, dy: number, gestureType: 'rotate' | 'zoom'}>({ dx: 0, dy: 0, gestureType: 'rotate' });
@@ -214,13 +218,15 @@ const App: React.FC = () => {
 
   return (
     <div className="w-full h-screen relative overflow-hidden" style={{ backgroundColor: isARMode ? 'transparent' : '#000' }}>
-      <UIOverlay 
-        selectedPlanet={selectedPlanet} onClose={handleClose} isPaused={isPaused} togglePause={() => setIsPaused(!isPaused)} simulationSpeed={simulationSpeed} setSimulationSpeed={setSimulationSpeed} isStarshipActive={isStarshipActive} toggleStarship={() => setIsStarshipActive(!isStarshipActive)} showPluto={showPluto} togglePluto={() => setShowPluto(!showPluto)} isGestureMode={isGestureMode} toggleGestureMode={() => setIsGestureMode(!isGestureMode)} showOrbits={showOrbits} toggleOrbits={() => setShowOrbits(!showOrbits)}
+      <UIOverlay
+        selectedPlanet={selectedPlanet} onClose={handleClose} simulationSpeed={simulationSpeed} setSimulationSpeed={setSimulationSpeed} isStarshipActive={isStarshipActive} toggleStarship={() => setIsStarshipActive(!isStarshipActive)} showPluto={showPluto} togglePluto={() => setShowPluto(!showPluto)} isGestureMode={isGestureMode} toggleGestureMode={() => setIsGestureMode(!isGestureMode)} showOrbits={showOrbits} toggleOrbits={() => setShowOrbits(!showOrbits)}
       />
       {isGestureMode && (
-        <GestureController onControl={(dx, dy, gt) => { gestureVelocity.current = { dx, dy, gestureType: gt }; }} onAction={handleGestureAction} onClose={() => setIsGestureMode(false)} isARMode={isARMode} toggleARMode={() => setIsARMode(!isARMode)} />
+        <Suspense fallback={null}>
+          <GestureController onControl={(dx, dy, gt) => { const v = gestureVelocity.current; v.dx = dx; v.dy = dy; v.gestureType = gt; }} onAction={handleGestureAction} onClose={() => setIsGestureMode(false)} isARMode={isARMode} toggleARMode={() => setIsARMode(!isARMode)} />
+        </Suspense>
       )}
-      <Canvas gl={{ antialias: true, alpha: true }} onPointerMissed={() => selectedPlanetId && handleClose()} onCreated={(state) => { (state.scene as any).__planetRefs = planetRefs.current; }}>
+      <Canvas dpr={[1, 2]} gl={{ antialias: true, alpha: true }} onPointerMissed={() => selectedPlanetId && handleClose()} onCreated={(state) => { (state.scene as any).__planetRefs = planetRefs.current; }}>
         <Suspense fallback={null}>
           <PerspectiveCamera makeDefault position={[0, 80, 120]} fov={45} />
           <OrbitControls ref={controlsRef} makeDefault enabled={!isStarshipActive} enableDamping dampingFactor={0.05} enablePan={false} minDistance={2} maxDistance={500} autoRotate={!selectedPlanetId && !isPaused && !isGestureMode && !isStarshipActive && !focusTarget} autoRotateSpeed={0.1 * simulationSpeed} />
@@ -238,7 +244,7 @@ const App: React.FC = () => {
           <Sun onSelect={handleSelect} onDoubleClick={handleDoubleClick} isPaused={isPaused} simulationSpeed={simulationSpeed} planetRefs={planetRefs} />
           <AsteroidBelt isPaused={isPaused} simulationSpeed={simulationSpeed} />
           {(showPluto ? PLANETS : PLANETS.filter(p => p.id !== 'pluto')).map((planet) => (
-            <Planet key={planet.id} data={planet} onSelect={handleSelect} onDoubleClick={handleDoubleClick} isPaused={isPaused} simulationSpeed={simulationSpeed} earthPositionRef={earthPositionRef} planetRefs={planetRefs} isStarshipActive={isStarshipActive} showOrbit={showOrbits} />
+            <Planet key={planet.id} data={planet} onSelect={handleSelect} onDoubleClick={handleDoubleClick} isPaused={isPaused} simulationSpeed={simulationSpeed} planetRefs={planetRefs} showOrbit={showOrbits} />
           ))}
           {isStarshipActive && (
             <Starship
