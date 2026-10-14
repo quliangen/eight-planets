@@ -1,11 +1,12 @@
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector2, Vector3, Group, Object3D, MathUtils, DoubleSide, LatheGeometry, Sprite, TextureLoader, SRGBColorSpace, AdditiveBlending } from 'three';
+import { Vector2, Vector3, Quaternion, Group, Object3D, MathUtils, DoubleSide, LatheGeometry, Sprite, TextureLoader, SRGBColorSpace, AdditiveBlending } from 'three';
 import { Html, Text } from '@react-three/drei';
 import { PLANETS, SUN_DATA } from '../constants';
 import { EngineFlame } from './EngineFlame';
-import { generateStarshipHullTexture, generateGenericGlowTexture } from '../utils/textureGenerator';
+import { generateStarshipHullTexture } from '../utils/textureGenerator';
+import { getSharedGlowTexture } from '../utils/textures';
 
 interface StarshipProps {
   planetRefs: React.MutableRefObject<{ [key: string]: Object3D }>;
@@ -61,6 +62,10 @@ const _obsTangent = new Vector3();
 const _relOrbit = new Vector3();
 const _circlePursuit = new Vector3();
 const _dummy = new Object3D();
+const _orbitAxis = new Vector3();
+const _tiltQ = new Quaternion();
+const _spinQ = new Quaternion();
+const _X_AXIS = new Vector3(1, 0, 0);
 
 const TWO_PI = Math.PI * 2;
 
@@ -93,11 +98,20 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
     t.colorSpace = SRGBColorSpace;
     return t;
   }, []);
-  const glowTexture = useMemo(() => new TextureLoader().load(generateGenericGlowTexture()), []);
+  // 共享辉光贴图（模块级单例，不要 dispose）
+  const glowTexture = getSharedGlowTexture();
   const noseGeometry = useMemo(
     () => new LatheGeometry(NOSE_PROFILE.map(([r, y]) => new Vector2(r, y)), 32),
     []
   );
+
+  // 星舰每次任务都会挂载/卸载，手动创建的资源需要释放
+  useEffect(() => {
+    return () => {
+      hullTexture.dispose();
+      noseGeometry.dispose();
+    };
+  }, [hullTexture, noseGeometry]);
 
   // HUD state (throttled — the refs below hold the live values)
   const [currentSpeedDisplay, setCurrentSpeedDisplay] = useState(0);
@@ -133,17 +147,21 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
   };
 
   // World position of a planet, predicted t seconds into the future.
-  // All orbits are flat circles around the origin, so this is exact.
+  // Exact: rotates the current world position around the (possibly inclined)
+  // orbit axis by omega*t — mirrors Planet's orbitGroup.rotation.y advance
+  // inside the inclination wrapper, and matches the actual orbit direction.
   const predictPlanetPos = (id: string, t: number, out: Vector3) => {
     const obj = planetRefs.current[id];
     if (!obj) return out;
     obj.getWorldPosition(out);
     const omega = getAngularRate(id);
     if (omega === 0 || t <= 0) return out;
-    const r = Math.hypot(out.x, out.z);
-    if (r < 1e-3) return out;
-    const ang = Math.atan2(out.z, out.x) + omega * t;
-    out.set(Math.cos(ang) * r, out.y, Math.sin(ang) * r);
+    const incl = PLANETS.find(x => x.id === id)?.orbitInclination || 0;
+    _orbitAxis.set(0, 1, 0);
+    if (incl !== 0) {
+      _orbitAxis.applyQuaternion(_tiltQ.setFromAxisAngle(_X_AXIS, incl));
+    }
+    out.applyQuaternion(_spinQ.setFromAxisAngle(_orbitAxis, omega * t));
     return out;
   };
 
@@ -151,7 +169,8 @@ export const Starship: React.FC<StarshipProps> = ({ planetRefs, simulationSpeed,
   // starting from Earth — keeps the tour varied but kills zig-zag sun crossings.
   const generateMission = () => {
     const pool = PLANETS
-      .filter(p => p.id !== 'mercury' && p.id !== 'earth' && planetRefs.current[p.id])
+      // parent 检查：过滤掉已卸载（如冥王星被关闭）的残留引用
+      .filter(p => p.id !== 'mercury' && p.id !== 'earth' && planetRefs.current[p.id]?.parent)
       .map(p => p.id);
 
     // Fisher-Yates shuffle, take 5

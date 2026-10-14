@@ -22,8 +22,3 @@ export interface PlanetData {
   composition?: string;
   funFact?: string;
 }
-
-export interface ChatMessage {
-  role: 'user' | 'model';
-  text: string;
-}

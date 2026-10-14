@@ -1,15 +1,15 @@
 
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Mesh, Color, DoubleSide, Vector3, TextureLoader, AdditiveBlending, Object3D, Group, PlaneGeometry, Texture, MeshStandardMaterial, MeshPhysicalMaterial, RingGeometry } from 'three';
+import { Mesh, DoubleSide, Vector3, TextureLoader, AdditiveBlending, Object3D, Group, PlaneGeometry, Texture } from 'three';
 import { Html, Billboard } from '@react-three/drei';
 import { PlanetData } from '../types';
-import { generatePlanetTexture, generateRingTexture, generateGenericGlowTexture, generateChinaFlagTexture } from '../utils/textureGenerator';
+import { generatePlanetTexture, generateRingTexture, generateChinaFlagTexture } from '../utils/textureGenerator';
+import { getSharedGlowTexture } from '../utils/textures';
 import { JUPITER_MOONS, SATURN_MOONS, MOON_DATA, TIANGONG_DATA } from '../constants';
 
 interface PlanetProps {
   data: PlanetData;
-  isSelected: boolean;
   onSelect: (id: string) => void;
   onDoubleClick: (id: string) => void;
   isPaused: boolean;
@@ -85,7 +85,7 @@ const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) =
   );
 };
 
-const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; isSelected: boolean; planetRefs: React.MutableRefObject<{ [key: string]: Object3D }> }> = ({ isPaused, simulationSpeed, onSelect, onDoubleClick, isSelected, planetRefs }) => {
+const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; planetRefs: React.MutableRefObject<{ [key: string]: Object3D }> }> = ({ isPaused, simulationSpeed, onSelect, onDoubleClick, planetRefs }) => {
   const stationRef = useRef<Group>(null);
   const solarWingsRef = useRef<Group>(null);
   const wentianSolarRef = useRef<Group>(null);
@@ -96,6 +96,9 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; on
   const flagUrl = useMemo(() => generateChinaFlagTexture(), []);
   const flagTexture = useMemo(() => new TextureLoader().load(flagUrl), [flagUrl]);
 
+  // 释放 GPU 纹理（Data URI 纹理不受 useLoader 缓存管理，需手动 dispose）
+  useEffect(() => () => flagTexture.dispose(), [flagTexture]);
+
   const moduleColor = "#f0f2f5"; 
   const dockColor = "#334155";   
 
@@ -103,6 +106,8 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; on
     if (stationRef.current) {
       planetRefs.current[TIANGONG_DATA.id] = stationRef.current;
     }
+    // 卸载时清理引用，避免相机/星舰读到幽灵坐标
+    return () => { delete planetRefs.current[TIANGONG_DATA.id]; };
   }, [planetRefs]);
 
   useFrame((state, delta) => {
@@ -127,7 +132,7 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; on
 
   return (
     <group rotation={[Math.PI / 6, 0, Math.PI / 4]}>
-      <group ref={stationRef}>
+      <group ref={stationRef} userData={{ id: TIANGONG_DATA.id }}>
         <group position={[2.2, 0, 0]} scale={[0.15, 0.15, 0.15]}>
            {/* Invisible click target. Radius = scale x group scale (0.15) = 0.9 world units:
                generous for the tiny station, but MUST stay well under 1.2 or it engulfs
@@ -298,17 +303,16 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; on
   );
 };
 
-export const Planet: React.FC<PlanetProps> = ({ 
-  data, 
-  isSelected, 
-  onSelect, 
-  onDoubleClick, 
-  isPaused, 
-  simulationSpeed, 
-  earthPositionRef, 
-  planetRefs, 
-  isStarshipActive, 
-  showOrbit 
+export const Planet: React.FC<PlanetProps> = ({
+  data,
+  onSelect,
+  onDoubleClick,
+  isPaused,
+  simulationSpeed,
+  earthPositionRef,
+  planetRefs,
+  isStarshipActive,
+  showOrbit
 }) => {
   const meshRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
@@ -318,12 +322,16 @@ export const Planet: React.FC<PlanetProps> = ({
 
   const textureUrl = useMemo(() => generatePlanetTexture(data), [data]);
   const texture = useMemo(() => new TextureLoader().load(textureUrl), [textureUrl]);
-  
+
   const ringUrl = useMemo(() => data.hasRings ? generateRingTexture(data.id, data.ringColor || '#ffffff') : null, [data]);
   const ringTexture = useMemo(() => ringUrl ? new TextureLoader().load(ringUrl) : null, [ringUrl]);
 
-  const glowUrl = useMemo(() => generateGenericGlowTexture(), []);
-  const glowTexture = useMemo(() => new TextureLoader().load(glowUrl), [glowUrl]);
+  // 共享辉光贴图（模块级单例，所有行星/卫星/引擎共用一份，不要 dispose）
+  const glowTexture = getSharedGlowTexture();
+
+  // 行星/环纹理在组件卸载（如冥王星开关）时释放，避免 GPU 内存泄漏
+  useEffect(() => () => texture.dispose(), [texture]);
+  useEffect(() => () => { ringTexture?.dispose(); }, [ringTexture]);
 
   // 基于行星ID生成固定的初始角度 (0-2π)，确保刷新后位置一致
   const initialOrbitAngle = useMemo(() => {
@@ -347,6 +355,8 @@ export const Planet: React.FC<PlanetProps> = ({
     if (meshRef.current) {
       planetRefs.current[data.id] = meshRef.current;
     }
+    // 卸载时清理引用，避免相机/星舰读到幽灵坐标
+    return () => { delete planetRefs.current[data.id]; };
   }, [data.id, planetRefs]);
 
   useFrame((state, delta) => {
@@ -370,79 +380,85 @@ export const Planet: React.FC<PlanetProps> = ({
 
   return (
     <group ref={groupRef}>
-      {showOrbit && (
-        <mesh rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[data.distance - 0.05, data.distance + 0.05, 128]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.1} side={DoubleSide} />
-        </mesh>
-      )}
-
-      <group ref={orbitGroupRef}>
-        <group position={[data.distance, 0, 0]}>
-          <mesh 
-            ref={meshRef}
-            onPointerDown={(e) => { e.stopPropagation(); clickStartRef.current = { x: e.clientX, y: e.clientY }; }}
-            onClick={(e) => {
-              e.stopPropagation();
-              const dx = e.clientX - clickStartRef.current.x;
-              const dy = e.clientY - clickStartRef.current.y;
-              if (Math.sqrt(dx * dx + dy * dy) < 5) onSelect(data.id);
-            }}
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              onDoubleClick(data.id);
-            }}
-            onPointerOver={() => { document.body.style.cursor = 'pointer'; setHovered(true); }}
-            onPointerOut={() => { document.body.style.cursor = 'auto'; setHovered(false); }}
-            rotation={[data.axisTilt || 0, 0, 0]}
-          >
-            <sphereGeometry args={[data.size, 64, 64]} />
-            <meshStandardMaterial map={texture} roughness={0.8} metalness={0.2} />
+      {/* 轨道倾角：倾斜整个轨道平面（轨道线一起倾斜） */}
+      <group rotation={[data.orbitInclination || 0, 0, 0]}>
+        {showOrbit && (
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[data.distance - 0.05, data.distance + 0.05, 128]} />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.1} side={DoubleSide} />
           </mesh>
+        )}
 
-          {data.atmosphereColor && (
-            <Billboard>
-              <mesh raycast={() => null}>
-                <planeGeometry args={[data.size * 2.5, data.size * 2.5]} />
-                <meshBasicMaterial 
-                  map={glowTexture} 
-                  transparent 
-                  opacity={0.3} 
-                  blending={AdditiveBlending} 
-                  color={data.atmosphereColor} 
-                  depthWrite={false}
-                />
+        <group ref={orbitGroupRef}>
+          <group position={[data.distance, 0, 0]}>
+            {/* 轴倾角：行星本体与光环共享同一赤道平面 */}
+            <group rotation={[data.axisTilt || 0, 0, 0]}>
+              <mesh
+                ref={meshRef}
+                userData={{ id: data.id }}
+                onPointerDown={(e) => { e.stopPropagation(); clickStartRef.current = { x: e.clientX, y: e.clientY }; }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const dx = e.clientX - clickStartRef.current.x;
+                  const dy = e.clientY - clickStartRef.current.y;
+                  if (Math.sqrt(dx * dx + dy * dy) < 5) onSelect(data.id);
+                }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  onDoubleClick(data.id);
+                }}
+                onPointerOver={() => { document.body.style.cursor = 'pointer'; setHovered(true); }}
+                onPointerOut={() => { document.body.style.cursor = 'auto'; setHovered(false); }}
+              >
+                <sphereGeometry args={[data.size, 64, 64]} />
+                <meshStandardMaterial map={texture} roughness={0.8} metalness={0.2} />
               </mesh>
-            </Billboard>
-          )}
 
-          {data.hasRings && ringTexture && (
-            <mesh rotation={[-Math.PI / 2, 0, 0]}>
-              <ringGeometry args={[data.size * 1.4, data.size * 2.8, 128]} />
-              <meshStandardMaterial map={ringTexture} transparent opacity={0.8} side={DoubleSide} />
-            </mesh>
-          )}
+              {data.hasRings && ringTexture && (
+                <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                  <ringGeometry args={[data.size * 1.4, data.size * 2.8, 128]} />
+                  <meshStandardMaterial map={ringTexture} transparent opacity={0.8} side={DoubleSide} />
+                </mesh>
+              )}
+            </group>
 
-          {hovered && (
-            <Html position={[0, data.size * 1.5, 0]} style={{ pointerEvents: 'none' }}>
-              <TechLabel name={data.name} color={data.color} />
-            </Html>
-          )}
+            {data.atmosphereColor && (
+              <Billboard>
+                <mesh raycast={() => null}>
+                  <planeGeometry args={[data.size * 2.5, data.size * 2.5]} />
+                  <meshBasicMaterial
+                    map={glowTexture}
+                    transparent
+                    opacity={0.3}
+                    blending={AdditiveBlending}
+                    color={data.atmosphereColor}
+                    depthWrite={false}
+                  />
+                </mesh>
+              </Billboard>
+            )}
 
-          {data.id === 'earth' && (
-            <>
-               <Moon isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} planetRefs={planetRefs} />
-               <TiangongStation isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} isSelected={isSelected} planetRefs={planetRefs} />
-            </>
-          )}
+            {hovered && (
+              <Html position={[0, data.size * 1.5, 0]} style={{ pointerEvents: 'none' }}>
+                <TechLabel name={data.name} color={data.color} />
+              </Html>
+            )}
 
-          {data.id === 'jupiter' && JUPITER_MOONS.map(moon => (
-             <SystemMoon key={moon.id} data={moon} isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} planetRefs={planetRefs} parentRadius={data.size} />
-          ))}
+            {data.id === 'earth' && (
+              <>
+                 <Moon isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} planetRefs={planetRefs} />
+                 <TiangongStation isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} planetRefs={planetRefs} />
+              </>
+            )}
 
-          {data.id === 'saturn' && SATURN_MOONS.map(moon => (
-             <SystemMoon key={moon.id} data={moon} isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} planetRefs={planetRefs} parentRadius={data.size} />
-          ))}
+            {data.id === 'jupiter' && JUPITER_MOONS.map(moon => (
+               <SystemMoon key={moon.id} data={moon} isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} planetRefs={planetRefs} parentRadius={data.size} />
+            ))}
+
+            {data.id === 'saturn' && SATURN_MOONS.map(moon => (
+               <SystemMoon key={moon.id} data={moon} isPaused={isPaused} simulationSpeed={simulationSpeed} onSelect={onSelect} onDoubleClick={onDoubleClick} planetRefs={planetRefs} parentRadius={data.size} />
+            ))}
+          </group>
         </group>
       </group>
     </group>
@@ -452,11 +468,16 @@ export const Planet: React.FC<PlanetProps> = ({
 const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; planetRefs: React.MutableRefObject<{ [key: string]: Object3D }> }> = ({ isPaused, simulationSpeed, onSelect, onDoubleClick, planetRefs }) => {
   const meshRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
+  const clickStartRef = useRef({ x: 0, y: 0 });
   const textureUrl = useMemo(() => generatePlanetTexture(MOON_DATA), []);
   const texture = useMemo(() => new TextureLoader().load(textureUrl), [textureUrl]);
 
+  useEffect(() => () => texture.dispose(), [texture]);
+
   useEffect(() => {
     if (meshRef.current) planetRefs.current[MOON_DATA.id] = meshRef.current;
+    // 卸载时清理引用，避免相机/星舰读到幽灵坐标
+    return () => { delete planetRefs.current[MOON_DATA.id]; };
   }, [planetRefs]);
 
   useFrame((state, delta) => {
@@ -467,10 +488,18 @@ const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id
 
   return (
     <group ref={groupRef}>
-      <mesh 
-        ref={meshRef} 
-        position={[3.5, 0, 0]} 
-        onClick={(e) => { e.stopPropagation(); onSelect(MOON_DATA.id); }}
+      <mesh
+        ref={meshRef}
+        userData={{ id: MOON_DATA.id }}
+        position={[3.5, 0, 0]}
+        onPointerDown={(e) => { e.stopPropagation(); clickStartRef.current = { x: e.clientX, y: e.clientY }; }}
+        onClick={(e) => {
+          e.stopPropagation();
+          // r3f 的 click 不按拖拽距离过滤，松手前拖过 5px 视为旋转视角，不选中
+          const dx = e.clientX - clickStartRef.current.x;
+          const dy = e.clientY - clickStartRef.current.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 5) onSelect(MOON_DATA.id);
+        }}
         onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick(MOON_DATA.id); }}
       >
         <sphereGeometry args={[MOON_DATA.size, 32, 32]} />
@@ -483,11 +512,16 @@ const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id
 const SystemMoon: React.FC<{ data: PlanetData; isPaused: boolean; simulationSpeed: number; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; planetRefs: React.MutableRefObject<{ [key: string]: Object3D }>; parentRadius: number }> = ({ data, isPaused, simulationSpeed, onSelect, onDoubleClick, planetRefs, parentRadius }) => {
   const meshRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
+  const clickStartRef = useRef({ x: 0, y: 0 });
   const textureUrl = useMemo(() => generatePlanetTexture(data), [data]);
   const texture = useMemo(() => new TextureLoader().load(textureUrl), [textureUrl]);
 
+  useEffect(() => () => texture.dispose(), [texture]);
+
   useEffect(() => {
     if (meshRef.current) planetRefs.current[data.id] = meshRef.current;
+    // 卸载时清理引用，避免相机/星舰读到幽灵坐标
+    return () => { delete planetRefs.current[data.id]; };
   }, [data.id, planetRefs]);
 
   useFrame((state, delta) => {
@@ -497,11 +531,20 @@ const SystemMoon: React.FC<{ data: PlanetData; isPaused: boolean; simulationSpee
   });
 
   return (
-    <group ref={groupRef}>
-      <mesh 
-        ref={meshRef} 
-        position={[parentRadius + data.distance * 0.8, 0, 0]} 
-        onClick={(e) => { e.stopPropagation(); onSelect(data.id); }}
+    // rotation.x 承载轨道倾角（如土卫八 0.26），rotation.y 由 useFrame 驱动公转
+    <group ref={groupRef} rotation={[data.orbitInclination || 0, 0, 0]}>
+      <mesh
+        ref={meshRef}
+        userData={{ id: data.id }}
+        position={[parentRadius + data.distance * 0.8, 0, 0]}
+        onPointerDown={(e) => { e.stopPropagation(); clickStartRef.current = { x: e.clientX, y: e.clientY }; }}
+        onClick={(e) => {
+          e.stopPropagation();
+          // r3f 的 click 不按拖拽距离过滤，松手前拖过 5px 视为旋转视角，不选中
+          const dx = e.clientX - clickStartRef.current.x;
+          const dy = e.clientY - clickStartRef.current.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 5) onSelect(data.id);
+        }}
         onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick(data.id); }}
       >
         <sphereGeometry args={[data.size, 32, 32]} />

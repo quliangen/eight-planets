@@ -174,7 +174,8 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
   // Determine if we should show travel time (Not for Earth, Sun, or Moons)
   const MOON_IDS = ['io', 'europa', 'ganymede', 'callisto', 'moon', 'titan', 'enceladus', 'mimas', 'iapetus'];
   const isMoon = selectedPlanet && MOON_IDS.includes(selectedPlanet.id);
-  const showTravelTime = selectedPlanet && selectedPlanet.id !== 'earth' && selectedPlanet.id !== 'sun' && !isMoon;
+  // 天宫空间站距地仅 400km，旅行时间换算无意义，一并排除
+  const showTravelTime = selectedPlanet && selectedPlanet.id !== 'earth' && selectedPlanet.id !== 'sun' && selectedPlanet.id !== 'tiangong' && !isMoon;
   
   // Determine if we should show Habitat Info (Only for Earth)
   const isEarth = selectedPlanet?.id === 'earth';
@@ -185,9 +186,11 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
     if (planet.id === 'pluto') return { icon: '❄️', type: '矮行星' };
     if (planet.id === 'tiangong') return { icon: '🛰️', type: '空间站' };
     if (MOON_IDS.includes(planet.id)) return { icon: '🌑', type: '卫星' };
-    if (planet.realDistance < 200) return { icon: '🪨', type: '岩石系' }; 
-    if (planet.hasRings) return { icon: '🪐', type: '飞行系' };
+    // 类地行星（水/金/火）都在火星轨道（228）以内
+    if (planet.realDistance < 300) return { icon: '🪨', type: '岩石系' };
+    // 冰巨星（天/海）都在 20 亿公里之外
     if (planet.realDistance > 2000) return { icon: '🧊', type: '冰系' };
+    if (planet.hasRings) return { icon: '🪐', type: '光环系' };
     return { icon: '🎈', type: '气体系' };
   };
 
@@ -197,9 +200,9 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
     if (planet.id === 'tiangong') return '400 公里';
     if (planet.id === 'sun') return '1.5 亿公里';
     
-    // Crude approx for other planets based on average orbital distance difference
-    // Earth is at 150 million km
-    const diff = Math.abs(planet.realDistance - 150);
+    // 粗略估算：以平均轨道半径之差近似与地球的距离
+    // realDistance 单位是百万公里，1 亿公里 = 100 百万公里
+    const diff = Math.abs(planet.realDistance - 150) / 100;
     return `${Math.round(diff * 100) / 100} 亿公里`;
   };
 
@@ -503,9 +506,10 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                 
                 <div className="h-4 flex justify-between items-center mt-2 px-1 border-t border-white/5 pt-2">
                    <div className="flex gap-1">
+                     {/* Tailwind v4 的 delay-* 只生成 transition-delay，动画延迟需内联 style */}
                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
-                     <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse delay-75"></div>
-                     <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse delay-150"></div>
+                     <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" style={{ animationDelay: '75ms' }}></div>
+                     <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" style={{ animationDelay: '150ms' }}></div>
                    </div>
                    <div className="text-[9px] text-cyan-700 font-mono tracking-wider">SYS.VER 3.1</div>
                 </div>

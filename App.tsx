@@ -18,22 +18,26 @@ const Skybox: React.FC = () => {
   const starTexture = useMemo(() => {
     const t = new TextureLoader().load(starTextureUrl);
     t.wrapS = RepeatWrapping;
-    t.wrapT = ClampToEdgeWrapping; 
+    t.wrapT = ClampToEdgeWrapping;
     return t;
   }, [starTextureUrl]);
 
+  // AR 模式切换会卸载天空盒，释放贴图避免泄漏
+  useEffect(() => () => starTexture.dispose(), [starTexture]);
+
   useFrame((state, delta) => {
     if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.0001; 
+      meshRef.current.rotation.y += delta * 0.0001;
     }
   });
 
   return (
+    // 半径需大于 maxDistance(500) + 冥王星轨道(130)，否则拉远相机会飞出球外丢失星空
     <mesh ref={meshRef}>
-      <sphereGeometry args={[500, 64, 64]} />
-      <meshBasicMaterial 
-        map={starTexture} 
-        side={BackSide} 
+      <sphereGeometry args={[800, 64, 64]} />
+      <meshBasicMaterial
+        map={starTexture}
+        side={BackSide}
         color="#ffffff"
       />
     </mesh>
@@ -134,7 +138,8 @@ const OrbitController = ({ controlsRef, gestureVelocity }: { controlsRef: any, g
       if (activeDx !== 0 || activeDy !== 0) {
           if (gestureType === 'rotate') {
              controlsRef.current.setAzimuthalAngle(controlsRef.current.getAzimuthalAngle() - activeDx * 0.02);
-             if (activeDy < 0) controlsRef.current.setPolarAngle(controlsRef.current.getPolarAngle() - activeDy * 0.02);
+             // 竖直方向双向响应：抬头/低头（OrbitControls 内部会夹取极角范围）
+             controlsRef.current.setPolarAngle(controlsRef.current.getPolarAngle() - activeDy * 0.02);
           } else if (gestureType === 'zoom') {
              const speed = 1.0 + Math.abs(activeDy * 0.015);
              if (activeDy > 0) controlsRef.current.dollyOut(speed);
@@ -223,15 +228,17 @@ const App: React.FC = () => {
           <GestureHandler action={pendingAction} setAction={setPendingAction} onDoubleClick={handleDoubleClick} onClose={handleClose} />
           <OrbitController controlsRef={controlsRef} gestureVelocity={gestureVelocity} />
           <Environment files="./hdri/potsdamer_platz_1k.hdr" environmentIntensity={0.3} />
-          <pointLight position={[0, 0, 0]} intensity={2.5} distance={500} />
+          {/* decay=0 关闭物理衰减：three r155+ 默认 decay=2，2.5 的强度在行星轨道上几乎为零，
+              太阳方向光会完全失效（行星没有昼夜明暗面） */}
+          <pointLight position={[0, 0, 0]} intensity={2.5} distance={500} decay={0} />
           <ambientLight intensity={0.15} />
           {!isARMode && <Skybox />}
           <Stars radius={400} />
           <Sparkles count={400} scale={200} size={6} />
-          <Sun onSelect={handleSelect} onDoubleClick={handleDoubleClick} isSelected={selectedPlanetId === 'sun'} isPaused={isPaused} simulationSpeed={simulationSpeed} planetRefs={planetRefs} />
+          <Sun onSelect={handleSelect} onDoubleClick={handleDoubleClick} isPaused={isPaused} simulationSpeed={simulationSpeed} planetRefs={planetRefs} />
           <AsteroidBelt isPaused={isPaused} simulationSpeed={simulationSpeed} />
           {(showPluto ? PLANETS : PLANETS.filter(p => p.id !== 'pluto')).map((planet) => (
-            <Planet key={planet.id} data={planet} isSelected={selectedPlanetId === planet.id} onSelect={handleSelect} onDoubleClick={handleDoubleClick} isPaused={isPaused} simulationSpeed={simulationSpeed} earthPositionRef={earthPositionRef} planetRefs={planetRefs} isStarshipActive={isStarshipActive} showOrbit={showOrbits} />
+            <Planet key={planet.id} data={planet} onSelect={handleSelect} onDoubleClick={handleDoubleClick} isPaused={isPaused} simulationSpeed={simulationSpeed} earthPositionRef={earthPositionRef} planetRefs={planetRefs} isStarshipActive={isStarshipActive} showOrbit={showOrbits} />
           ))}
           {isStarshipActive && (
             <Starship

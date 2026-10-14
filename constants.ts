@@ -295,7 +295,7 @@ export const PLANETS: PlanetData[] = [
     description: '巨大的气态行星！我有漂亮的条纹和大红斑。你知道吗？其实我也有光环，只是它们由尘埃组成，非常暗淡。而且我有非常多的卫星朋友！',
     temperature: '-108°C',
     composition: '氢气, 氦气',
-    funFact: '木卫一喷出的火山羽流可以高达500公里！',
+    funFact: '我身上的大红斑是一场刮了300多年的超级风暴，大得能装下整个地球！而且我是太阳系自转最快的行星，一天不到10个小时。',
     textureConfig: {
       type: 'banded',
       colors: ['#E3DCCB', '#D6BC98', '#C49C76', '#A67B5B']

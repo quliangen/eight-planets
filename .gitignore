@@ -35,3 +35,6 @@ Thumbs.db
 
 # Optional eslint cache
 .eslintcache
+
+# Dev artifacts
+migrated_prompt_history/

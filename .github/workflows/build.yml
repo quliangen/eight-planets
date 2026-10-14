@@ -9,10 +9,9 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+# peaceiris/actions-gh-pages 只需要 contents: write
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   build:

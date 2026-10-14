@@ -1,5 +1,5 @@
 
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import {
   AdditiveBlending,
@@ -11,10 +11,9 @@ import {
   PointLight,
   ShaderMaterial,
   Sprite,
-  TextureLoader,
   Vector2,
 } from 'three';
-import { generateGenericGlowTexture } from '../utils/textureGenerator';
+import { getSharedGlowTexture } from '../utils/textures';
 
 interface EngineFlameProps {
   speedRef: React.MutableRefObject<number>;
@@ -175,7 +174,18 @@ export const EngineFlame: React.FC<EngineFlameProps> = ({ speedRef, maxSpeed, po
     []
   );
 
-  const glowTexture = useMemo(() => new TextureLoader().load(generateGenericGlowTexture()), []);
+  // 共享辉光贴图（模块级单例，不要 dispose）
+  const glowTexture = getSharedGlowTexture();
+
+  // 手动创建的几何体与着色器材质在卸载（星舰任务结束）时释放
+  useEffect(() => {
+    return () => {
+      outerGeometry.dispose();
+      innerGeometry.dispose();
+      outerMaterial.dispose();
+      innerMaterial.dispose();
+    };
+  }, [outerGeometry, innerGeometry, outerMaterial, innerMaterial]);
 
   useFrame((state, delta) => {
     const dt = Math.min(delta, 1 / 30);

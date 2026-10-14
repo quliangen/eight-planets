@@ -23,7 +23,8 @@ export const GestureController: React.FC<GestureControllerProps> = ({
   const [permissionError, setPermissionError] = useState(false);
   const landmarkerRef = useRef<HandLandmarker | null>(null);
   const requestRef = useRef<number>(0);
-  
+  const streamRef = useRef<MediaStream | null>(null);
+
   const prevHandDistanceRef = useRef<number | null>(null);
   const lastActionTimeRef = useRef<number>(0);
   const isPinchingRef = useRef<boolean>(false);
@@ -34,20 +35,28 @@ export const GestureController: React.FC<GestureControllerProps> = ({
     let isMounted = true;
     const init = async () => {
       try {
-        // 使用本地 WASM 文件替代 CDN (相对路径支持子目录部署)
+        // 使用本地 WASM 文件替代 CDN；BASE_URL 保证子目录部署（如 GitHub Pages）也能解析
+        const base = import.meta.env.BASE_URL;
         const vision = await FilesetResolver.forVisionTasks(
-          "mediapipe/wasm"
+          `${base}mediapipe/wasm`
         );
         if (!isMounted) return;
-        landmarkerRef.current = await HandLandmarker.createFromOptions(vision, {
+        const makeOptions = (delegate: 'GPU' | 'CPU') => ({
           baseOptions: {
-            // 使用本地模型文件替代 Google Cloud (相对路径支持子目录部署)
-            modelAssetPath: "mediapipe/models/hand_landmarker.task",
-            delegate: "GPU"
+            // 使用本地模型文件替代 Google Cloud
+            modelAssetPath: `${base}mediapipe/models/hand_landmarker.task`,
+            delegate
           },
-          runningMode: "VIDEO",
+          runningMode: 'VIDEO' as const,
           numHands: 2
         });
+        try {
+          landmarkerRef.current = await HandLandmarker.createFromOptions(vision, makeOptions('GPU'));
+        } catch (gpuError) {
+          // 部分设备/浏览器 GPU 代理不可用，降级到 CPU 保证功能可用
+          console.warn("GPU delegate unavailable, falling back to CPU:", gpuError);
+          landmarkerRef.current = await HandLandmarker.createFromOptions(vision, makeOptions('CPU'));
+        }
         if (isMounted) startWebcam();
       } catch (error) {
         console.error("Error initializing MediaPipe:", error);
@@ -61,19 +70,23 @@ export const GestureController: React.FC<GestureControllerProps> = ({
     return () => {
       isMounted = false;
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
-      if (videoRef.current && videoRef.current.srcObject) {
-        const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-        tracks.forEach(t => t.stop());
-      }
+      // 释放 MediaPipe WASM 资源，避免反复开关手势模式时累积
+      landmarkerRef.current?.close();
+      landmarkerRef.current = null;
+      // streamRef 兜底：即使 getUserMedia 晚于卸载才返回，摄像头也能被关闭
+      const stream = streamRef.current || (videoRef.current?.srcObject as MediaStream | null);
+      stream?.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
     };
   }, []);
 
   const startWebcam = async () => {
     if (!videoRef.current) return;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" } 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
       });
+      streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setLoading(false);
       setStatusMessage("准备好了！");
@@ -153,13 +166,14 @@ export const GestureController: React.FC<GestureControllerProps> = ({
       prevHandDistanceRef.current = dist;
     } else if (!isPinchingRef.current) {
       prevHandDistanceRef.current = null;
-      const x = screenX; 
-      const y = screenY; 
+      const x = screenX;
+      const y = screenY;
       let dx = 0, dy = 0;
       const DEADZONE = 0.15;
       const CENTER = 0.5;
       if (Math.abs(x - CENTER) > DEADZONE) dx = (x - CENTER) * 2.0;
-      if (y < CENTER - DEADZONE) dy = (y - CENTER) * 2.0;
+      // 竖直方向双向：手在上半区抬头、下半区低头
+      if (Math.abs(y - CENTER) > DEADZONE) dy = (y - CENTER) * 2.0;
       onControl(dx, dy, 'rotate');
     }
   };

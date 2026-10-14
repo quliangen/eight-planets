@@ -1,7 +1,7 @@
 
 import React, { useRef, useMemo, useState, useLayoutEffect, useEffect } from 'react';
 import { useFrame, extend } from '@react-three/fiber';
-import { Mesh, Color, ShaderMaterial, Vector3, AdditiveBlending, TextureLoader, TorusGeometry, DoubleSide, Group, Object3D } from 'three';
+import { Mesh, Color, ShaderMaterial, AdditiveBlending, TextureLoader, Group, Object3D } from 'three';
 import { Billboard, Html, shaderMaterial } from '@react-three/drei';
 import { generateSunGlowTexture } from '../utils/textureGenerator';
 import { SUN_DATA } from '../constants';
@@ -9,7 +9,6 @@ import { SUN_DATA } from '../constants';
 interface SunProps {
   onSelect: (id: string) => void;
   onDoubleClick: (id: string) => void;
-  isSelected: boolean;
   isPaused: boolean;
   simulationSpeed: number;
   planetRefs: React.MutableRefObject<{ [key: string]: Object3D }>;
@@ -184,7 +183,7 @@ const TechLabel: React.FC<{ name: string; color: string }> = ({ name, color }) =
   );
 };
 
-export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isSelected, isPaused, simulationSpeed, planetRefs }) => {
+export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isPaused, simulationSpeed, planetRefs }) => {
   const rotationGroupRef = useRef<Group>(null);
   const materialRef = useRef<ShaderMaterial>(null);
   const glowMeshRef1 = useRef<Mesh>(null);
@@ -208,6 +207,8 @@ export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isSelected, i
     if (mainGroupRef.current) {
         planetRefs.current['sun'] = mainGroupRef.current;
     }
+    // 卸载时清理引用，保持一致性
+    return () => { delete planetRefs.current['sun']; };
   }, [planetRefs]);
 
   useFrame((state, delta) => {
@@ -237,7 +238,8 @@ export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isSelected, i
           </mesh>
       </group>
 
-      <mesh 
+      <mesh
+        userData={{ id: SUN_DATA.id }}
         onPointerDown={(e) => { e.stopPropagation(); clickStartRef.current = { x: e.clientX, y: e.clientY }; }}
         onClick={(e) => {
           e.stopPropagation();
