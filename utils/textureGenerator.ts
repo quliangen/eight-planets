@@ -430,10 +430,8 @@ export const generatePlanetTexture = (data: PlanetData): string => {
            <!-- Base Ice -->
            <rect width="100%" height="100%" fill="${euWhite}" />
            
-           <!-- Subtle surface variation -->
-           <rect width="100%" height="100%" fill="#E0F7FA" opacity="0.1">
-             <animate attributeName="opacity" values="0.1;0.2;0.1" dur="10s" repeatCount="indefinite" />
-           </rect>
+           <!-- Subtle surface variation（静态：SVG 贴图只栅格化一次，SMIL 动画不会生效） -->
+           <rect width="100%" height="100%" fill="#E0F7FA" opacity="0.15" />
 
            <!-- The Lineae (Reddish Cracks) - Long striations -->
            ${Array.from({length: 15}).map(() => {
@@ -670,9 +668,8 @@ export const generatePlanetTexture = (data: PlanetData): string => {
           </linearGradient>
         </defs>
         <rect width="100%" height="100%" fill="url(#atmos)" />
-        <rect width="100%" height="100%" fill="${colors[1]}" opacity="0.2">
-             <animate attributeName="opacity" values="0.2;0.3;0.2" dur="5s" repeatCount="indefinite" />
-        </rect>
+        <!-- 静态覆盖层：SVG 贴图只栅格化一次，SMIL 动画不会生效，直接取中间透明度 -->
+        <rect width="100%" height="100%" fill="${colors[1]}" opacity="0.25" />
       `;
       break;
 
@@ -829,10 +826,167 @@ export const generateGenericGlowTexture = (): string => {
 };
 
 /**
+ * 知名星座数据（J2000 赤道坐标，来自公开星表）。
+ * ra: 赤经（小时），dec: 赤纬（度），mag: 视星等，color: 按恒星光谱型取色。
+ * lines 为恒星索引对；labelOffset 为名称标签相对星群质心的偏移（度）。
+ *
+ * 两点约定（天文馆标准做法）：
+ * - 恒星只按"方向"画在天球上，不按真实距离摆放：最近的北河三也有 34 光年，
+ *   在太阳系尺度内视差完全可忽略，无穷远穹顶即物理正解；
+ * - 星点大小编码"视星等"（看起来多亮），不是物理尺寸——恒星的真实角直径
+ *   都在百万分之一度量级，按真实大小画会全部不可见。
+ */
+interface ConstellationStar {
+  ra: number;
+  dec: number;
+  mag: number;
+  color: string;
+}
+
+interface Constellation {
+  name: string; // 仅展示中文名
+  stars: ConstellationStar[];
+  lines: Array<[number, number]>;
+  labelOffset: [number, number];
+}
+
+// 星座总开关：暂时整体隐藏（星点、标签、3D 连线开关），置 true 即可恢复
+export const SHOW_CONSTELLATIONS = false;
+
+// 导出给 3D 连线层（components/ConstellationLines.tsx）复用同一套数据
+export const CONSTELLATIONS: Constellation[] = [
+  {
+    name: '猎户座', labelOffset: [0, 14],
+    stars: [
+      { ra: 5.9195, dec: 7.407, mag: 0.42, color: '#FF9E57' },  // 参宿四 Betelgeuse（红超巨星）
+      { ra: 5.2423, dec: -8.202, mag: 0.13, color: '#D2E2FF' }, // 参宿七 Rigel（蓝超巨星）
+      { ra: 5.4189, dec: 6.350, mag: 1.64, color: '#C7D8FF' },  // 参宿五 Bellatrix
+      { ra: 5.6793, dec: -1.943, mag: 1.77, color: '#C0D4FF' }, // 参宿一 Alnitak（腰带）
+      { ra: 5.6036, dec: -1.202, mag: 1.69, color: '#C6D6FF' }, // 参宿二 Alnilam（腰带）
+      { ra: 5.5334, dec: -0.299, mag: 2.23, color: '#CBD9FF' }, // 参宿三 Mintaka（腰带）
+      { ra: 5.7959, dec: -9.670, mag: 2.09, color: '#C4D2FF' }, // 参宿六 Saiph
+    ],
+    // 两肩、腰带三连星、两膝的经典猎人轮廓
+    lines: [[0, 2], [0, 3], [2, 5], [3, 4], [4, 5], [3, 6], [5, 1], [6, 1]],
+  },
+  {
+    name: '双子座', labelOffset: [0, 9],
+    stars: [
+      { ra: 7.5766, dec: 31.888, mag: 1.58, color: '#F0F4FF' }, // 北河二 Castor
+      { ra: 7.7553, dec: 28.026, mag: 1.14, color: '#FFD9A0' }, // 北河三 Pollux（橙巨星）
+      { ra: 6.6285, dec: 16.399, mag: 1.92, color: '#EDF2FF' }, // 井宿三 Alhena
+      { ra: 7.3354, dec: 21.982, mag: 3.53, color: '#FFF4E0' }, // 天樽二 Wasat
+      { ra: 6.7322, dec: 25.131, mag: 2.98, color: '#FFE9C8' }, // 井宿五 Mebsuta
+      { ra: 6.3827, dec: 22.514, mag: 2.86, color: '#FFC890' }, // 井宿一 Tejat（红巨星）
+    ],
+    // 两个人形：北河二->井宿五->井宿一；北河三->天樽二->井宿三；两兄弟头相连
+    lines: [[0, 1], [0, 4], [4, 5], [1, 3], [3, 2]],
+  },
+  {
+    // 北斗七星不是正式星座，而是大熊座（Ursa Major）的星群（熊的躯干和尾巴）
+    name: '北斗七星', labelOffset: [0, 9],
+    stars: [
+      { ra: 11.0621, dec: 61.751, mag: 1.79, color: '#FFE3B3' }, // 天枢 Dubhe
+      { ra: 11.0307, dec: 56.382, mag: 2.37, color: '#F0F4FF' }, // 天璇 Merak
+      { ra: 11.8972, dec: 53.695, mag: 2.44, color: '#EDF2FF' }, // 天玑 Phecda
+      { ra: 12.2571, dec: 57.033, mag: 3.31, color: '#F0F4FF' }, // 天权 Megrez
+      { ra: 12.9005, dec: 55.960, mag: 1.77, color: '#E4EBFF' }, // 玉衡 Alioth
+      { ra: 13.3988, dec: 54.925, mag: 2.27, color: '#F0F4FF' }, // 开阳 Mizar
+      { ra: 13.7923, dec: 49.313, mag: 1.86, color: '#C9D8FF' }, // 摇光 Alkaid
+    ],
+    // 斗身四边形 + 斗柄
+    lines: [[0, 1], [1, 2], [2, 3], [3, 0], [3, 4], [4, 5], [5, 6]],
+  },
+  {
+    name: '天蝎座', labelOffset: [0, -13],
+    stars: [
+      { ra: 16.4901, dec: -26.432, mag: 0.96, color: '#FF7043' }, // 心宿二 Antares（红超巨星）
+      { ra: 16.0906, dec: -19.805, mag: 2.62, color: '#C6D6FF' }, // 房宿四 Acrab
+      { ra: 16.0056, dec: -22.622, mag: 2.32, color: '#C2D2FF' }, // 房宿三 Dschubba
+      { ra: 15.9809, dec: -26.114, mag: 2.89, color: '#C4D6FF' }, // 房宿一 Pi Sco
+      { ra: 16.3531, dec: -25.593, mag: 2.89, color: '#C2D2FF' }, // 心宿一 Sigma Sco
+      { ra: 16.5980, dec: -28.216, mag: 2.82, color: '#C6D6FF' }, // 心宿三 Tau Sco
+      { ra: 16.8360, dec: -34.293, mag: 2.29, color: '#FFE3C8' }, // 尾宿二 Epsilon Sco
+      { ra: 16.8723, dec: -38.051, mag: 3.00, color: '#C6D6FF' }, // 尾宿一 Mu-1 Sco
+      { ra: 16.9097, dec: -42.361, mag: 3.62, color: '#FFD8B0' }, // Zeta Sco
+      { ra: 17.2026, dec: -43.239, mag: 3.33, color: '#FFE9D0' }, // 尾宿五 Eta Sco
+      { ra: 17.6220, dec: -42.998, mag: 1.87, color: '#FFF2E0' }, // 尾宿八 Sargas (Theta)
+      { ra: 17.7931, dec: -40.127, mag: 2.99, color: '#FFF4E4' }, // 尾宿九 Iota Sco
+      { ra: 17.7081, dec: -39.030, mag: 2.41, color: '#C0D0FF' }, // Kappa Sco
+      { ra: 17.5601, dec: -37.104, mag: 1.63, color: '#C6D6FF' }, // 尾宿八 Shaula (Lambda)
+      { ra: 17.5127, dec: -37.296, mag: 2.69, color: '#C4D4FF' }, // 尾宿九 Lesath (Upsilon)
+    ],
+    // 头部三星 -> 心脏 Antares -> 弯曲蝎尾 -> 尾刺 Shaula/Lesath
+    lines: [[1, 2], [2, 3], [2, 4], [4, 0], [0, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [12, 13], [13, 14]],
+  },
+  {
+    name: '仙后座', labelOffset: [0, -9],
+    stars: [
+      { ra: 0.1530, dec: 59.150, mag: 2.27, color: '#FFF4E8' }, // 王良一 Caph
+      { ra: 0.6751, dec: 56.537, mag: 2.24, color: '#FFDCAE' }, // 王良四 Schedar
+      { ra: 0.9451, dec: 60.717, mag: 2.47, color: '#C9D8FF' }, // 策 Gamma Cas
+      { ra: 1.4303, dec: 60.235, mag: 2.68, color: '#EDF2FF' }, // 阁道三 Ruchbah
+      { ra: 1.9066, dec: 63.670, mag: 3.38, color: '#C2D2FF' }, // 阁道二 Segin
+    ],
+    // 标志性的 W 形
+    lines: [[0, 1], [1, 2], [2, 3], [3, 4]],
+  },
+];
+
+/**
+ * 把星座绘制到等距圆柱投影的星空贴图上：
+ *   x = RA / 24h * W，y = (90° - Dec) / 180° * H。
+ * three.js 球体贴图从内侧观察时水平镜像，此映射恰好还原真实星空的相对方位
+ * （例如猎户座：参宿四在左上、参宿七在右下；北斗七星斗柄在斗身左侧）。
+ * 文字标签同样会被镜像，需用 scale(-1, 1) 反向绘制才能正读。
+ */
+const renderConstellations = (width: number, height: number): { svg: string; minX: number; maxX: number } => {
+  let svg = '';
+  let minX = Infinity;
+  let maxX = -Infinity;
+
+  for (const c of CONSTELLATIONS) {
+    const pts = c.stars.map(s => ({
+      ...s,
+      x: (s.ra / 24) * width,
+      y: ((90 - s.dec) / 180) * height,
+    }));
+
+    // 连线不画进贴图：由 3D 层 ConstellationLines 按需绘制（默认关闭），
+    // 避免切换开关时重新生成整张星空贴图
+
+    // 恒星：外层光晕 + 中层辉光 + 白色星核，大小由视星等决定
+    for (const p of pts) {
+      const r = Math.max(1.4, 3.6 - 1.05 * p.mag);
+      svg += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${(r * 3.2).toFixed(1)}" fill="${p.color}" opacity="0.16" />`;
+      svg += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${(r * 1.7).toFixed(1)}" fill="${p.color}" opacity="0.45" />`;
+      svg += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r.toFixed(1)}" fill="#FFFFFF" opacity="0.95" />`;
+      minX = Math.min(minX, p.x - r * 3.2);
+      maxX = Math.max(maxX, p.x + r * 3.2);
+    }
+
+    // 名称标签：单行中文，大字号宽字距的星图风格（内侧观看为镜像，文字反向绘制；
+    // 深色描边保证压在星云上也可读）
+    // labelOffset 单位为度：dx 沿赤经增大方向（屏幕左侧），dy 沿赤纬增大方向（屏幕上方）
+    const cx = pts.reduce((sum, p) => sum + p.x, 0) / pts.length;
+    const cy = pts.reduce((sum, p) => sum + p.y, 0) / pts.length;
+    const lx = cx + (c.labelOffset[0] / 360) * width;
+    const ly = cy - (c.labelOffset[1] / 180) * height;
+    svg += `<g transform="translate(${lx.toFixed(1)}, ${ly.toFixed(1)}) scale(-1, 1)" opacity="0.75">`
+      + `<text x="0" y="0" text-anchor="middle" font-family="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif" font-size="26" fill="#A9C8FF" letter-spacing="8" stroke="#0A1020" stroke-width="2.5" paint-order="stroke">${c.name}</text>`
+      + `</g>`;
+    minX = Math.min(minX, lx - 80);
+    maxX = Math.max(maxX, lx + 80);
+  }
+
+  return { svg, minX, maxX };
+};
+
+/**
  * Generates a deep space starfield texture with nebulae and rich gradients.
  */
 export const generateStarFieldTexture = (): string => {
-  const width = 2048; 
+  const width = 2048;
   const height = 1024;
   let svgContent = `
     <defs>
@@ -906,6 +1060,21 @@ export const generateStarFieldTexture = (): string => {
      const y = Math.random() * height;
      const r = Math.random() * 0.8 + 0.6;
      svgContent += drawSeamlessCircle(x, y, r, "#FFFFFF", 0.8);
+  }
+
+  // 知名星座画在最上层，保证不被背景星点淹没（当前由 SHOW_CONSTELLATIONS 整体关闭）
+  if (SHOW_CONSTELLATIONS) {
+    const constellations = renderConstellations(width, height);
+    svgContent += constellations.svg;
+    // 贴图横向无缝拼接：星座（含标签）靠近 0h/24h 边界时，在另一侧补一份拷贝。
+    // 例如仙后座王良一 RA≈0.15h，距左边缘仅 13px。
+    const SEAM_MARGIN = 20;
+    if (constellations.minX < SEAM_MARGIN) {
+      svgContent += `<g transform="translate(${width}, 0)">${constellations.svg}</g>`;
+    }
+    if (constellations.maxX > width - SEAM_MARGIN) {
+      svgContent += `<g transform="translate(${-width}, 0)">${constellations.svg}</g>`;
+    }
   }
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" preserveAspectRatio="none" viewBox="0 0 ${width} ${height}">${svgContent}</svg>`;

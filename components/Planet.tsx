@@ -48,6 +48,91 @@ const AnimatedFlag = ({ texture }: { texture: Texture }) => {
   );
 };
 
+// 太阳能电池翼共用材质（深蓝色晶硅板）
+const SOLAR_PANEL_PROPS = {
+  color: '#3b82f6',
+  emissive: '#1d4ed8',
+  emissiveIntensity: 0.5,
+  metalness: 1,
+  roughness: 0.1,
+} as const;
+
+interface StationPartProps {
+  mat: {
+    roughness: number;
+    metalness: number;
+    emissive: string;
+    emissiveIntensity: number;
+    color: string;
+  };
+}
+
+// 神舟飞船（沿 +z：前部轨道舱用于对接 → 钟形返回舱 → 金色多层隔热的推进舱，尾部一对太阳翼）
+const ShenzhouShip: React.FC<StationPartProps> = ({ mat }) => (
+  <group>
+    {/* 轨道舱 */}
+    <mesh position={[0, 0, 0.175]} rotation={[Math.PI / 2, 0, 0]}>
+      <cylinderGeometry args={[0.14, 0.14, 0.35, 24]} />
+      <meshPhysicalMaterial {...mat} />
+    </mesh>
+    {/* 返回舱（钟形） */}
+    <mesh position={[0, 0, 0.44]} rotation={[Math.PI / 2, 0, 0]}>
+      <cylinderGeometry args={[0.14, 0.19, 0.18, 24]} />
+      <meshPhysicalMaterial {...mat} />
+    </mesh>
+    {/* 推进舱 */}
+    <mesh position={[0, 0, 0.705]} rotation={[Math.PI / 2, 0, 0]}>
+      <cylinderGeometry args={[0.19, 0.19, 0.35, 24]} />
+      <meshPhysicalMaterial {...mat} color="#C8A24B" />
+    </mesh>
+    <mesh position={[0.52, 0, 0.705]}>
+      <boxGeometry args={[0.66, 0.02, 0.3]} />
+      <meshPhysicalMaterial {...SOLAR_PANEL_PROPS} />
+    </mesh>
+    <mesh position={[-0.52, 0, 0.705]}>
+      <boxGeometry args={[0.66, 0.02, 0.3]} />
+      <meshPhysicalMaterial {...SOLAR_PANEL_PROPS} />
+    </mesh>
+  </group>
+);
+
+// 实验舱（问天/梦天结构相同，沿 +x：对接锥 → 工作舱 → 资源舱 → 尾部桅杆）。
+// 大型柔性太阳翼在【外端】向 ±z 展开（真实布局，也是两片大翼不再互相重叠的原因）；
+// 梦天侧通过外层 rotation [0, π, 0] 镜像复用本组件。
+const LabModule: React.FC<StationPartProps & { solarRef: React.RefObject<Group> }> = ({ mat, solarRef }) => (
+  <group>
+    {/* 对接锥（小径端朝节点舱） */}
+    <mesh position={[0.1, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+      <cylinderGeometry args={[0.28, 0.35, 0.2, 24]} />
+      <meshPhysicalMaterial {...mat} />
+    </mesh>
+    {/* 工作舱（主舱体，与核心舱同为 4.2m 级直径） */}
+    <mesh position={[1.05, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+      <cylinderGeometry args={[0.35, 0.35, 1.7, 32]} />
+      <meshPhysicalMaterial {...mat} />
+    </mesh>
+    {/* 资源舱（尾段较细） */}
+    <mesh position={[2.15, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+      <cylinderGeometry args={[0.26, 0.26, 0.5, 24]} />
+      <meshPhysicalMaterial {...mat} />
+    </mesh>
+    <group ref={solarRef} position={[2.55, 0, 0]}>
+      <mesh rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.05, 0.05, 0.3, 12]} />
+        <meshPhysicalMaterial {...mat} />
+      </mesh>
+      <mesh position={[0, 0, 1.15]}>
+        <boxGeometry args={[0.5, 0.03, 2.2]} />
+        <meshPhysicalMaterial {...SOLAR_PANEL_PROPS} />
+      </mesh>
+      <mesh position={[0, 0, -1.15]}>
+        <boxGeometry args={[0.5, 0.03, 2.2]} />
+        <meshPhysicalMaterial {...SOLAR_PANEL_PROPS} />
+      </mesh>
+    </group>
+  </group>
+);
+
 const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id: string) => void; onDoubleClick: (id: string) => void; planetRefs: React.MutableRefObject<{ [key: string]: Object3D }> }> = ({ isPaused, simulationSpeed, onSelect, onDoubleClick, planetRefs }) => {
   const stationRef = useRef<Group>(null);
   const solarWingsRef = useRef<Group>(null);
@@ -120,86 +205,95 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; on
               <meshBasicMaterial transparent opacity={0} />
            </mesh>
 
-           <group rotation={[0, Math.PI / 2, 0]}>
-             {/* Node Cabin */}
+           {/* 按真实中国空间站"T 字"构型重建：
+               节点舱居中；天和核心舱向后(-z)；问天/梦天实验舱永久对接在两侧(±x)；
+               神舟停靠前向(+z)与径向(-y)端口；天舟对接核心舱后向端口 */}
+           <group>
+             {/* 节点舱（球形枢纽）+ 顶部出舱口 */}
              <mesh position={[0, 0, 0]}>
                 <sphereGeometry args={[0.3, 32, 32]} />
                 <meshPhysicalMaterial {...commonMaterialProps} color={dockColor} />
              </mesh>
+             <mesh position={[0, 0.34, 0]}>
+                <cylinderGeometry args={[0.14, 0.16, 0.1, 24]} />
+                <meshPhysicalMaterial {...commonMaterialProps} />
+             </mesh>
 
-             {/* Shenzhou (Forward) */}
-             <group position={[0, 0, 0.6]}>
-                <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                   <cylinderGeometry args={[0.15, 0.15, 0.4, 32]} />
-                   <meshPhysicalMaterial {...commonMaterialProps} />
-                </mesh>
-                <mesh position={[0, 0, 0.3]} rotation={[Math.PI / 2, 0, 0]}>
-                   <cylinderGeometry args={[0.15, 0.2, 0.2, 32]} />
-                   <meshPhysicalMaterial {...commonMaterialProps} />
-                </mesh>
-                <mesh position={[0, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]}>
-                   <cylinderGeometry args={[0.2, 0.2, 0.3, 32]} />
-                   <meshPhysicalMaterial {...commonMaterialProps} />
-                </mesh>
+             {/* 神舟（前向端口）。换班期真实空间站确有两艘并靠：前向 + 径向 */}
+             <group position={[0, 0, 0.28]}>
+                <ShenzhouShip mat={commonMaterialProps} />
+             </group>
+             {/* 神舟（径向/下端口）：绕 x 轴 +90° 后飞船 +z 指向 -y */}
+             <group position={[0, -0.28, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                <ShenzhouShip mat={commonMaterialProps} />
              </group>
 
-             {/* Shenzhou (Radial / Bottom) */}
-             <group position={[0, -0.6, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                   <cylinderGeometry args={[0.15, 0.15, 0.4, 32]} />
-                   <meshPhysicalMaterial {...commonMaterialProps} />
-                </mesh>
-                <mesh position={[0, 0, 0.3]} rotation={[Math.PI / 2, 0, 0]}>
-                   <cylinderGeometry args={[0.15, 0.2, 0.2, 32]} />
-                   <meshPhysicalMaterial {...commonMaterialProps} />
-                </mesh>
-                <mesh position={[0, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]}>
-                   <cylinderGeometry args={[0.2, 0.2, 0.3, 32]} />
-                   <meshPhysicalMaterial {...commonMaterialProps} />
-                </mesh>
-             </group>
-
-             {/* Tianhe Core Module */}
-             <group position={[0, 0, -0.8]}>
-                <mesh position={[0, 0, 0.4]} rotation={[Math.PI / 2, 0, 0]}>
+             {/* 天和核心舱 */}
+             <group>
+                {/* 小柱段 */}
+                <mesh position={[0, 0, -0.4]} rotation={[Math.PI / 2, 0, 0]}>
                    <cylinderGeometry args={[0.22, 0.22, 0.8, 32]} />
                    <meshPhysicalMaterial {...commonMaterialProps} />
                 </mesh>
-                <mesh position={[0, 0, -0.1]} rotation={[Math.PI / 2, 0, 0]}>
+                {/* 过渡锥 */}
+                <mesh position={[0, 0, -0.9]} rotation={[Math.PI / 2, 0, 0]}>
                    <cylinderGeometry args={[0.22, 0.35, 0.2, 32]} />
                    <meshPhysicalMaterial {...commonMaterialProps} />
                 </mesh>
-                <mesh position={[0, 0, -0.7]} rotation={[Math.PI / 2, 0, 0]}>
+                {/* 大柱段 */}
+                <mesh position={[0, 0, -1.5]} rotation={[Math.PI / 2, 0, 0]}>
                    <cylinderGeometry args={[0.35, 0.35, 1.0, 32]} />
                    <meshPhysicalMaterial {...commonMaterialProps} />
                 </mesh>
-                
-                {/* Tianhe Solar Panels */}
-                <group ref={solarWingsRef} position={[0, 0, -0.7]}>
-                  <mesh position={[0.9, 0, 0]}>
-                    <boxGeometry args={[1.2, 0.05, 0.4]} />
-                    <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
-                  </mesh>
-                  <mesh position={[-0.9, 0, 0]}>
-                    <boxGeometry args={[1.2, 0.05, 0.4]} />
-                    <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
-                  </mesh>
-                </group>
+                {/* 后向对接口 */}
+                <mesh position={[0, 0, -2.1]} rotation={[Math.PI / 2, 0, 0]}>
+                   <cylinderGeometry args={[0.35, 0.2, 0.2, 32]} />
+                   <meshPhysicalMaterial {...commonMaterialProps} />
+                </mesh>
 
-                {/* Tianzhou Cargo (Rear) */}
-                <group position={[0, 0, -1.6]}>
-                   <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                      <cylinderGeometry args={[0.35, 0.35, 0.8, 32]} />
-                      <meshPhysicalMaterial {...commonMaterialProps} />
+                {/* 核心舱太阳翼一对（大柱段两侧 ±x） */}
+                <group ref={solarWingsRef} position={[0, 0, -1.5]}>
+                   <mesh position={[1.1, 0, 0]}>
+                      <boxGeometry args={[1.5, 0.04, 0.55]} />
+                      <meshPhysicalMaterial {...SOLAR_PANEL_PROPS} />
                    </mesh>
-                   <mesh position={[0, 0, -0.5]} rotation={[Math.PI / 2, 0, 0]}>
-                      <cylinderGeometry args={[0.35, 0.2, 0.2, 32]} />
-                      <meshPhysicalMaterial {...commonMaterialProps} />
+                   <mesh position={[-1.1, 0, 0]}>
+                      <boxGeometry args={[1.5, 0.04, 0.55]} />
+                      <meshPhysicalMaterial {...SOLAR_PANEL_PROPS} />
                    </mesh>
                 </group>
 
-                {/* Flag */}
-                <group position={[0, 0.5, 0.2]} rotation={[0, Math.PI/2, 0]} scale={[0.8, 0.8, 0.8]}>
+                {/* 天和大机械臂（简化两段式，趴在大柱段后上方） */}
+                <group position={[0, 0.33, -1.55]}>
+                   <mesh position={[0, 0.06, 0]}>
+                      <cylinderGeometry args={[0.07, 0.09, 0.12, 12]} />
+                      <meshPhysicalMaterial {...commonMaterialProps} />
+                   </mesh>
+                   <mesh position={[0, 0.15, 0]}>
+                      <sphereGeometry args={[0.07, 16, 16]} />
+                      <meshPhysicalMaterial {...commonMaterialProps} />
+                   </mesh>
+                   <mesh position={[0, 0.15, -0.27]} rotation={[Math.PI / 2, 0, 0]}>
+                      <cylinderGeometry args={[0.045, 0.045, 0.5, 12]} />
+                      <meshPhysicalMaterial {...commonMaterialProps} />
+                   </mesh>
+                   <mesh position={[0, 0.15, -0.55]}>
+                      <sphereGeometry args={[0.06, 16, 16]} />
+                      <meshPhysicalMaterial {...commonMaterialProps} />
+                   </mesh>
+                   <mesh position={[0.24, 0.15, -0.55]} rotation={[0, 0, Math.PI / 2]}>
+                      <cylinderGeometry args={[0.04, 0.04, 0.45, 12]} />
+                      <meshPhysicalMaterial {...commonMaterialProps} />
+                   </mesh>
+                   <mesh position={[0.49, 0.15, -0.55]}>
+                      <sphereGeometry args={[0.05, 12, 12]} />
+                      <meshPhysicalMaterial {...commonMaterialProps} color={dockColor} />
+                   </mesh>
+                </group>
+
+                {/* Flag：旗杆底座贴在小柱段（半径 0.22）表面，0.2 略微嵌入防悬浮；
+                    旗面朝 -x 展开，避开 +z 前向神舟的太阳翼 */}
+                <group position={[0, 0.2, -0.5]} scale={[0.8, 0.8, 0.8]}>
                    <mesh position={[0, 0.9, 0]}>
                       <cylinderGeometry args={[0.02, 0.02, 1.8]} />
                       <meshStandardMaterial color="#cbd5e1" roughness={1.0} metalness={0.0} />
@@ -208,50 +302,33 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; on
                 </group>
              </group>
 
-             {/* Wentian Lab Module (+X) */}
-             <group position={[1.0, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
-                <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                   <cylinderGeometry args={[0.35, 0.35, 1.6, 32]} />
-                   <meshPhysicalMaterial {...commonMaterialProps} />
-                </mesh>
-                <mesh position={[0, 0, -0.9]} rotation={[Math.PI / 2, 0, 0]}>
-                   <cylinderGeometry args={[0.35, 0.25, 0.2, 32]} />
-                   <meshPhysicalMaterial {...commonMaterialProps} />
-                </mesh>
-                {/* Wentian Solar Panels */}
-                <group ref={wentianSolarRef} position={[0, 0, -1.0]}>
-                  <mesh position={[0, 1.6, 0]} rotation={[0, 0, Math.PI / 2]}>
-                    <boxGeometry args={[3.0, 0.05, 0.6]} />
-                    <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
-                  </mesh>
-                  <mesh position={[0, -1.6, 0]} rotation={[0, 0, Math.PI / 2]}>
-                    <boxGeometry args={[3.0, 0.05, 0.6]} />
-                    <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
-                  </mesh>
-                </group>
+             {/* 问天实验舱（节点舱 +x 侧，永久对接） */}
+             <group position={[0.25, 0, 0]}>
+                <LabModule mat={commonMaterialProps} solarRef={wentianSolarRef} />
+             </group>
+             {/* 梦天实验舱（节点舱 -x 侧，绕 y 轴 180° 镜像复用） */}
+             <group position={[-0.25, 0, 0]} rotation={[0, Math.PI, 0]}>
+                <LabModule mat={commonMaterialProps} solarRef={mengtianSolarRef} />
              </group>
 
-             {/* Mengtian Lab Module (-X) */}
-             <group position={[-1.0, 0, 0]} rotation={[0, -Math.PI / 2, 0]}>
-                <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                   <cylinderGeometry args={[0.35, 0.35, 1.6, 32]} />
+             {/* 天舟货运飞船（核心舱后向端口）：货物舱 + 金色推进舱 + 一对太阳翼 */}
+             <group position={[0, 0, -2.2]}>
+                <mesh position={[0, 0, -0.35]} rotation={[Math.PI / 2, 0, 0]}>
+                   <cylinderGeometry args={[0.32, 0.32, 0.7, 32]} />
                    <meshPhysicalMaterial {...commonMaterialProps} />
                 </mesh>
                 <mesh position={[0, 0, -0.9]} rotation={[Math.PI / 2, 0, 0]}>
-                   <cylinderGeometry args={[0.35, 0.25, 0.2, 32]} />
-                   <meshPhysicalMaterial {...commonMaterialProps} />
+                   <cylinderGeometry args={[0.24, 0.24, 0.5, 24]} />
+                   <meshPhysicalMaterial {...commonMaterialProps} color="#C8A24B" />
                 </mesh>
-                {/* Mengtian Solar Panels */}
-                <group ref={mengtianSolarRef} position={[0, 0, -1.0]}>
-                  <mesh position={[0, 1.6, 0]} rotation={[0, 0, Math.PI / 2]}>
-                    <boxGeometry args={[3.0, 0.05, 0.6]} />
-                    <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
-                  </mesh>
-                  <mesh position={[0, -1.6, 0]} rotation={[0, 0, Math.PI / 2]}>
-                    <boxGeometry args={[3.0, 0.05, 0.6]} />
-                    <meshPhysicalMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} metalness={1} roughness={0.1} />
-                  </mesh>
-                </group>
+                <mesh position={[0.62, 0, -0.9]}>
+                   <boxGeometry args={[0.76, 0.02, 0.32]} />
+                   <meshPhysicalMaterial {...SOLAR_PANEL_PROPS} />
+                </mesh>
+                <mesh position={[-0.62, 0, -0.9]}>
+                   <boxGeometry args={[0.76, 0.02, 0.32]} />
+                   <meshPhysicalMaterial {...SOLAR_PANEL_PROPS} />
+                </mesh>
              </group>
            </group>
         </group>

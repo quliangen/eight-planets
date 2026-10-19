@@ -2,20 +2,21 @@
 import React, { useState, Suspense, lazy, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Sparkles, PerspectiveCamera, Environment, Stars } from '@react-three/drei';
-import { Vector3, TextureLoader, BackSide, Mesh, Object3D, RepeatWrapping, ClampToEdgeWrapping, MathUtils, Raycaster, Vector2 } from 'three';
+import { Vector3, TextureLoader, BackSide, Object3D, Group, RepeatWrapping, ClampToEdgeWrapping, MathUtils, Raycaster, Vector2 } from 'three';
 import { PLANETS, SUN_DATA, JUPITER_MOONS, SATURN_MOONS, MOON_DATA, TIANGONG_DATA } from './constants';
 import { Planet } from './components/Planet';
 import { Sun } from './components/Sun';
 import { Starship } from './components/Starship';
 import { AsteroidBelt } from './components/AsteroidBelt';
+import { ConstellationLines } from './components/ConstellationLines';
 import { UIOverlay } from './components/UIOverlay';
-import { generateStarFieldTexture } from './utils/textureGenerator';
+import { generateStarFieldTexture, SHOW_CONSTELLATIONS } from './utils/textureGenerator';
 
 // 手势控制（含 MediaPipe 模型加载）体积大且默认关闭，按需分包懒加载
 const GestureController = lazy(() => import('./components/GestureController').then(m => ({ default: m.GestureController })));
 
-const Skybox: React.FC = () => {
-  const meshRef = useRef<Mesh>(null);
+const Skybox: React.FC<{ showConstellationLines: boolean }> = ({ showConstellationLines }) => {
+  const groupRef = useRef<Group>(null);
   const starTextureUrl = useMemo(() => generateStarFieldTexture(), []);
   const starTexture = useMemo(() => {
     const t = new TextureLoader().load(starTextureUrl);
@@ -28,21 +29,25 @@ const Skybox: React.FC = () => {
   useEffect(() => () => starTexture.dispose(), [starTexture]);
 
   useFrame((_, delta) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.0001;
+    if (groupRef.current) {
+      groupRef.current.rotation.y += delta * 0.0001;
     }
   });
 
   return (
-    // 半径需大于 maxDistance(500) + 冥王星轨道(130)，否则拉远相机会飞出球外丢失星空
-    <mesh ref={meshRef}>
-      <sphereGeometry args={[800, 64, 64]} />
-      <meshBasicMaterial
-        map={starTexture}
-        side={BackSide}
-        color="#ffffff"
-      />
-    </mesh>
+    // 连线层必须与贴图同组同步旋转，否则星点与连线会逐渐错位
+    <group ref={groupRef}>
+      {/* 半径需大于 maxDistance(500) + 冥王星轨道(130)，否则拉远相机会飞出球外丢失星空 */}
+      <mesh>
+        <sphereGeometry args={[800, 64, 64]} />
+        <meshBasicMaterial
+          map={starTexture}
+          side={BackSide}
+          color="#ffffff"
+        />
+      </mesh>
+      {showConstellationLines && <ConstellationLines radius={790} />}
+    </group>
   );
 };
 
@@ -164,6 +169,8 @@ const App: React.FC = () => {
   const [isStarshipActive, setIsStarshipActive] = useState(false);
   const [showPluto, setShowPluto] = useState(false);
   const [showOrbits, setShowOrbits] = useState(true);
+  // 星座连线默认关闭：星点已烘焙在贴图里，连线层按需叠加
+  const [showConstellationLines, setShowConstellationLines] = useState(false);
   const [isGestureMode, setIsGestureMode] = useState(false);
   const [isARMode, setIsARMode] = useState(false); 
   const [focusTarget, setFocusTarget] = useState<{ id: string, size: number } | null>(null);
@@ -219,7 +226,7 @@ const App: React.FC = () => {
   return (
     <div className="w-full h-screen relative overflow-hidden" style={{ backgroundColor: isARMode ? 'transparent' : '#000' }}>
       <UIOverlay
-        selectedPlanet={selectedPlanet} onClose={handleClose} simulationSpeed={simulationSpeed} setSimulationSpeed={setSimulationSpeed} isStarshipActive={isStarshipActive} toggleStarship={() => setIsStarshipActive(!isStarshipActive)} showPluto={showPluto} togglePluto={() => setShowPluto(!showPluto)} isGestureMode={isGestureMode} toggleGestureMode={() => setIsGestureMode(!isGestureMode)} showOrbits={showOrbits} toggleOrbits={() => setShowOrbits(!showOrbits)}
+        selectedPlanet={selectedPlanet} onClose={handleClose} simulationSpeed={simulationSpeed} setSimulationSpeed={setSimulationSpeed} isStarshipActive={isStarshipActive} toggleStarship={() => setIsStarshipActive(!isStarshipActive)} showPluto={showPluto} togglePluto={() => setShowPluto(!showPluto)} isGestureMode={isGestureMode} toggleGestureMode={() => setIsGestureMode(!isGestureMode)} showOrbits={showOrbits} toggleOrbits={() => setShowOrbits(!showOrbits)} showConstellationLines={showConstellationLines} toggleConstellationLines={() => setShowConstellationLines(!showConstellationLines)}
       />
       {isGestureMode && (
         <Suspense fallback={null}>
@@ -238,7 +245,7 @@ const App: React.FC = () => {
               太阳方向光会完全失效（行星没有昼夜明暗面） */}
           <pointLight position={[0, 0, 0]} intensity={2.5} distance={500} decay={0} />
           <ambientLight intensity={0.15} />
-          {!isARMode && <Skybox />}
+          {!isARMode && <Skybox showConstellationLines={SHOW_CONSTELLATIONS && showConstellationLines} />}
           <Stars radius={400} />
           <Sparkles count={400} scale={200} size={6} />
           <Sun onSelect={handleSelect} onDoubleClick={handleDoubleClick} isPaused={isPaused} simulationSpeed={simulationSpeed} planetRefs={planetRefs} />

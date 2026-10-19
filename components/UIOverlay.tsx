@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { PlanetData } from '../types';
+import { SHOW_CONSTELLATIONS } from '../utils/textureGenerator';
 
 interface UIOverlayProps {
   selectedPlanet: PlanetData | null;
@@ -15,6 +16,8 @@ interface UIOverlayProps {
   toggleGestureMode: () => void;
   showOrbits: boolean;
   toggleOrbits: () => void;
+  showConstellationLines: boolean;
+  toggleConstellationLines: () => void;
 }
 
 export const UIOverlay: React.FC<UIOverlayProps> = ({
@@ -29,7 +32,9 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
   toggleGestureMode,
   isGestureMode,
   showOrbits,
-  toggleOrbits
+  toggleOrbits,
+  showConstellationLines,
+  toggleConstellationLines
 }) => {
   // TTS State
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -262,6 +267,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
     .pluto-btn { background: linear-gradient(135deg, #8b5cf6, #5b21b6); }
     .orbit-btn { background: linear-gradient(135deg, #f59e0b, #d97706); }
     .gesture-btn { background: linear-gradient(135deg, #10b981, #047857); }
+    .constellation-btn { background: linear-gradient(135deg, #ec4899, #be185d); }
     
     .action-btn.inactive { background: rgba(30, 41, 59, 0.8); border-color: rgba(255,255,255,0.1); }
     .action-btn .indicator {
@@ -344,6 +350,13 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                 <div className={`indicator ${showOrbits ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
                 <span className="text-xl sm:text-2xl mt-1">💫</span>
               </button>
+              {/* 星座功能暂时整体隐藏（SHOW_CONSTELLATIONS），按钮一并收起 */}
+              {SHOW_CONSTELLATIONS && (
+                <button onClick={toggleConstellationLines} title="星座连线" className={`action-btn constellation-btn pointer-events-auto ${!showConstellationLines ? 'inactive' : ''}`}>
+                  <div className={`indicator ${showConstellationLines ? 'bg-green-400 shadow-green-400' : 'bg-red-400'}`}></div>
+                  <span className="text-xl sm:text-2xl mt-1">✨</span>
+                </button>
+              )}
             </div>
 
             {!isStarshipActive && !isGestureMode && (

@@ -166,6 +166,9 @@ export const Sun: React.FC<SunProps> = ({ onSelect, onDoubleClick, isPaused, sim
   const glowUrl = useMemo(() => generateSunGlowTexture(), []);
   const glowTexture = useMemo(() => new TextureLoader().load(glowUrl), [glowUrl]);
 
+  // Data URI 纹理不受 useLoader 缓存管理，卸载时手动释放显存
+  useEffect(() => () => glowTexture.dispose(), [glowTexture]);
+
   useLayoutEffect(() => {
      if (glowMeshRef1.current) glowMeshRef1.current.raycast = () => null;
      if (glowMeshRef2.current) glowMeshRef2.current.raycast = () => null;
