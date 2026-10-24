@@ -1,7 +1,7 @@
 
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Mesh, DoubleSide, TextureLoader, AdditiveBlending, Object3D, Group, PlaneGeometry, Texture } from 'three';
+import { Mesh, DoubleSide, TextureLoader, AdditiveBlending, Object3D, Group, PlaneGeometry, Texture, SRGBColorSpace } from 'three';
 import { Html, Billboard } from '@react-three/drei';
 import { PlanetData } from '../types';
 import { generatePlanetTexture, generateRingTexture, generateChinaFlagTexture } from '../utils/textureGenerator';
@@ -142,7 +142,12 @@ const TiangongStation: React.FC<{ isPaused: boolean; simulationSpeed: number; on
   const clickStartRef = useRef({ x: 0, y: 0 });
 
   const flagUrl = useMemo(() => generateChinaFlagTexture(), []);
-  const flagTexture = useMemo(() => new TextureLoader().load(flagUrl), [flagUrl]);
+  const flagTexture = useMemo(() => {
+      const t = new TextureLoader().load(flagUrl);
+      // 国旗是 sRGB 颜色贴图；默认 NoColorSpace 会被当线性纹理导致颜色偏灰
+      t.colorSpace = SRGBColorSpace;
+      return t;
+    }, [flagUrl]);
 
   // 释放 GPU 纹理（Data URI 纹理不受 useLoader 缓存管理，需手动 dispose）
   useEffect(() => () => flagTexture.dispose(), [flagTexture]);
@@ -359,10 +364,20 @@ export const Planet: React.FC<PlanetProps> = ({
   const clickStartRef = useRef({ x: 0, y: 0 });
 
   const textureUrl = useMemo(() => generatePlanetTexture(data), [data]);
-  const texture = useMemo(() => new TextureLoader().load(textureUrl), [textureUrl]);
+  const texture = useMemo(() => {
+    const t = new TextureLoader().load(textureUrl);
+    // SVG 程序化贴图是 sRGB 颜色；three r152+ 默认 NoColorSpace（线性），行星表面会发白
+    t.colorSpace = SRGBColorSpace;
+    return t;
+  }, [textureUrl]);
 
   const ringUrl = useMemo(() => data.hasRings ? generateRingTexture(data.id, data.ringColor || '#ffffff') : null, [data]);
-  const ringTexture = useMemo(() => ringUrl ? new TextureLoader().load(ringUrl) : null, [ringUrl]);
+  const ringTexture = useMemo(() => {
+    if (!ringUrl) return null;
+    const t = new TextureLoader().load(ringUrl);
+    t.colorSpace = SRGBColorSpace;
+    return t;
+  }, [ringUrl]);
 
   // 共享辉光贴图（模块级单例，所有行星/卫星/引擎共用一份，不要 dispose）
   const glowTexture = getSharedGlowTexture();
@@ -504,7 +519,11 @@ const Moon: React.FC<{ isPaused: boolean; simulationSpeed: number; onSelect: (id
   const groupRef = useRef<Group>(null);
   const clickStartRef = useRef({ x: 0, y: 0 });
   const textureUrl = useMemo(() => generatePlanetTexture(MOON_DATA), []);
-  const texture = useMemo(() => new TextureLoader().load(textureUrl), [textureUrl]);
+  const texture = useMemo(() => {
+    const t = new TextureLoader().load(textureUrl);
+    t.colorSpace = SRGBColorSpace;
+    return t;
+  }, [textureUrl]);
 
   useEffect(() => () => texture.dispose(), [texture]);
 
@@ -548,7 +567,11 @@ const SystemMoon: React.FC<{ data: PlanetData; isPaused: boolean; simulationSpee
   const groupRef = useRef<Group>(null);
   const clickStartRef = useRef({ x: 0, y: 0 });
   const textureUrl = useMemo(() => generatePlanetTexture(data), [data]);
-  const texture = useMemo(() => new TextureLoader().load(textureUrl), [textureUrl]);
+  const texture = useMemo(() => {
+    const t = new TextureLoader().load(textureUrl);
+    t.colorSpace = SRGBColorSpace;
+    return t;
+  }, [textureUrl]);
 
   useEffect(() => () => texture.dispose(), [texture]);
 

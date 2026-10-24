@@ -28,6 +28,8 @@ export const GestureController: React.FC<GestureControllerProps> = ({
   const mpRef = useRef<MediaPipeModule | null>(null);
   const requestRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
+  // 卸载标志：init 里 await 返回后、以及 startWebcam 里等摄像头授权期间，都需要据此判断是否已卸载
+  const mountedRef = useRef(true);
 
   const prevHandDistanceRef = useRef<number | null>(null);
   const lastActionTimeRef = useRef<number>(0);
@@ -36,19 +38,19 @@ export const GestureController: React.FC<GestureControllerProps> = ({
   const [statusMessage, setStatusMessage] = useState<string>("启动魔法手势...");
 
   useEffect(() => {
-    let isMounted = true;
+    mountedRef.current = true;
     const init = async () => {
       try {
         // 使用本地 WASM 文件替代 CDN；BASE_URL 保证子目录部署（如 GitHub Pages）也能解析
         const base = import.meta.env.BASE_URL;
         // 动态加载 MediaPipe 主库（用户开启手势模式时才下载，不拖慢首屏）
         const mp = await import('@mediapipe/tasks-vision');
-        if (!isMounted) return;
+        if (!mountedRef.current) return;
         mpRef.current = mp;
         const vision = await mp.FilesetResolver.forVisionTasks(
           `${base}mediapipe/wasm`
         );
-        if (!isMounted) return;
+        if (!mountedRef.current) return;
         const makeOptions = (delegate: 'GPU' | 'CPU') => ({
           baseOptions: {
             // 使用本地模型文件替代 Google Cloud
@@ -58,17 +60,24 @@ export const GestureController: React.FC<GestureControllerProps> = ({
           runningMode: 'VIDEO' as const,
           numHands: 2
         });
+        let landmarker: HandLandmarker | null = null;
         try {
-          landmarkerRef.current = await mp.HandLandmarker.createFromOptions(vision, makeOptions('GPU'));
+          landmarker = await mp.HandLandmarker.createFromOptions(vision, makeOptions('GPU'));
         } catch (gpuError) {
           // 部分设备/浏览器 GPU 代理不可用，降级到 CPU 保证功能可用
           console.warn("GPU delegate unavailable, falling back to CPU:", gpuError);
-          landmarkerRef.current = await mp.HandLandmarker.createFromOptions(vision, makeOptions('CPU'));
+          landmarker = await mp.HandLandmarker.createFromOptions(vision, makeOptions('CPU'));
         }
-        if (isMounted) startWebcam();
+        // 等模型期间用户可能已关闭手势模式：新建的 landmarker 必须立即释放，否则 WASM 资源泄漏
+        if (!mountedRef.current) {
+          landmarker.close();
+          return;
+        }
+        landmarkerRef.current = landmarker;
+        startWebcam();
       } catch (error) {
         console.error("Error initializing MediaPipe:", error);
-        if (isMounted) {
+        if (mountedRef.current) {
           setLoading(false);
           setStatusMessage("初始化失败");
         }
@@ -76,12 +85,11 @@ export const GestureController: React.FC<GestureControllerProps> = ({
     };
     init();
     return () => {
-      isMounted = false;
+      mountedRef.current = false;
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       // 释放 MediaPipe WASM 资源，避免反复开关手势模式时累积
       landmarkerRef.current?.close();
       landmarkerRef.current = null;
-      // streamRef 兜底：即使 getUserMedia 晚于卸载才返回，摄像头也能被关闭
       const stream = streamRef.current || (videoRef.current?.srcObject as MediaStream | null);
       stream?.getTracks().forEach(t => t.stop());
       streamRef.current = null;
@@ -94,12 +102,19 @@ export const GestureController: React.FC<GestureControllerProps> = ({
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
       });
+      // 授权弹窗期间用户已关闭手势模式：清理函数早把 streamRef/videoRef 置空兜底失效，
+      // 这里立刻停掉所有轨道，避免摄像头指示灯常亮
+      if (!mountedRef.current) {
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setLoading(false);
       setStatusMessage("准备好了！");
     } catch (err) {
       console.error("Webcam error:", err);
+      if (!mountedRef.current) return;
       setPermissionError(true);
       setLoading(false);
       setStatusMessage("无法打开摄像头");
@@ -247,8 +262,8 @@ export const GestureController: React.FC<GestureControllerProps> = ({
 
   return (
     <>
-      <video ref={videoRef} className={`fixed inset-0 w-full h-full object-cover -scale-x-100 transition-opacity duration-300 ${isARMode ? 'z-[-10] opacity-100' : 'z-[-20] opacity-0 pointer-events-none'}`} autoPlay playsInline muted onLoadedData={predictWebcam} />
-      {isARMode && <div className="fixed inset-0 w-full h-full bg-black/60 backdrop-blur-md z-[-9] pointer-events-none transition-all duration-500" />}
+      <video ref={videoRef} className={`fixed inset-0 w-full h-full object-cover -scale-x-100 transition-opacity duration-300 ${isARMode ? '-z-10 opacity-100' : '-z-20 opacity-0 pointer-events-none'}`} autoPlay playsInline muted onLoadedData={predictWebcam} />
+      {isARMode && <div className="fixed inset-0 w-full h-full bg-black/60 backdrop-blur-md -z-9 pointer-events-none transition-all duration-500" />}
       <canvas ref={canvasRef} width={320} height={240} className={`fixed bottom-20 right-4 w-40 h-32 rounded-lg border-2 border-white/20 shadow-lg z-50 bg-black/50 pointer-events-none transition-opacity duration-300 ${isARMode ? 'opacity-0' : 'opacity-100'}`} />
       <div className="absolute bottom-4 right-4 z-50 flex flex-col items-end gap-3 pointer-events-auto animate-fade-in">
         <div className="bg-slate-900/80 backdrop-blur border border-cyan-500/30 text-cyan-300 px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2">

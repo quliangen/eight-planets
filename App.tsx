@@ -2,7 +2,7 @@
 import React, { useState, Suspense, lazy, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Sparkles, PerspectiveCamera, Environment, Stars } from '@react-three/drei';
-import { Vector3, TextureLoader, BackSide, Object3D, Group, RepeatWrapping, ClampToEdgeWrapping, MathUtils, Raycaster, Vector2 } from 'three';
+import { Vector3, TextureLoader, BackSide, Object3D, Group, RepeatWrapping, ClampToEdgeWrapping, MathUtils, Raycaster, Vector2, SRGBColorSpace } from 'three';
 import { PLANETS, SUN_DATA, JUPITER_MOONS, SATURN_MOONS, MOON_DATA, TIANGONG_DATA } from './constants';
 import { Planet } from './components/Planet';
 import { Sun } from './components/Sun';
@@ -22,6 +22,8 @@ const Skybox: React.FC<{ showConstellationLines: boolean }> = ({ showConstellati
     const t = new TextureLoader().load(starTextureUrl);
     t.wrapS = RepeatWrapping;
     t.wrapT = ClampToEdgeWrapping;
+    // 星空/星云是 sRGB 颜色贴图；three r152+ 默认 NoColorSpace 会导致颜色发灰发白
+    t.colorSpace = SRGBColorSpace;
     return t;
   }, [starTextureUrl]);
 
@@ -214,6 +216,23 @@ const App: React.FC = () => {
     setPendingAction({ x, y, type: actionType });
   };
 
+  const closeGestureMode = () => {
+    // 关闭手势模式时统一重置残留手势速度与未处理动作：OrbitController 每帧都在消费
+    // gestureVelocity，若关闭时最后一帧偏移量非零，镜头会一直朝该方向自动漂移。
+    // UI 开关与手势面板的 ✕ 按钮都走这里，避免漏掉任一关闭入口。
+    gestureVelocity.current = { dx: 0, dy: 0, gestureType: 'rotate' };
+    setPendingAction(null);
+    setIsGestureMode(false);
+  };
+
+  const handleToggleGestureMode = () => {
+    if (isGestureMode) {
+      closeGestureMode();
+    } else {
+      setIsGestureMode(true);
+    }
+  };
+
   const selectedPlanet = useMemo(() => {
     if (selectedPlanetId === 'sun') return SUN_DATA;
     if (selectedPlanetId === 'moon') return MOON_DATA;
@@ -226,11 +245,11 @@ const App: React.FC = () => {
   return (
     <div className="w-full h-screen relative overflow-hidden" style={{ backgroundColor: isARMode ? 'transparent' : '#000' }}>
       <UIOverlay
-        selectedPlanet={selectedPlanet} onClose={handleClose} simulationSpeed={simulationSpeed} setSimulationSpeed={setSimulationSpeed} isStarshipActive={isStarshipActive} toggleStarship={() => setIsStarshipActive(!isStarshipActive)} showPluto={showPluto} togglePluto={() => setShowPluto(!showPluto)} isGestureMode={isGestureMode} toggleGestureMode={() => setIsGestureMode(!isGestureMode)} showOrbits={showOrbits} toggleOrbits={() => setShowOrbits(!showOrbits)} showConstellationLines={showConstellationLines} toggleConstellationLines={() => setShowConstellationLines(!showConstellationLines)}
+        selectedPlanet={selectedPlanet} onClose={handleClose} simulationSpeed={simulationSpeed} setSimulationSpeed={setSimulationSpeed} isStarshipActive={isStarshipActive} toggleStarship={() => setIsStarshipActive(!isStarshipActive)} showPluto={showPluto} togglePluto={() => setShowPluto(!showPluto)} isGestureMode={isGestureMode} toggleGestureMode={handleToggleGestureMode} showOrbits={showOrbits} toggleOrbits={() => setShowOrbits(!showOrbits)} showConstellationLines={showConstellationLines} toggleConstellationLines={() => setShowConstellationLines(!showConstellationLines)}
       />
       {isGestureMode && (
         <Suspense fallback={null}>
-          <GestureController onControl={(dx, dy, gt) => { const v = gestureVelocity.current; v.dx = dx; v.dy = dy; v.gestureType = gt; }} onAction={handleGestureAction} onClose={() => setIsGestureMode(false)} isARMode={isARMode} toggleARMode={() => setIsARMode(!isARMode)} />
+          <GestureController onControl={(dx, dy, gt) => { const v = gestureVelocity.current; v.dx = dx; v.dy = dy; v.gestureType = gt; }} onAction={handleGestureAction} onClose={closeGestureMode} isARMode={isARMode} toggleARMode={() => setIsARMode(!isARMode)} />
         </Suspense>
       )}
       <Canvas dpr={[1, 2]} gl={{ antialias: true, alpha: true }} onPointerMissed={() => selectedPlanetId && handleClose()} onCreated={(state) => { (state.scene as any).__planetRefs = planetRefs.current; }}>

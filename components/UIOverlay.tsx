@@ -20,6 +20,9 @@ interface UIOverlayProps {
   toggleConstellationLines: () => void;
 }
 
+// 所有卫星/月球/空间站的 id：旅行时间换算对它们无意义，模组级常量避免每次 render 重新分配
+const MOON_IDS = ['io', 'europa', 'ganymede', 'callisto', 'moon', 'titan', 'enceladus', 'mimas', 'iapetus'];
+
 export const UIOverlay: React.FC<UIOverlayProps> = ({
   selectedPlanet,
   onClose,
@@ -38,28 +41,30 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
 }) => {
   // TTS State
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const synthRef = useRef<SpeechSynthesis>(window.speechSynthesis);
+  // speechSynthesis 在极老内核可能不存在；懒初始化避免渲染期直接访问 window 报价
+  const synthRef = useRef<SpeechSynthesis | null>(null);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   // 1. Initialize Voices (Wait for browser to load them)
   useEffect(() => {
-    const loadVoices = () => {
-        const voices = synthRef.current.getVoices();
-        setAvailableVoices(voices);
-    };
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    synthRef.current = synth;
 
+    const loadVoices = () => setAvailableVoices(synth.getVoices());
     loadVoices();
-    
-    // Chrome loads voices asynchronously
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
+
+    // Chrome loads voices asynchronously；使用事件监听并在卸载时移除，避免泄漏
+    synth.addEventListener('voiceschanged', loadVoices);
+    return () => {
+      synth.removeEventListener('voiceschanged', loadVoices);
+    };
   }, []);
 
   // Stop speech when planet changes or panel closes
   useEffect(() => {
     const stopSpeaking = () => {
-      if (synthRef.current.speaking) {
+      if (synthRef.current?.speaking) {
         synthRef.current.cancel();
         setIsSpeaking(false);
       }
@@ -95,9 +100,11 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
   // Handle Speech Toggle
   const toggleSpeech = () => {
     if (!selectedPlanet) return;
+    const synth = synthRef.current;
+    if (!synth) return;
 
     if (isSpeaking) {
-      synthRef.current.cancel();
+      synth.cancel();
       setIsSpeaking(false);
     } else {
       // 1. Construct "TV Host" Script
@@ -142,7 +149,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
       utterance.onerror = () => setIsSpeaking(false);
 
       // 5. Speak
-      synthRef.current.speak(utterance);
+      synth.speak(utterance);
       setIsSpeaking(true);
     }
   };
@@ -173,7 +180,6 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
   const travelInfo = selectedPlanet ? calculateTravelTime(selectedPlanet) : null;
 
   // Determine if we should show travel time (Not for Earth, Sun, or Moons)
-  const MOON_IDS = ['io', 'europa', 'ganymede', 'callisto', 'moon', 'titan', 'enceladus', 'mimas', 'iapetus'];
   const isMoon = selectedPlanet && MOON_IDS.includes(selectedPlanet.id);
   // 天宫空间站距地仅 400km，旅行时间换算无意义，一并排除
   const showTravelTime = selectedPlanet && selectedPlanet.id !== 'earth' && selectedPlanet.id !== 'sun' && selectedPlanet.id !== 'tiangong' && !isMoon;
@@ -324,8 +330,8 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                         fontFamily: '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
                         textShadow: '0 4px 0 rgba(0,0,0,0.3), 0 0 15px rgba(255,255,255,0.2)'
                       }}>
-                    <span className="bg-gradient-to-br from-yellow-300 via-orange-400 to-red-400 bg-clip-text text-transparent filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">漫游</span>
-                    <span className="bg-gradient-to-br from-cyan-300 via-blue-500 to-purple-500 bg-clip-text text-transparent filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">太阳系</span>
+                    <span className="bg-linear-to-br from-yellow-300 via-orange-400 to-red-400 bg-clip-text text-transparent filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">漫游</span>
+                    <span className="bg-linear-to-br from-cyan-300 via-blue-500 to-purple-500 bg-clip-text text-transparent filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">太阳系</span>
                   </h1>
                </div>
             </div>
@@ -371,8 +377,8 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                           <span className="text-[10px] font-bold text-cyan-100/70 ml-4 font-mono">时光引擎</span>
                       </div>
                       <div className="p-3 flex items-center gap-4">
-                          <div className="flex flex-col items-end min-w-[3.5rem]">
-                              <span className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 to-white leading-none drop-shadow-md" style={{ fontFamily: 'monospace' }}>
+                          <div className="flex flex-col items-end min-w-14">
+                              <span className="text-3xl font-black italic text-transparent bg-clip-text bg-linear-to-r from-cyan-200 to-white leading-none drop-shadow-md" style={{ fontFamily: 'monospace' }}>
                                 {simulationSpeed}<span className="text-sm text-cyan-400 not-italic ml-0.5">x</span>
                               </span>
                               <span className="text-[9px] text-cyan-300/80 tracking-[0.2em] uppercase mt-1 font-bold">Speed</span>
@@ -404,7 +410,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
 
         {/* Planet Info Card (Right Side) */}
         {selectedPlanet && (
-          <div className="pointer-events-auto self-end sm:self-auto sm:absolute sm:right-6 sm:top-28 sm:w-[380px] w-full max-h-[calc(100vh-160px)] flex flex-col animate-pop-up z-50">
+          <div className="pointer-events-auto self-end sm:self-auto sm:absolute sm:right-6 sm:top-28 sm:w-95 w-full max-h-[calc(100vh-160px)] flex flex-col animate-pop-up z-50">
             
             <div className="bg-slate-900/90 space-card-border rounded-3xl p-1 shadow-2xl relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-20 pointer-events-none">
@@ -426,7 +432,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                 </button>
 
                 <div className="flex items-center gap-3 mb-4 z-10">
-                   <div className={`w-14 h-14 rounded-full border-2 border-white/30 shadow-[0_0_15px_rgba(255,255,255,0.2)] bg-gradient-to-br from-indigo-500 to-purple-700 flex items-center justify-center text-3xl`}>
+                   <div className={`w-14 h-14 rounded-full border-2 border-white/30 shadow-[0_0_15px_rgba(255,255,255,0.2)] bg-linear-to-br from-indigo-500 to-purple-700 flex items-center justify-center text-3xl`}>
                      {getPlanetTheme(selectedPlanet).icon}
                    </div>
                    <div>
@@ -442,7 +448,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                    </div>
                 </div>
 
-                <div className="flex-grow overflow-y-auto pr-2 pika-scrollbar space-y-4">
+                <div className="grow overflow-y-auto pr-2 pika-scrollbar space-y-4">
                   
                   {/* Stats Grid */}
                   <div className="grid grid-cols-2 gap-2">
@@ -486,17 +492,17 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                        <div className="space-y-3">
                           <div className="flex items-center gap-2">
                              <span className="text-[10px] font-bold text-gray-400 w-12 text-right">光速</span>
-                             <div className="flex-grow h-2 bg-gray-800 rounded-full overflow-hidden relative"><div className="absolute top-0 left-0 h-full bg-yellow-400 w-full animate-pulse shadow-[0_0_10px_#facc15]"></div></div>
+                             <div className="grow h-2 bg-gray-800 rounded-full overflow-hidden relative"><div className="absolute top-0 left-0 h-full bg-yellow-400 w-full animate-pulse shadow-[0_0_10px_#facc15]"></div></div>
                              <span className="text-[10px] font-mono text-yellow-400 w-16 text-right">{travelInfo.lightMinutes} 分</span>
                           </div>
                           <div className="flex items-center gap-2">
                              <span className="text-[10px] font-bold text-gray-400 w-12 text-right">火箭</span>
-                             <div className="flex-grow h-2 bg-gray-800 rounded-full overflow-hidden relative"><div className="absolute top-0 left-0 h-full bg-red-500 w-[70%]"></div></div>
+                             <div className="grow h-2 bg-gray-800 rounded-full overflow-hidden relative"><div className="absolute top-0 left-0 h-full bg-red-500 w-[70%]"></div></div>
                              <span className="text-[10px] font-mono text-red-400 w-16 text-right">{travelInfo.rocketTimeDisplay}</span>
                           </div>
                           <div className="flex items-center gap-2">
                              <span className="text-[10px] font-bold text-gray-400 w-12 text-right">飞机</span>
-                             <div className="flex-grow h-2 bg-gray-800 rounded-full overflow-hidden relative"><div className="absolute top-0 left-0 h-full bg-blue-500 w-[20%]"></div></div>
+                             <div className="grow h-2 bg-gray-800 rounded-full overflow-hidden relative"><div className="absolute top-0 left-0 h-full bg-blue-500 w-[20%]"></div></div>
                              <span className="text-[10px] font-mono text-blue-400 w-16 text-right">{travelInfo.planeYears} 年</span>
                           </div>
                        </div>
