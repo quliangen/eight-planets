@@ -8,6 +8,7 @@ import { generatePlanetTexture, generateRingTexture, generateChinaFlagTexture } 
 import { getSharedGlowTexture } from '../utils/textures';
 import { JUPITER_MOONS, SATURN_MOONS, MOON_DATA, TIANGONG_DATA } from '../constants';
 import TechLabel from './TechLabel';
+import { EarthAtmosphere, EarthSurfaceMaterial } from './Earth';
 
 interface PlanetProps {
   data: PlanetData;
@@ -363,8 +364,11 @@ export const Planet: React.FC<PlanetProps> = ({
   const [hovered, setHovered] = useState(false);
   const clickStartRef = useRef({ x: 0, y: 0 });
 
-  const textureUrl = useMemo(() => generatePlanetTexture(data), [data]);
+  const isEarth = data.id === 'earth';
+  // 地球使用官方 4K 贴图，由 EarthSurfaceMaterial 自行按需加载。
+  const textureUrl = useMemo(() => isEarth ? null : generatePlanetTexture(data), [data, isEarth]);
   const texture = useMemo(() => {
+    if (!textureUrl) return null;
     const t = new TextureLoader().load(textureUrl);
     // SVG 程序化贴图是 sRGB 颜色；three r152+ 默认 NoColorSpace（线性），行星表面会发白
     t.colorSpace = SRGBColorSpace;
@@ -383,7 +387,7 @@ export const Planet: React.FC<PlanetProps> = ({
   const glowTexture = getSharedGlowTexture();
 
   // 行星/环纹理在组件卸载（如冥王星开关）时释放，避免 GPU 内存泄漏
-  useEffect(() => () => texture.dispose(), [texture]);
+  useEffect(() => () => { texture?.dispose(); }, [texture]);
   useEffect(() => () => { ringTexture?.dispose(); }, [ringTexture]);
 
   // 基于行星ID生成固定的初始角度 (0-2π)，确保刷新后位置一致
@@ -460,8 +464,14 @@ export const Planet: React.FC<PlanetProps> = ({
                 onPointerOut={() => { document.body.style.cursor = 'auto'; setHovered(false); }}
               >
                 <sphereGeometry args={[data.size, 64, 64]} />
-                <meshStandardMaterial map={texture} roughness={0.8} metalness={0.2} />
+                {isEarth ? (
+                  <EarthSurfaceMaterial />
+                ) : (
+                  <meshStandardMaterial map={texture} roughness={0.8} metalness={0.2} />
+                )}
               </mesh>
+
+              {isEarth && <EarthAtmosphere radius={data.size} />}
 
               {data.hasRings && ringTexture && (
                 <mesh rotation={[-Math.PI / 2, 0, 0]}>
@@ -471,7 +481,7 @@ export const Planet: React.FC<PlanetProps> = ({
               )}
             </group>
 
-            {data.atmosphereColor && (
+            {data.atmosphereColor && !isEarth && (
               <Billboard>
                 <mesh raycast={() => null}>
                   <planeGeometry args={[data.size * 2.5, data.size * 2.5]} />
